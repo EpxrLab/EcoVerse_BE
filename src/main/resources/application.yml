@@ -4,13 +4,9 @@ spring:
   application:
     name: EcoVerse_be
   datasource:
-#    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/eco_verse_db}
-#    username: ${POSTGRES_USERNAME:postgres}
-#    password: ${POSTGRES_PASSWORD:postgres}
-#    driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres
-    username: postgres.uctsbqsxpgoiicabeyxs
-    password: StrongP@ssword@123456
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/eco_verse_db}
+    username: ${POSTGRES_USERNAME:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
