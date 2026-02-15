@@ -3,10 +3,22 @@ server:
 spring:
   application:
     name: EcoVerse_be
-  data:
-    mongodb:
-      uri: ${MONGODB_URI}
-      database: ${MONGODB_DATABASE:eco_verse_db}
+  datasource:
+#    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/eco_verse_db}
+#    username: ${POSTGRES_USERNAME:postgres}
+#    password: ${POSTGRES_PASSWORD:postgres}
+#    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres
+    username: postgres.uctsbqsxpgoiicabeyxs
+    password: StrongP@ssword@123456
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
   servlet:
     multipart:
       max-file-size: 100MB
@@ -15,6 +27,5 @@ spring:
 #logging:
 #  level:
 #    root: warn
-#    org.springframework.data.mongodb: INFO
 #    org.springframework.security: INFO
 #    org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer: ERROR

@@ -73,9 +73,8 @@ public class TokenServiceImpl implements ITokenService {
                     .parseSignedClaims(token)
                     .getPayload();
 
-            String idString = claims.getSubject();
-            // Sử dụng findById cho MongoDB
-            return accountRepository.findById(idString)
+            Long id = Long.parseLong(claims.getSubject());
+            return accountRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản"));
         } catch (ExpiredJwtException e) {
             throw new RuntimeException("Token đã hết hạn. Vui lòng đăng nhập lại.");

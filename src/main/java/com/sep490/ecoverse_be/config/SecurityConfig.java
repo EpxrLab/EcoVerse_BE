@@ -31,9 +31,9 @@ public class SecurityConfig {
     @Autowired
     private JwtFilter jwtFilter;
 
-//    @Autowired
-//    @Lazy
-//    private IAuthenticationService authenticationService;
+    @Autowired
+    @Lazy
+    private IAuthenticationService authenticationService;
 
     // Bean này xử lý X-Forwarded-* headers từ Railway proxy
     // Giúp Spring hiểu đúng scheme (HTTPS) và host khi đứng sau proxy
@@ -103,14 +103,10 @@ public class SecurityConfig {
     }
 
     @Bean
-    @SuppressWarnings("deprecation")
     public AuthenticationProvider authenticationProvider() {
-//        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-//        // IAuthenticationService now extends UserDetailsService
-//        provider.setUserDetailsService(authenticationService);
-//        provider.setPasswordEncoder(new BCryptPasswordEncoder(12));
-//        return provider;
-        return null;
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(authenticationService);
+        provider.setPasswordEncoder(new BCryptPasswordEncoder(12));
+        return provider;
     }
 
     @Bean
