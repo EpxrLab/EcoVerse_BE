@@ -34,3 +34,6 @@ build/
 
 .env
 
+# Claude Code temp files
+nul
+tmpclaude-*

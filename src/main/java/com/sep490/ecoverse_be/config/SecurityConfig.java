@@ -1,6 +1,5 @@
 package com.sep490.ecoverse_be.config;
 
-
 import com.sep490.ecoverse_be.service.IAuthenticationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -35,18 +34,15 @@ public class SecurityConfig {
     @Lazy
     private IAuthenticationService authenticationService;
 
-    // Bean này xử lý X-Forwarded-* headers từ Railway proxy
-    // Giúp Spring hiểu đúng scheme (HTTPS) và host khi đứng sau proxy
     @Bean
     public ForwardedHeaderFilter forwardedHeaderFilter() {
         return new ForwardedHeaderFilter();
     }
 
-//    @Autowired
-//    private CustomOAuth2UserService oauth2UserService;
-//
-//    @Autowired
-//    private OAuth2SuccessHandler successHandler;
+    @Bean
+    public BCryptPasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(12);
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -54,27 +50,10 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(req -> req
-                        // Cho phép OPTIONS preflight requests để CORS hoạt động
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(
-                                "/api/auth/login",
-                                "/api/auth/register",
-                                "/api/auth/forgot-password",
-                                "/api/loginByGoogle",
-                                "/oauth2/authorization/**",
-                                "/login/oauth2/code/**",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/api/otp/verify-register",
-                                "/api/otp/verify-reset-password"
-                        ).permitAll()
+                        .requestMatchers(AppConstants.PUBLIC_URLS).permitAll()
                         .anyRequest().authenticated()
                 )
-//                .oauth2Login(oauth2 -> oauth2
-//                        .loginPage("http://localhost:5173/login") // Cập nhật cho FE local, Vercel có thể chỉnh env sau
-//                        .userInfoEndpoint(userInfo -> userInfo.userService(oauth2UserService))
-//                        .successHandler(successHandler)
-//                )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
@@ -85,9 +64,8 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOriginPatterns(List.of(
-                "http://localhost:8080"
+                "http://localhost:5173"
         ));
-        // Thêm PATCH và OPTIONS cho đầy đủ REST operations
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of(
@@ -105,7 +83,7 @@ public class SecurityConfig {
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider(authenticationService);
-        provider.setPasswordEncoder(new BCryptPasswordEncoder(12));
+        provider.setPasswordEncoder(passwordEncoder());
         return provider;
     }
 

@@ -1,10 +1,10 @@
 package com.sep490.ecoverse_be.service.impl;
 
 import com.sep490.ecoverse_be.entity.Account;
+import com.sep490.ecoverse_be.model.UserPrincipal;
 import com.sep490.ecoverse_be.repository.AccountRepository;
 import com.sep490.ecoverse_be.service.IAuthenticationService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
@@ -18,12 +18,8 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         Account account = accountRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy tài khoản với email: " + email));
+                .orElseThrow(() -> new UsernameNotFoundException("Account not found with email: " + email));
 
-        return new User(
-                account.getEmail(),
-                account.getPassword(),
-                account.getAuthorities()
-        );
+        return new UserPrincipal(account);
     }
 }

@@ -1,35 +1,45 @@
 package com.sep490.ecoverse_be.service.impl;
 
-
+import com.sep490.ecoverse_be.dto.response.AuthResponse;
 import com.sep490.ecoverse_be.entity.Account;
 import com.sep490.ecoverse_be.repository.AccountRepository;
 import com.sep490.ecoverse_be.service.ITokenService;
-import io.github.cdimascio.dotenv.Dotenv;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class TokenServiceImpl implements ITokenService {
-    // Danh sách lưu token bị hủy cùng thời gian hết hạn
-    private Map<String, Date> blacklistedTokens = new HashMap<>();
-    private final Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
+
+    private static final String BLACKLIST_PREFIX = "token:blacklist:";
+    private static final String REFRESH_TOKEN_PREFIX = "refresh_token:";
+
+    @Value("${app.jwt.secret-key}")
+    private String secretKey;
+
+    @Value("${app.jwt.access-token-expiration}")
+    private long accessTokenExpiration;
+
+    @Value("${app.jwt.refresh-token-expiration}")
+    private long refreshTokenExpiration;
 
     @Autowired
-    AccountRepository accountRepository;
+    private AccountRepository accountRepository;
 
-    public final String secretKey = dotenv.get("SECRET_KEY");
+    @Autowired
+    private StringRedisTemplate redisTemplate;
 
     private SecretKey getSignKey() {
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
@@ -39,31 +49,36 @@ public class TokenServiceImpl implements ITokenService {
     @Override
     public String generateToken(Account account) {
         return Jwts.builder()
-                .subject(account.getId() + "")
+                .subject(account.getId().toString())
+                .claim("role", account.getRole().name())
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60)) // Token sống trong 60 phút
+                .expiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
                 .signWith(getSignKey())
                 .compact();
     }
 
     @Override
     public void invalidateToken(String token) {
-        Claims claims = Jwts.parser()
-                .verifyWith(getSignKey())
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-
-        // Lưu token vào danh sách đen với thời gian hết hạn
-        blacklistedTokens.put(token, claims.getExpiration());
+        try {
+            Claims claims = extractAllClaims(token);
+            long ttl = claims.getExpiration().getTime() - System.currentTimeMillis();
+            if (ttl > 0) {
+                redisTemplate.opsForValue().set(
+                        BLACKLIST_PREFIX + token,
+                        "blacklisted",
+                        ttl,
+                        TimeUnit.MILLISECONDS
+                );
+            }
+        } catch (ExpiredJwtException e) {
+            // Token already expired, no need to blacklist
+        }
     }
 
     @Override
     public Account getAccountByToken(String token) {
-        cleanUpBlacklistedTokens(); // Xóa các token đã hết hạn trước khi kiểm tra
-
-        if (blacklistedTokens.containsKey(token)) {
-            throw new RuntimeException("Token này đã bị hủy.");
+        if (isTokenBlacklisted(token)) {
+            throw new RuntimeException("Token has been invalidated.");
         }
 
         try {
@@ -75,18 +90,17 @@ public class TokenServiceImpl implements ITokenService {
 
             Long id = Long.parseLong(claims.getSubject());
             return accountRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản"));
+                    .orElseThrow(() -> new RuntimeException("Account not found."));
         } catch (ExpiredJwtException e) {
-            throw new RuntimeException("Token đã hết hạn. Vui lòng đăng nhập lại.");
+            throw new RuntimeException("Token has expired. Please login again.");
         } catch (Exception e) {
-            throw new RuntimeException("Token không hợp lệ.");
+            throw new RuntimeException("Invalid token.");
         }
     }
 
     @Override
     public boolean isTokenBlacklisted(String token) {
-        cleanUpBlacklistedTokens(); // Xóa các token đã hết hạn trước khi kiểm tra
-        return blacklistedTokens.containsKey(token);
+        return Boolean.TRUE.equals(redisTemplate.hasKey(BLACKLIST_PREFIX + token));
     }
 
     @Override
@@ -123,33 +137,50 @@ public class TokenServiceImpl implements ITokenService {
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
     }
 
-    /**
-     * Xóa các token đã hết hạn khỏi danh sách đen
-     */
-    private void cleanUpBlacklistedTokens() {
-        Iterator<Map.Entry<String, Date>> iterator = blacklistedTokens.entrySet().iterator();
-        Date now = new Date();
-
-        while (iterator.hasNext()) {
-            Map.Entry<String, Date> entry = iterator.next();
-            // Nếu token đã hết hạn, loại bỏ nó khỏi danh sách đen
-            if (entry.getValue().before(now)) {
-                iterator.remove();
-            }
-        }
-    }
-
-    /**
-     * Kiểm tra token có hết hạn không
-     */
     private boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
 
-    /**
-     * Extract expiration date từ token
-     */
     private Date extractExpiration(String token) {
         return extractClaims(token, Claims::getExpiration);
+    }
+
+    @Override
+    public String generateRefreshToken(Account account) {
+        String refreshToken = UUID.randomUUID().toString();
+        redisTemplate.opsForValue().set(
+                REFRESH_TOKEN_PREFIX + refreshToken,
+                account.getId().toString(),
+                refreshTokenExpiration,
+                TimeUnit.MILLISECONDS
+        );
+        return refreshToken;
+    }
+
+    @Override
+    public AuthResponse refreshAccessToken(String refreshToken) {
+        String accountId = redisTemplate.opsForValue().get(REFRESH_TOKEN_PREFIX + refreshToken);
+        if (accountId == null) {
+            throw new RuntimeException("Refresh token is invalid or expired.");
+        }
+
+        // Xóa refresh token cũ (rotation)
+        redisTemplate.delete(REFRESH_TOKEN_PREFIX + refreshToken);
+
+        Account account = accountRepository.findById(Long.parseLong(accountId))
+                .orElseThrow(() -> new RuntimeException("Account not found."));
+
+        String newAccessToken = generateToken(account);
+        String newRefreshToken = generateRefreshToken(account);
+
+        return AuthResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
+                .build();
+    }
+
+    @Override
+    public void deleteRefreshToken(String refreshToken) {
+        redisTemplate.delete(REFRESH_TOKEN_PREFIX + refreshToken);
     }
 }

@@ -1,5 +1,6 @@
 package com.sep490.ecoverse_be.service;
 
+import com.sep490.ecoverse_be.dto.response.AuthResponse;
 import com.sep490.ecoverse_be.entity.Account;
 import io.jsonwebtoken.Claims;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -74,5 +75,25 @@ public interface ITokenService {
      * @return boolean True nếu token hợp lệ
      */
     boolean validateToken(String token, UserDetails userDetails);
+
+    /**
+     * Tạo refresh token cho account, lưu vào Redis
+     * @param account Tài khoản cần tạo refresh token
+     * @return String Refresh token
+     */
+    String generateRefreshToken(Account account);
+
+    /**
+     * Dùng refresh token để lấy access token mới + refresh token mới (rotation)
+     * @param refreshToken Refresh token hiện tại
+     * @return AuthResponse chứa accessToken và refreshToken mới
+     */
+    AuthResponse refreshAccessToken(String refreshToken);
+
+    /**
+     * Xóa refresh token khỏi Redis (dùng khi logout)
+     * @param refreshToken Refresh token cần xóa
+     */
+    void deleteRefreshToken(String refreshToken);
 }
 

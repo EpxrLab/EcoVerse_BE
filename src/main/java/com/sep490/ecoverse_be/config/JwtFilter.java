@@ -1,6 +1,8 @@
 package com.sep490.ecoverse_be.config;
 
 import com.sep490.ecoverse_be.entity.Account;
+import com.sep490.ecoverse_be.enums.AccountStatus;
+import com.sep490.ecoverse_be.model.UserPrincipal;
 import com.sep490.ecoverse_be.service.ITokenService;
 import jakarta.security.auth.message.AuthException;
 import jakarta.servlet.FilterChain;
@@ -19,33 +21,24 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.Arrays;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
+
     @Autowired
     @Lazy
     private ITokenService tokenService;
 
     @Autowired
     @Qualifier("handlerExceptionResolver")
-    HandlerExceptionResolver handlerExceptionResolver;
+    private HandlerExceptionResolver handlerExceptionResolver;
 
-    private final List<String> AUTH_PERMISSION = List.of(
-            "/swagger-ui/**",
-            "/v3/api-docs/**",
-            "/swagger-resources/**",
-            "/api/auth/login",
-            "/api/auth/register",
-            "/api/auth/forgot-password",
-            "/api/loginByGoogle",
-            "/oauth2/authorization/**",
-            "/login/oauth2/code/**"
-    );
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     public boolean checkIsPublicAPI(String uri) {
-        AntPathMatcher pathMatch = new AntPathMatcher();
-        return AUTH_PERMISSION.stream().anyMatch(pattern -> pathMatch.match(pattern, uri));
+        return Arrays.stream(AppConstants.PUBLIC_URLS)
+                .anyMatch(pattern -> pathMatcher.match(pattern, uri));
     }
 
     @Override
@@ -62,15 +55,24 @@ public class JwtFilter extends OncePerRequestFilter {
             }
 
             try {
-                // Kiểm tra token trong danh sách đen
                 if (tokenService.isTokenBlacklisted(token)) {
-                    handlerExceptionResolver.resolveException(request, response, null, new AuthException("Token này đã bị hủy!"));
+                    handlerExceptionResolver.resolveException(request, response, null, new AuthException("Token has been invalidated!"));
                     return;
                 }
 
                 Account account = tokenService.getAccountByToken(token);
+
+                // Check account status
+                if (!Boolean.TRUE.equals(account.getIsActive())
+                        || account.getStatus() != AccountStatus.ACTIVE) {
+                    handlerExceptionResolver.resolveException(request, response, null,
+                            new AuthException("Account is not active or has been suspended"));
+                    return;
+                }
+
+                UserPrincipal principal = new UserPrincipal(account);
                 UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-                        account, token, account.getAuthorities());
+                        principal, token, principal.getAuthorities());
                 authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authenticationToken);
                 filterChain.doFilter(request, response);
