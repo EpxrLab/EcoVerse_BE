@@ -4,17 +4,14 @@ import com.sep490.ecoverse_be.dto.request.LoginRequest;
 import com.sep490.ecoverse_be.dto.request.RefreshTokenRequest;
 import com.sep490.ecoverse_be.dto.response.AuthResponse;
 import com.sep490.ecoverse_be.dto.response.ResponseDto;
-import com.sep490.ecoverse_be.entity.Account;
+import com.sep490.ecoverse_be.exception.DisabledException;
+import com.sep490.ecoverse_be.service.IAuthenticationService;
 import com.sep490.ecoverse_be.service.ITokenService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import com.sep490.ecoverse_be.model.UserPrincipal;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -24,30 +21,20 @@ public class AuthenticationController {
     private ITokenService tokenService;
 
     @Autowired
-    private AuthenticationManager authenticationManager;
+    private IAuthenticationService authenticationService;
 
     @PostMapping("/login")
-    public ResponseEntity<ResponseDto<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
-
-        if (!authentication.isAuthenticated()) {
-            throw new BadCredentialsException("Invalid email or password.");
+    public ResponseDto<AuthResponse> loginForSchoolAndPartnerShip(@Valid @RequestBody LoginRequest request) {
+        try {
+            AuthResponse authResponse = authenticationService.login(request);
+            return new ResponseDto<>(HttpStatus.OK.value(), "Đăng nhập thành công", authResponse);
+        } catch (DisabledException e) {
+            return new ResponseDto<>(HttpStatus.FORBIDDEN.value(), e.getMessage(), null);
+        } catch (RuntimeException e) {
+            return new ResponseDto<>(HttpStatus.UNAUTHORIZED.value(), e.getMessage(), null);
+        } catch (Exception e) {
+            return new ResponseDto<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), e.getMessage(), null);
         }
-
-        var principal = authentication.getPrincipal();
-        Account account = principal.getAccount();
-
-        String accessToken = tokenService.generateToken(account);
-        String refreshToken = tokenService.generateRefreshToken(account);
-
-        AuthResponse authResponse = AuthResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .build();
-
-        return ResponseEntity.ok(ResponseDto.success(authResponse, "Login successful."));
     }
 
     @PostMapping("/refresh")
@@ -57,18 +44,18 @@ public class AuthenticationController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<ResponseDto<Void>> logout(
-            @RequestHeader("Authorization") String authHeader,
+    public ResponseDto<String> logout(
+            @RequestHeader("Authorization") String token,
             @RequestBody(required = false) RefreshTokenRequest request) {
-        String accessToken = tokenService.getToken(authHeader);
-        if (accessToken != null) {
-            tokenService.invalidateToken(accessToken);
-        }
 
-        if (request != null && request.getRefreshToken() != null) {
-            tokenService.deleteRefreshToken(request.getRefreshToken());
+        if (token.startsWith("Bearer ")) {
+            token = token.substring(7);
         }
+        authenticationService.logout(token, request);
 
-        return ResponseEntity.ok(ResponseDto.success(null, "Logout successful."));
+        return ResponseDto.<String>builder()
+                .status(HttpStatus.OK.value())
+                .message("Đăng xuất thành công")
+                .build();
     }
 }

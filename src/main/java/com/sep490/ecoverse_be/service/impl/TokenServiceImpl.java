@@ -1,8 +1,8 @@
 package com.sep490.ecoverse_be.service.impl;
 
 import com.sep490.ecoverse_be.dto.response.AuthResponse;
-import com.sep490.ecoverse_be.entity.Account;
-import com.sep490.ecoverse_be.repository.AccountRepository;
+import com.sep490.ecoverse_be.entity.User;
+import com.sep490.ecoverse_be.repository.UserRepository;
 import com.sep490.ecoverse_be.service.ITokenService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -36,7 +36,7 @@ public class TokenServiceImpl implements ITokenService {
     private long refreshTokenExpiration;
 
     @Autowired
-    private AccountRepository accountRepository;
+    private UserRepository userRepository;
 
     @Autowired
     private StringRedisTemplate redisTemplate;
@@ -47,10 +47,10 @@ public class TokenServiceImpl implements ITokenService {
     }
 
     @Override
-    public String generateToken(Account account) {
+    public String generateToken(User user) {
         return Jwts.builder()
-                .subject(account.getId().toString())
-                .claim("role", account.getRole().name())
+                .subject(user.getId().toString())
+                .claim("role", user.getRole().name())
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
                 .signWith(getSignKey())
@@ -76,7 +76,7 @@ public class TokenServiceImpl implements ITokenService {
     }
 
     @Override
-    public Account getAccountByToken(String token) {
+    public User getUserByToken(String token) {
         if (isTokenBlacklisted(token)) {
             throw new RuntimeException("Token has been invalidated.");
         }
@@ -89,7 +89,7 @@ public class TokenServiceImpl implements ITokenService {
                     .getPayload();
 
             Long id = Long.parseLong(claims.getSubject());
-            return accountRepository.findById(id)
+            return userRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Account not found."));
         } catch (ExpiredJwtException e) {
             throw new RuntimeException("Token has expired. Please login again.");
@@ -146,11 +146,11 @@ public class TokenServiceImpl implements ITokenService {
     }
 
     @Override
-    public String generateRefreshToken(Account account) {
+    public String generateRefreshToken(User user) {
         String refreshToken = UUID.randomUUID().toString();
         redisTemplate.opsForValue().set(
                 REFRESH_TOKEN_PREFIX + refreshToken,
-                account.getId().toString(),
+                user.getId().toString(),
                 refreshTokenExpiration,
                 TimeUnit.MILLISECONDS
         );
@@ -159,19 +159,19 @@ public class TokenServiceImpl implements ITokenService {
 
     @Override
     public AuthResponse refreshAccessToken(String refreshToken) {
-        String accountId = redisTemplate.opsForValue().get(REFRESH_TOKEN_PREFIX + refreshToken);
-        if (accountId == null) {
+        String userId = redisTemplate.opsForValue().get(REFRESH_TOKEN_PREFIX + refreshToken);
+        if (userId == null) {
             throw new RuntimeException("Refresh token is invalid or expired.");
         }
 
         // Xóa refresh token cũ (rotation)
         redisTemplate.delete(REFRESH_TOKEN_PREFIX + refreshToken);
 
-        Account account = accountRepository.findById(Long.parseLong(accountId))
+        User user = userRepository.findById(Long.parseLong(userId))
                 .orElseThrow(() -> new RuntimeException("Account not found."));
 
-        String newAccessToken = generateToken(account);
-        String newRefreshToken = generateRefreshToken(account);
+        String newAccessToken = generateToken(user);
+        String newRefreshToken = generateRefreshToken(user);
 
         return AuthResponse.builder()
                 .accessToken(newAccessToken)

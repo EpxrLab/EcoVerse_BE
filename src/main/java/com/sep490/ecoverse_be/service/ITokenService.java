@@ -1,7 +1,7 @@
 package com.sep490.ecoverse_be.service;
 
 import com.sep490.ecoverse_be.dto.response.AuthResponse;
-import com.sep490.ecoverse_be.entity.Account;
+import com.sep490.ecoverse_be.entity.User;
 import io.jsonwebtoken.Claims;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -13,11 +13,11 @@ import org.springframework.security.core.userdetails.UserDetails;
 public interface ITokenService {
 
     /**
-     * Tạo JWT token mới cho account
-     * @param account Tài khoản cần tạo token
+     * Tạo JWT token mới cho user
+     * @param user Tài khoản cần tạo token
      * @return String JWT token
      */
-    String generateToken(Account account);
+    String generateToken(User user);
 
     /**
      * Đưa token vào danh sách đen (vô hiệu hóa token)
@@ -26,11 +26,11 @@ public interface ITokenService {
     void invalidateToken(String token);
 
     /**
-     * Lấy thông tin Account từ token
+     * Lấy thông tin User từ token
      * @param token JWT token
-     * @return Account Thông tin tài khoản
+     * @return User Thông tin tài khoản
      */
-    Account getAccountByToken(String token);
+    User getUserByToken(String token);
 
     /**
      * Kiểm tra token có bị blacklist không
@@ -77,11 +77,11 @@ public interface ITokenService {
     boolean validateToken(String token, UserDetails userDetails);
 
     /**
-     * Tạo refresh token cho account, lưu vào Redis
-     * @param account Tài khoản cần tạo refresh token
+     * Tạo refresh token cho user, lưu vào Redis
+     * @param user Tài khoản cần tạo refresh token
      * @return String Refresh token
      */
-    String generateRefreshToken(Account account);
+    String generateRefreshToken(User user);
 
     /**
      * Dùng refresh token để lấy access token mới + refresh token mới (rotation)
