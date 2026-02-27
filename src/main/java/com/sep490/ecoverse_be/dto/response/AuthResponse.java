@@ -9,7 +9,11 @@ import lombok.*;
 @NoArgsConstructor
 public class AuthResponse {
 
-    private String accessToken;
-
+    private String id;
+    private String email;
+    private String userName;
+    private String role;
+    private String token;
     private String refreshToken;
+    boolean isActive;
 }

@@ -63,8 +63,7 @@ public class JwtFilter extends OncePerRequestFilter {
                 User user = tokenService.getUserByToken(token);
 
                 // Check account status
-                if (!Boolean.TRUE.equals(user.getIsActive())
-                        || user.getStatus() != AccountStatus.ACTIVE) {
+                if (user.getStatus() != AccountStatus.ACTIVE) {
                     handlerExceptionResolver.resolveException(request, response, null,
                             new AuthException("Account is not active or has been suspended"));
                     return;
