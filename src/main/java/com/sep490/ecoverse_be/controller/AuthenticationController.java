@@ -4,7 +4,7 @@ import com.sep490.ecoverse_be.dto.request.LoginRequest;
 import com.sep490.ecoverse_be.dto.request.RefreshTokenRequest;
 import com.sep490.ecoverse_be.dto.response.AuthResponse;
 import com.sep490.ecoverse_be.dto.response.ResponseDto;
-import com.sep490.ecoverse_be.entity.Account;
+import com.sep490.ecoverse_be.entity.User;
 import com.sep490.ecoverse_be.service.ITokenService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,11 +36,11 @@ public class AuthenticationController {
             throw new BadCredentialsException("Invalid email or password.");
         }
 
-        var principal = authentication.getPrincipal();
-        Account account = principal.getAccount();
+        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+        User user = principal.getUser();
 
-        String accessToken = tokenService.generateToken(account);
-        String refreshToken = tokenService.generateRefreshToken(account);
+        String accessToken = tokenService.generateToken(user);
+        String refreshToken = tokenService.generateRefreshToken(user);
 
         AuthResponse authResponse = AuthResponse.builder()
                 .accessToken(accessToken)

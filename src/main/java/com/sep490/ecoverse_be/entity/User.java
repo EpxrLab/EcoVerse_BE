@@ -40,6 +40,9 @@ public class User extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private AccountStatus status = AccountStatus.PENDING;
 
+    @Column(name = "is_active")
+    private Boolean isActive = true;
+
     private String otpCode;
 
     private LocalDateTime lastLoginAt;

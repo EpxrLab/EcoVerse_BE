@@ -1,6 +1,6 @@
 package com.sep490.ecoverse_be.config;
 
-import com.sep490.ecoverse_be.entity.Account;
+import com.sep490.ecoverse_be.entity.User;
 import com.sep490.ecoverse_be.enums.AccountStatus;
 import com.sep490.ecoverse_be.model.UserPrincipal;
 import com.sep490.ecoverse_be.service.ITokenService;
@@ -60,17 +60,17 @@ public class JwtFilter extends OncePerRequestFilter {
                     return;
                 }
 
-                Account account = tokenService.getAccountByToken(token);
+                User user = tokenService.getUserByToken(token);
 
                 // Check account status
-                if (!Boolean.TRUE.equals(account.getIsActive())
-                        || account.getStatus() != AccountStatus.ACTIVE) {
+                if (!Boolean.TRUE.equals(user.getIsActive())
+                        || user.getStatus() != AccountStatus.ACTIVE) {
                     handlerExceptionResolver.resolveException(request, response, null,
                             new AuthException("Account is not active or has been suspended"));
                     return;
                 }
 
-                UserPrincipal principal = new UserPrincipal(account);
+                UserPrincipal principal = new UserPrincipal(user);
                 UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
                         principal, token, principal.getAuthorities());
                 authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

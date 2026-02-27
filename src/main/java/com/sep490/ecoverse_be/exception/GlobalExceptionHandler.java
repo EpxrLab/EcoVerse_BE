@@ -10,6 +10,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -56,11 +57,25 @@ public class GlobalExceptionHandler {
                 .body(ResponseDto.unauthorized("Invalid email or password."));
     }
 
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ResponseDto<Void>> handleResourceNotFoundException(ResourceNotFoundException ex) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ResponseDto.notFound(ex.getMessage()));
+    }
+
     @ExceptionHandler(FuncErrorException.class)
     public ResponseEntity<ResponseDto<Void>> handleFuncErrorException(FuncErrorException ex) {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(ResponseDto.badRequest(null, ex.getMessage()));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ResponseDto<Void>> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ResponseDto.badRequest(null, "File size exceeds the maximum allowed size (100MB)."));
     }
 
     @ExceptionHandler(RuntimeException.class)

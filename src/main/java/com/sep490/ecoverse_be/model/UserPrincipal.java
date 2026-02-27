@@ -1,6 +1,6 @@
 package com.sep490.ecoverse_be.model;
 
-import com.sep490.ecoverse_be.entity.Account;
+import com.sep490.ecoverse_be.entity.User;
 import com.sep490.ecoverse_be.enums.AccountStatus;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -13,21 +13,21 @@ import java.util.Collection;
 @AllArgsConstructor
 public class UserPrincipal implements UserDetails {
 
-    private final Account account;
+    private final User user;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return account.getAuthorities();
+        return user.getAuthorities();
     }
 
     @Override
     public String getPassword() {
-        return account.getPassword();
+        return user.getPasswordHash();
     }
 
     @Override
     public String getUsername() {
-        return account.getEmail();
+        return user.getEmail();
     }
 
     @Override
@@ -37,7 +37,7 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return account.getStatus() != AccountStatus.SUSPENDED;
+        return user.getStatus() != AccountStatus.SUSPENDED;
     }
 
     @Override
@@ -47,7 +47,7 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return Boolean.TRUE.equals(account.getIsActive())
-                && account.getStatus() == AccountStatus.ACTIVE;
+        return Boolean.TRUE.equals(user.getIsActive())
+                && user.getStatus() == AccountStatus.ACTIVE;
     }
 }
