@@ -108,7 +108,7 @@ public class TokenServiceImpl implements ITokenService {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return null;
         }
-        return authHeader.substring(7); // Bỏ qua "Bearer "
+        return authHeader.substring(7);
     }
 
     @Override
@@ -164,7 +164,6 @@ public class TokenServiceImpl implements ITokenService {
             throw new RuntimeException("Refresh token is invalid or expired.");
         }
 
-        // Xóa refresh token cũ (rotation)
         redisTemplate.delete(REFRESH_TOKEN_PREFIX + refreshToken);
 
         User user = userRepository.findById(Long.parseLong(userId))
@@ -174,7 +173,7 @@ public class TokenServiceImpl implements ITokenService {
         String newRefreshToken = generateRefreshToken(user);
 
         return AuthResponse.builder()
-                .accessToken(newAccessToken)
+                .token(newAccessToken)
                 .refreshToken(newRefreshToken)
                 .build();
     }
