@@ -1,10 +1,9 @@
 package com.sep490.ecoverse_be.dto.response;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 public record FileResponse(
-        UUID id,
+        Long id,
         String fileName,
         String fileUrl,
         String fileType,

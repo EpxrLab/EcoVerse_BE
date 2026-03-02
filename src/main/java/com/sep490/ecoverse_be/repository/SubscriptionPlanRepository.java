@@ -10,10 +10,9 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
-import java.util.UUID;
 
 @Repository
-public interface SubscriptionPlanRepository extends JpaRepository<SubscriptionPlan, UUID> {
+public interface SubscriptionPlanRepository extends JpaRepository<SubscriptionPlan, Long> {
 
     Optional<SubscriptionPlan> findByPlanCode(String planCode);
 
@@ -22,7 +21,7 @@ public interface SubscriptionPlanRepository extends JpaRepository<SubscriptionPl
     boolean existsByPlanName(String planName);
 
     @Query("SELECT COUNT(s) > 0 FROM SubscriptionPlan s WHERE s.planName = :planName AND s.id <> :id")
-    boolean existsByPlanNameAndIdNot(@Param("planName") String planName, @Param("id") UUID id);
+    boolean existsByPlanNameAndIdNot(@Param("planName") String planName, @Param("id") Long id);
 
     @Query("""
             SELECT sp FROM SubscriptionPlan sp

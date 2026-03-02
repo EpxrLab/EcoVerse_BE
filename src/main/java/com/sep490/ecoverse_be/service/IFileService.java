@@ -5,17 +5,15 @@ import com.sep490.ecoverse_be.dto.response.PageResponse;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.UUID;
-
 public interface IFileService {
 
-    FileResponse uploadFile(MultipartFile file, UUID userId);
+    FileResponse uploadFile(MultipartFile file, Long userId);
 
-    FileResponse getFileById(UUID fileId);
+    FileResponse getFileById(Long fileId);
 
-    PageResponse<FileResponse> getMyFiles(UUID userId, Pageable pageable);
+    PageResponse<FileResponse> getMyFiles(Long userId, Pageable pageable);
 
     PageResponse<FileResponse> getAllFiles(Pageable pageable);
 
-    void deleteFile(UUID fileId, UUID userId, boolean isAdmin);
+    void deleteFile(Long fileId, Long userId, boolean isAdmin);
 }

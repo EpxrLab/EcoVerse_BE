@@ -173,7 +173,7 @@ public class TokenServiceImpl implements ITokenService {
         String newRefreshToken = generateRefreshToken(user);
 
         return AuthResponse.builder()
-                .accessToken(newAccessToken)
+                .token(newAccessToken)
                 .refreshToken(newRefreshToken)
                 .build();
     }

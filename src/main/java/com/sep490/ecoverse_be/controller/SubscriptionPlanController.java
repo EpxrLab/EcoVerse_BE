@@ -18,8 +18,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.UUID;
-
 @RestController
 @RequestMapping("/api/admin/subscription-plans")
 @RequiredArgsConstructor
@@ -43,7 +41,7 @@ public class SubscriptionPlanController {
 
     @PutMapping("/{id}")
     public ResponseEntity<ResponseDto<SubscriptionPlanResponse>> updatePlan(
-            @PathVariable UUID id,
+            @PathVariable Long id,
             @Valid @RequestBody UpdateSubscriptionPlanRequest request
     ) {
         SubscriptionPlanResponse response = subscriptionPlanService.updatePlan(id, request);
@@ -51,7 +49,7 @@ public class SubscriptionPlanController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ResponseDto<SubscriptionPlanResponse>> getPlanById(@PathVariable UUID id) {
+    public ResponseEntity<ResponseDto<SubscriptionPlanResponse>> getPlanById(@PathVariable Long id) {
         SubscriptionPlanResponse response = subscriptionPlanService.getPlanById(id);
         return ResponseEntity.ok(ResponseDto.success(response, "Subscription plan retrieved successfully."));
     }
@@ -76,13 +74,13 @@ public class SubscriptionPlanController {
     }
 
     @PatchMapping("/{id}/toggle-active")
-    public ResponseEntity<ResponseDto<Void>> toggleActiveStatus(@PathVariable UUID id) {
+    public ResponseEntity<ResponseDto<Void>> toggleActiveStatus(@PathVariable Long id) {
         subscriptionPlanService.toggleActiveStatus(id);
         return ResponseEntity.ok(ResponseDto.success(null, "Subscription plan active status toggled successfully."));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ResponseDto<Void>> deletePlan(@PathVariable UUID id) {
+    public ResponseEntity<ResponseDto<Void>> deletePlan(@PathVariable Long id) {
         subscriptionPlanService.deletePlan(id);
         return ResponseEntity.ok(ResponseDto.success(null, "Subscription plan deleted successfully."));
     }

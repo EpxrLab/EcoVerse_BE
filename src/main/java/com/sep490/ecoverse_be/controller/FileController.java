@@ -16,8 +16,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.UUID;
-
 @RestController
 @RequestMapping("/api/files")
 @RequiredArgsConstructor
@@ -37,7 +35,7 @@ public class FileController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ResponseDto<FileResponse>> getFileById(@PathVariable UUID id) {
+    public ResponseEntity<ResponseDto<FileResponse>> getFileById(@PathVariable Long id) {
         FileResponse response = fileService.getFileById(id);
         return ResponseEntity.ok(ResponseDto.success(response, "File retrieved successfully."));
     }
@@ -64,7 +62,7 @@ public class FileController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ResponseDto<Void>> deleteFile(
-            @PathVariable UUID id,
+            @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         boolean isAdmin = principal.getAuthorities().stream()

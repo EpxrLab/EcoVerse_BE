@@ -54,7 +54,7 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
             }
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
 
-            User user = userPrincipal.getAccount();
+            User user = userPrincipal.getUser();
 
             String accessToken = tokenService.generateToken(user);
             String refreshToken = tokenService.generateRefreshToken(user);

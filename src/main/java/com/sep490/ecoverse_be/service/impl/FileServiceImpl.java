@@ -19,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -32,7 +31,7 @@ public class FileServiceImpl implements IFileService {
 
     @Override
     @Transactional
-    public FileResponse uploadFile(MultipartFile file, UUID userId) {
+    public FileResponse uploadFile(MultipartFile file, Long userId) {
         if (file.isEmpty()) {
             throw new FuncErrorException("File must not be empty.");
         }
@@ -60,7 +59,7 @@ public class FileServiceImpl implements IFileService {
 
     @Override
     @Transactional(readOnly = true)
-    public FileResponse getFileById(UUID fileId) {
+    public FileResponse getFileById(Long fileId) {
         FileEntity file = fileRepository.findById(fileId)
                 .orElseThrow(() -> new ResourceNotFoundException("File not found with id: " + fileId));
         return fileMapper.toResponse(file);
@@ -68,7 +67,7 @@ public class FileServiceImpl implements IFileService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<FileResponse> getMyFiles(UUID userId, Pageable pageable) {
+    public PageResponse<FileResponse> getMyFiles(Long userId, Pageable pageable) {
         Page<FileEntity> page = fileRepository.findByUploadedById(userId, pageable);
         return PageResponse.from(page, fileMapper::toResponse);
     }
@@ -82,7 +81,7 @@ public class FileServiceImpl implements IFileService {
 
     @Override
     @Transactional
-    public void deleteFile(UUID fileId, UUID userId, boolean isAdmin) {
+    public void deleteFile(Long fileId, Long userId, boolean isAdmin) {
         FileEntity file = fileRepository.findById(fileId)
                 .orElseThrow(() -> new ResourceNotFoundException("File not found with id: " + fileId));
 
