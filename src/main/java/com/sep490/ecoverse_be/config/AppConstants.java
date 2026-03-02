@@ -17,6 +17,11 @@ public final class AppConstants {
             "/v3/api-docs/**",
             "/swagger-resources/**",
             "/api/otp/verify-register",
-            "/api/otp/verify-reset-password"
+            "/api/otp/verify-reset-password",
+            "/api/locations/provinces",
+            "/api/locations/districts/**",
+            "/api/auth/verify-register/school",
+            "/api/auth/verify-register/partnership",
+            "/api/files/upload"
     };
 }

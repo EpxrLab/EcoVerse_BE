@@ -5,29 +5,31 @@ import com.sep490.ecoverse_be.enums.AccountStatus;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
+import java.util.List;
 
 @Getter
 @AllArgsConstructor
 public class UserPrincipal implements UserDetails {
 
-    private final User account;
+    private final User user;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return account.getAuthorities();
+        return List.of(new SimpleGrantedAuthority(user.getRole().name()));
     }
 
     @Override
     public String getPassword() {
-        return account.getPasswordHash();
+        return user.getPasswordHash();
     }
 
     @Override
     public String getUsername() {
-        return account.getEmail();
+        return user.getEmail();
     }
 
     @Override
@@ -37,7 +39,7 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return account.getStatus() != AccountStatus.SUSPENDED;
+        return user.getStatus() != AccountStatus.SUSPENDED;
     }
 
     @Override
@@ -47,6 +49,6 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return account.getStatus() == AccountStatus.ACTIVE;
+        return user.getStatus() == AccountStatus.ACTIVE;
     }
 }

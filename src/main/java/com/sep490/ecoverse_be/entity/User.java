@@ -40,8 +40,6 @@ public class User extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private AccountStatus status = AccountStatus.PENDING;
 
-    private String otpCode;
-
     private LocalDateTime lastLoginAt;
 
     public Collection<? extends GrantedAuthority> getAuthorities() {

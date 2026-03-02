@@ -3,10 +3,12 @@ package com.sep490.ecoverse_be.config;
 import com.cloudinary.Cloudinary;
 import io.github.cdimascio.dotenv.Dotenv;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 import java.util.HashMap;
 import java.util.Map;
 
+@Configuration
 public class CloudinaryConfig {
     private final Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
 

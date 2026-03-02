@@ -1,17 +1,16 @@
 package com.sep490.ecoverse_be.dto.response;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
-@Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class AuthResponse {
-
+public class UserResponse {
     private String id;
     private String email;
     private String role;
-    private String accessToken;
-    private String refreshToken;
 }
