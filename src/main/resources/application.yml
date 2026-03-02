@@ -6,13 +6,16 @@ spring:
   application:
     name: EcoVerse_be
   datasource:
-    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/eco_verse_db}
+#    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/eco_verse_db}
+#    username: ${POSTGRES_USERNAME:postgres}
+#    password: ${POSTGRES_PASSWORD:postgres}
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5433/eco_verse_db}
     username: ${POSTGRES_USERNAME:postgres}
-    password: ${POSTGRES_PASSWORD:postgres}
+    password: ${POSTGRES_PASSWORD:StrongP@ssword123}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
     show-sql: true
     properties:
       hibernate:

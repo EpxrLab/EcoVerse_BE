@@ -2,6 +2,8 @@ package com.sep490.ecoverse_be.dto.response;
 
 import lombok.*;
 
+import java.util.UUID;
+
 @Getter
 @Setter
 @Builder
@@ -9,7 +11,7 @@ import lombok.*;
 @NoArgsConstructor
 public class AuthResponse {
 
-    private String id;
+    private UUID id;
     private String email;
     private String role;
     private String accessToken;
