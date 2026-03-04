@@ -22,6 +22,6 @@ public final class AppConstants {
             "/api/locations/districts/**",
             "/api/auth/verify-register/school",
             "/api/auth/verify-register/partnership",
-            "/api/files/upload"
+            "/api/files/upload/cloudinary"
     };
 }

@@ -57,8 +57,8 @@ public class VerifyRegisterPartnershipRequest {
     private PartnershipType partnershipType;
 
     @NotBlank(message = "Password is required")
-    @Size(min = 6, message = "Password must have at least 6 characters.")
-    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{6,}$",
+    @Size(min = 8, message = "Password must have at least 8 characters.")
+    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
             message = "Passwords must include uppercase letters, lowercase letters, numbers, and special characters.")
     private String password;
 

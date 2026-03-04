@@ -22,6 +22,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -59,9 +60,9 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
     private PartnershipRepository partnershipRepository;
 
     @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+    public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
+        User user = userRepository.findByEmailOrUsername(identifier, identifier)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + identifier));
 
         return new UserPrincipal(user);
     }
@@ -178,7 +179,7 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
         } catch (DisabledException e) {
             throw new DisabledException(e.getMessage());
         } catch (BadCredentialsException e) {
-            throw new RuntimeException("Email hoặc mật khẩu sai!");
+            throw new RuntimeException("Email/số điện thoại/username hoặc mật khẩu sai!");
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("Đã xảy ra lỗi trong quá trình đăng nhập, vui lòng thử lại sau.");
@@ -217,4 +218,59 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
             tokenService.deleteRefreshToken(request.getRefreshToken());
         }
     }
+
+    @Override
+    public void forgotPassword(ForgotPasswordRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new NotFoundException("Tài khoản không tồn tại: " + request.getEmail()));
+
+        emailService.sendForgotPasswordEmail(request.getEmail(), otpService.generateOtp(request.getEmail()));
+    }
+
+    @Override
+    public AuthResponse verifyResetPassword(VerifyForgotPasswordRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new NotFoundException("Tài khoản không tồn tại: " + request.getEmail()));
+
+        boolean flag = otpService.verifyOtp(request.getEmail(), request.getOtp());
+
+        if (!flag)
+            throw new NotFoundException("OTP không hợp lệ");
+
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setUpdatedAt(LocalDateTime.now());
+
+        User newUser = userRepository.save(user);
+
+        return modelMapper.map(newUser, AuthResponse.class);
+    }
+
+    @Override
+    public void changePassword(ChangePasswordRequest request) {
+        Authentication authentication = SecurityContextHolder
+                .getContext()
+                .getAuthentication();
+
+        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+
+        User user = userRepository.findById(principal.getUser().getId())
+                .orElseThrow(() -> new RuntimeException("User không tồn tại"));
+
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new RuntimeException("Mật khẩu mới và xác nhận mật khẩu không khớp");
+        }
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPasswordHash())) {
+            throw new RuntimeException("Mật khẩu cũ không đúng");
+        }
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPasswordHash())) {
+            throw new RuntimeException("Mật khẩu mới không được trùng với mật khẩu hiện tại");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+    }
+
+
+
 }

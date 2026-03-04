@@ -51,6 +51,9 @@ public class Student extends BaseEntity {
     @Column(length = 100)
     private String className;
 
+    @Column(length = 200)
+    private String address;
+
     @Column(precision = 10, scale = 2)
     private BigDecimal totalCoins = BigDecimal.ZERO;
 

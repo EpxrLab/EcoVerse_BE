@@ -1,5 +1,6 @@
 package com.sep490.ecoverse_be.service.impl;
 
+import com.sep490.ecoverse_be.dto.response.StudentAccountInfo;
 import com.sep490.ecoverse_be.service.IEmailService;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
@@ -7,6 +8,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class EmailServiceImpl implements IEmailService {
@@ -175,6 +178,90 @@ public class EmailServiceImpl implements IEmailService {
                   </body>
                 </html>
                 """.formatted(organizationName, reasonText);
+    }
+
+    @Override
+    public void sendCredentialEmail(String toEmail, String parentName, String parentPhone,
+                                    String parentPassword, List<StudentAccountInfo> children) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setTo(toEmail);
+            helper.setSubject("Thông Tin Tài Khoản Đăng Nhập - EcoVerse System");
+            helper.setText(buildCredentialTemplate(parentName, parentPhone, parentPassword, children), true);
+
+            mailSender.send(message);
+        } catch (MessagingException e) {
+            throw new IllegalStateException("Không thể gửi email thông tin đăng nhập", e);
+        }
+    }
+
+    private String buildCredentialTemplate(String parentName, String parentPhone,
+                                           String parentPassword, List<StudentAccountInfo> children) {
+        StringBuilder childrenRows = new StringBuilder();
+        for (StudentAccountInfo child : children) {
+            childrenRows.append(String.format("""
+                    <tr>
+                      <td style="padding: 10px 14px; border: 1px solid #e0e0e0;">%s</td>
+                      <td style="padding: 10px 14px; border: 1px solid #e0e0e0;"><b>%s</b></td>
+                      <td style="padding: 10px 14px; border: 1px solid #e0e0e0;"><code>%s</code></td>
+                      <td style="padding: 10px 14px; border: 1px solid #e0e0e0;">%s - %s</td>
+                    </tr>
+                    """, child.getStudentFullName(), child.getStudentCode(), child.getPassword(),
+                    child.getClassName(), child.getGradeLevel()));
+        }
+
+        return """
+                <html>
+                  <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4fbf6; padding: 30px;">
+                    <div style="max-width: 700px; margin: auto; background: #ffffff; border-radius: 18px; padding: 40px;
+                                box-shadow: 0 6px 20px rgba(0,0,0,0.1); border-top: 6px solid #2e7d32;">
+                      <div style="text-align: center;">
+                        <h2 style="color: #2e7d32; font-size: 26px; margin-bottom: 10px;">Thông Tin Tài Khoản EcoVerse</h2>
+                        <p style="color: #555; font-size: 15px; margin-top: 0;">Kính gửi Phụ huynh <b>%s</b>,</p>
+                      </div>
+                
+                      <p style="font-size: 16px; color: #333; margin-top: 25px;">
+                        Nhà trường đã tạo tài khoản trên hệ thống <b>EcoVerse</b> cho quý phụ huynh và con em.
+                        Dưới đây là thông tin đăng nhập:
+                      </p>
+                
+                      <div style="background: #e8f5e9; border-radius: 10px; padding: 20px; margin: 20px 0;">
+                        <h3 style="color: #1b5e20; margin-top: 0;">Tài khoản Phụ huynh</h3>
+                        <p style="margin: 5px 0;"><b>Tên đăng nhập:</b> %s</p>
+                        <p style="margin: 5px 0;"><b>Mật khẩu:</b> <code style="background: #fff; padding: 2px 8px; border-radius: 4px;">%s</code></p>
+                      </div>
+                
+                      <h3 style="color: #1b5e20;">Tài khoản Học sinh</h3>
+                      <table style="width: 100%%; border-collapse: collapse; margin: 10px 0;">
+                        <thead>
+                          <tr style="background: #2e7d32; color: white;">
+                            <th style="padding: 10px 14px; text-align: left;">Họ tên</th>
+                            <th style="padding: 10px 14px; text-align: left;">Tên đăng nhập</th>
+                            <th style="padding: 10px 14px; text-align: left;">Mật khẩu</th>
+                            <th style="padding: 10px 14px; text-align: left;">Lớp</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          %s
+                        </tbody>
+                      </table>
+                
+                      <div style="background: #fff3e0; border-left: 4px solid #ff9800; padding: 12px 18px; border-radius: 6px; margin: 20px 0;">
+                        <p style="margin: 0; color: #e65100; font-size: 14px;">
+                          Vui lòng đổi mật khẩu sau lần đăng nhập đầu tiên để đảm bảo an toàn tài khoản.
+                        </p>
+                      </div>
+                
+                      <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;"/>
+                      <p style="font-size: 12px; color: #999; text-align: center; margin-top: 25px;">
+                        &copy; 2026 <b>EcoVerse</b> — Ứng dụng giáo dục phân loại rác cho trẻ em và học sinh
+                      </p>
+                    </div>
+                  </body>
+                </html>
+                """.formatted(parentName, parentPhone, parentPassword, childrenRows.toString());
     }
 
     private String buildForgotPasswordTemplate(String otp) {

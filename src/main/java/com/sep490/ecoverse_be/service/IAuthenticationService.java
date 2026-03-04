@@ -11,4 +11,7 @@ public interface IAuthenticationService extends UserDetailsService {
     UserResponse verifyRegisterPartnership(VerifyRegisterPartnershipRequest registerRequest);
     AuthResponse login(LoginRequest loginRequest);
     void logout(String token, RefreshTokenRequest request);
+    void forgotPassword(ForgotPasswordRequest request);
+    AuthResponse verifyResetPassword(VerifyForgotPasswordRequest request);
+    void changePassword(ChangePasswordRequest request);
 }

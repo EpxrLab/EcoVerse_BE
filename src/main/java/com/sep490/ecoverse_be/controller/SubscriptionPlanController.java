@@ -23,7 +23,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/admin/subscription-plans")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMINISTRATOR')")
+@PreAuthorize("hasAuthority('ADMINISTRATOR')")
 public class SubscriptionPlanController {
 
     private final ISubscriptionPlanService subscriptionPlanService;
