@@ -1,0 +1,19 @@
+package com.sep490.ecoverse_be.dto.response;
+
+import lombok.*;
+
+import java.util.List;
+
+@Getter
+@Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class ParentAccountInfo {
+
+    private String parentFullName;
+    private String phoneNumber;
+    private String password;
+    private String parentEmail;
+    private List<StudentAccountInfo> children;
+}

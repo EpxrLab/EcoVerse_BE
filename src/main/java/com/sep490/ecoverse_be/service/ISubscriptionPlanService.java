@@ -7,13 +7,15 @@ import com.sep490.ecoverse_be.dto.response.SubscriptionPlanResponse;
 import com.sep490.ecoverse_be.enums.SubscriberType;
 import org.springframework.data.domain.Pageable;
 
+import java.util.UUID;
+
 public interface ISubscriptionPlanService {
 
-    SubscriptionPlanResponse createPlan(CreateSubscriptionPlanRequest request, Long adminUserId);
+    SubscriptionPlanResponse createPlan(CreateSubscriptionPlanRequest request, UUID adminUserId);
 
-    SubscriptionPlanResponse updatePlan(Long planId, UpdateSubscriptionPlanRequest request);
+    SubscriptionPlanResponse updatePlan(UUID planId, UpdateSubscriptionPlanRequest request);
 
-    SubscriptionPlanResponse getPlanById(Long planId);
+    SubscriptionPlanResponse getPlanById(UUID planId);
 
     SubscriptionPlanResponse getPlanByCode(String planCode);
 
@@ -24,7 +26,7 @@ public interface ISubscriptionPlanService {
             Pageable pageable
     );
 
-    void toggleActiveStatus(Long planId);
+    void toggleActiveStatus(UUID planId);
 
-    void deletePlan(Long planId);
+    void deletePlan(UUID planId);
 }

@@ -27,8 +27,11 @@ import java.util.List;
 @NoArgsConstructor
 public class User extends BaseEntity {
 
-    @Column(nullable = false, unique = true)
+    @Column(unique = true)
     private String email;
+
+    @Column(unique = true)
+    private String username;
 
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
@@ -42,8 +45,6 @@ public class User extends BaseEntity {
 
     @Column(name = "is_active")
     private Boolean isActive = true;
-
-    private String otpCode;
 
     private LocalDateTime lastLoginAt;
 

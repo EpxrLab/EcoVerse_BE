@@ -19,6 +19,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class SubscriptionPlanServiceImpl implements ISubscriptionPlanService {
@@ -29,7 +31,7 @@ public class SubscriptionPlanServiceImpl implements ISubscriptionPlanService {
 
     @Override
     @Transactional
-    public SubscriptionPlanResponse createPlan(CreateSubscriptionPlanRequest request, Long adminUserId) {
+    public SubscriptionPlanResponse createPlan(CreateSubscriptionPlanRequest request, UUID adminUserId) {
         if (subscriptionPlanRepository.existsByPlanCode(request.planCode())) {
             throw new FuncErrorException("Plan code '" + request.planCode() + "' already exists.");
         }
@@ -50,7 +52,7 @@ public class SubscriptionPlanServiceImpl implements ISubscriptionPlanService {
 
     @Override
     @Transactional
-    public SubscriptionPlanResponse updatePlan(Long planId, UpdateSubscriptionPlanRequest request) {
+    public SubscriptionPlanResponse updatePlan(UUID planId, UpdateSubscriptionPlanRequest request) {
         SubscriptionPlan plan = subscriptionPlanRepository.findById(planId)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription plan not found with id: " + planId));
 
@@ -68,7 +70,7 @@ public class SubscriptionPlanServiceImpl implements ISubscriptionPlanService {
 
     @Override
     @Transactional(readOnly = true)
-    public SubscriptionPlanResponse getPlanById(Long planId) {
+    public SubscriptionPlanResponse getPlanById(UUID planId) {
         SubscriptionPlan plan = subscriptionPlanRepository.findById(planId)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription plan not found with id: " + planId));
         return subscriptionPlanMapper.toResponse(plan);
@@ -99,7 +101,7 @@ public class SubscriptionPlanServiceImpl implements ISubscriptionPlanService {
 
     @Override
     @Transactional
-    public void toggleActiveStatus(Long planId) {
+    public void toggleActiveStatus(UUID planId) {
         SubscriptionPlan plan = subscriptionPlanRepository.findById(planId)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription plan not found with id: " + planId));
         plan.setActive(!plan.isActive());
@@ -108,7 +110,7 @@ public class SubscriptionPlanServiceImpl implements ISubscriptionPlanService {
 
     @Override
     @Transactional
-    public void deletePlan(Long planId) {
+    public void deletePlan(UUID planId) {
         SubscriptionPlan plan = subscriptionPlanRepository.findById(planId)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription plan not found with id: " + planId));
         subscriptionPlanRepository.delete(plan);

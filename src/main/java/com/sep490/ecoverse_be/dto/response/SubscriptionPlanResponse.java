@@ -5,9 +5,10 @@ import com.sep490.ecoverse_be.enums.SubscriberType;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.UUID;
 
 public record SubscriptionPlanResponse(
-        Long id,
+        UUID id,
         String planCode,
         String planName,
         SubscriberType subscriberType,
