@@ -12,6 +12,7 @@ import com.sep490.ecoverse_be.model.UserPrincipal;
 import com.sep490.ecoverse_be.repository.*;
 import com.sep490.ecoverse_be.service.IEmailService;
 import com.sep490.ecoverse_be.service.IStudentImportService;
+import com.sep490.ecoverse_be.entity.AcademicYear;
 import com.sep490.ecoverse_be.util.PasswordGenerator;
 import com.sep490.ecoverse_be.util.StudentCodeGenerator;
 import org.apache.poi.ss.usermodel.*;
@@ -49,13 +50,16 @@ public class StudentImportServiceImpl implements IStudentImportService {
     private SchoolRepository schoolRepository;
 
     @Autowired
+    private AcademicYearRepository academicYearRepository;
+
+    @Autowired
     private IEmailService emailService;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder(12);
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final String[] EXPECTED_HEADERS = {
-            "Student Full Name", "Class Name", "Grade Level", "Date of Birth",
+            "Academic Year","Student Full Name", "Class Name", "Grade Level", "Date of Birth",
             "Gender", "Address", "Parent Full Name", "Parent Phone Number", "Parent Email"
     };
 
@@ -68,8 +72,8 @@ public class StudentImportServiceImpl implements IStudentImportService {
     @Override
     @Transactional
     public ImportResultResponse importStudentsFromExcel(MultipartFile file) {
-        UUID schoolId = getCurrentUserId();
-        School school = schoolRepository.findById(schoolId)
+        UUID userId = getCurrentUserId();
+        School school = schoolRepository.findByUserId(userId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
 
         List<StudentExcelRowDto> rows = parseExcel(file);
@@ -77,7 +81,7 @@ public class StudentImportServiceImpl implements IStudentImportService {
         int successCount = 0;
 
         Set<String> existingCodes = new HashSet<>(
-                studentRepository.findBySchoolId(schoolId).stream()
+                studentRepository.findBySchoolId(school.getId()).stream()
                         .map(Student::getStudentCode)
                         .toList()
         );
@@ -95,6 +99,17 @@ public class StudentImportServiceImpl implements IStudentImportService {
             try {
                 String studentCode = StudentCodeGenerator.generateUniqueCode(row.getStudentFullName(), existingCodes);
                 existingCodes.add(studentCode);
+
+                // lay hoac tao moi academic year theo ten + school
+                AcademicYear academicYear = academicYearRepository
+                        .findBySchoolIdAndName(school.getId(), row.getAcademicYear())
+                        .orElseGet(() -> {
+                            AcademicYear newYear = new AcademicYear();
+                            newYear.setSchool(school);
+                            newYear.setName(row.getAcademicYear());
+                            newYear.setIsActive(true);
+                            return academicYearRepository.save(newYear);
+                        });
 
                 String studentRawPassword = PasswordGenerator.generate();
                 String parentRawPassword;
@@ -121,6 +136,7 @@ public class StudentImportServiceImpl implements IStudentImportService {
                     parent.setUser(parentUser);
                     parent.setFullName(row.getParentFullName());
                     parent.setPhoneNumber(row.getParentPhone());
+                    parent.setIsFirstLogin(true);
                     parent = parentRepository.save(parent);
 
                     parentPasswordMap.put(row.getParentPhone(), parentRawPassword);
@@ -138,13 +154,16 @@ public class StudentImportServiceImpl implements IStudentImportService {
                 Student student = new Student();
                 student.setUser(studentUser);
                 student.setSchool(school);
+                student.setAcademicYear(academicYear);
                 student.setStudentCode(studentCode);
                 student.setFullName(row.getStudentFullName());
                 student.setClassName(row.getClassName());
                 student.setGradeLevel(row.getGradeLevel());
+                student.setAddress(row.getAddress());
                 student.setAvatarUrl("https://res.cloudinary.com/dsqlivxid/image/upload/v1772641395/ecoverse/user/8f1ca2029e2efceebd22fa05cca423d7.jpg_20260304232313.jpg");
                 student.setDateOfBirth(LocalDate.parse(row.getDateOfBirth(), DATE_FORMAT));
                 student.setGender(Gender.valueOf(row.getGender().toUpperCase()));
+                student.setIsFirstLogin(true);
                 studentRepository.save(student);
 
                 studentPasswordMap.put(studentCode, studentRawPassword);
@@ -176,11 +195,11 @@ public class StudentImportServiceImpl implements IStudentImportService {
 
     @Override
     public AccountListResponse getImportedAccounts() {
-        UUID schoolId = getCurrentUserId();
-        School school = schoolRepository.findById(schoolId)
+        UUID userId = getCurrentUserId();
+        School school = schoolRepository.findByUserId(userId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
 
-        List<Student> students = studentRepository.findBySchoolId(schoolId);
+        List<Student> students = studentRepository.findBySchoolId(school.getId());
 
         Map<UUID, List<Student>> parentStudentMap = new LinkedHashMap<>();
         Map<UUID, Parent> parentMap = new HashMap<>();
@@ -226,11 +245,11 @@ public class StudentImportServiceImpl implements IStudentImportService {
     @Override
     @Transactional
     public void sendCredentialEmails() {
-        UUID schoolId = getCurrentUserId();
-        schoolRepository.findById(schoolId)
+        UUID userId = getCurrentUserId();
+        School school = schoolRepository.findByUserId(userId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
 
-        List<Student> students = studentRepository.findBySchoolId(schoolId);
+        List<Student> students = studentRepository.findBySchoolId(school.getId());
 
         Map<UUID, List<Student>> parentStudentMap = new LinkedHashMap<>();
         Map<UUID, Parent> parentMap = new HashMap<>();
@@ -250,12 +269,16 @@ public class StudentImportServiceImpl implements IStudentImportService {
             String parentRawPassword = PasswordGenerator.generate();
             parent.getUser().setPasswordHash(passwordEncoder.encode(parentRawPassword));
             userRepository.save(parent.getUser());
+            parent.setIsFirstLogin(true);
+            parentRepository.save(parent);
 
             List<StudentAccountInfo> children = new ArrayList<>();
             for (Student student : entry.getValue()) {
                 String studentRawPassword = PasswordGenerator.generate();
                 student.getUser().setPasswordHash(passwordEncoder.encode(studentRawPassword));
                 userRepository.save(student.getUser());
+                student.setIsFirstLogin(true);
+                studentRepository.save(student);
 
                 children.add(StudentAccountInfo.builder()
                         .studentFullName(student.getFullName())
@@ -313,15 +336,16 @@ public class StudentImportServiceImpl implements IStudentImportService {
 
                 StudentExcelRowDto dto = new StudentExcelRowDto();
                 dto.setRowNumber(i + 1);
-                dto.setStudentFullName(getCellStringValue(row.getCell(0)));
-                dto.setClassName(getCellStringValue(row.getCell(1)));
-                dto.setGradeLevel(getCellStringValue(row.getCell(2)));
-                dto.setDateOfBirth(getCellStringValue(row.getCell(3)));
-                dto.setGender(getCellStringValue(row.getCell(4)));
-                dto.setAddress((getCellStringValue(row.getCell(5))));
-                dto.setParentFullName(getCellStringValue(row.getCell(6)));
-                dto.setParentPhone(getCellStringValue(row.getCell(7)));
-                dto.setParentEmail(getCellStringValue(row.getCell(8)));
+                dto.setAcademicYear(getCellStringValue(headerRow.getCell(0)));
+                dto.setStudentFullName(getCellStringValue(row.getCell(1)));
+                dto.setClassName(getCellStringValue(row.getCell(2)));
+                dto.setGradeLevel(getCellStringValue(row.getCell(3)));
+                dto.setDateOfBirth(getCellStringValue(row.getCell(4)));
+                dto.setGender(getCellStringValue(row.getCell(5)));
+                dto.setAddress((getCellStringValue(row.getCell(6))));
+                dto.setParentFullName(getCellStringValue(row.getCell(7)));
+                dto.setParentPhone(getCellStringValue(row.getCell(8)));
+                dto.setParentEmail(getCellStringValue(row.getCell(9)));
                 rows.add(dto);
             }
         } catch (BadRequestException e) {
@@ -350,6 +374,10 @@ public class StudentImportServiceImpl implements IStudentImportService {
 
     private List<ImportErrorDetail> validateRow(StudentExcelRowDto row) {
         List<ImportErrorDetail> errors = new ArrayList<>();
+
+        if (isBlank(row.getAcademicYear())) {
+            errors.add(buildError(row.getRowNumber(), "Academic Year", "Niên khóa không được rỗng"));
+        }
 
         if (isBlank(row.getStudentFullName())) {
             errors.add(buildError(row.getRowNumber(), "Student Full Name", "Tên học sinh không được rỗng"));
