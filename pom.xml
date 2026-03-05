@@ -142,6 +142,14 @@
             <version>5.2.2</version>
         </dependency>
 
+        <!-- Source: https://mvnrepository.com/artifact/vn.payos/payos-java -->
+        <dependency>
+            <groupId>vn.payos</groupId>
+            <artifactId>payos-java</artifactId>
+            <version>2.0.1</version>
+            <scope>compile</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
