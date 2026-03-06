@@ -26,4 +26,7 @@ public class Parent extends BaseEntity {
 
     @Column(length = 20)
     private String phoneNumber;
+
+    @Column(name = "is_first_login")
+    private Boolean isFirstLogin = true;
 }

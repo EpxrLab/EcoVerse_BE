@@ -71,10 +71,13 @@ public class ProfileServiceImpl implements IProfileService {
                 .fullName(student.getFullName())
                 .className(student.getClassName())
                 .gradeLevel(student.getGradeLevel())
+                .academicYear(student.getAcademicYear() != null ? student.getAcademicYear().getName() : null)
                 .dateOfBirth(student.getDateOfBirth())
                 .gender(student.getGender() != null ? student.getGender().name() : null)
+                .address(student.getAddress())
                 .avatarUrl(student.getAvatarUrl())
                 .totalCoins(student.getTotalCoins() != null ? student.getTotalCoins().toPlainString() : "0.00")
+                .isFirstLogin(student.getIsFirstLogin())
                 .school(StudentProfileResponse.SchoolSummary.builder()
                         .id(student.getSchool().getId())
                         .schoolName(student.getSchool().getSchoolName())
@@ -107,6 +110,7 @@ public class ProfileServiceImpl implements IProfileService {
                 .fullName(parent.getFullName())
                 .phoneNumber(parent.getPhoneNumber())
                 .email(parent.getUser().getEmail())
+                .isFirstLogin(parent.getIsFirstLogin())
                 .children(children)
                 .build();
     }

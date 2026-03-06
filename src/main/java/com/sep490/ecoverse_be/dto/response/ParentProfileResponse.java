@@ -16,6 +16,7 @@ public class ParentProfileResponse {
     private String fullName;
     private String phoneNumber;
     private String email;
+    private Boolean isFirstLogin;
     private List<ChildSummary> children;
 
     @Getter

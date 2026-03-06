@@ -17,10 +17,13 @@ public class StudentProfileResponse {
     private String fullName;
     private String className;
     private String gradeLevel;
+    private String academicYear;
     private LocalDate dateOfBirth;
     private String gender;
+    private String address;
     private String avatarUrl;
     private String totalCoins;
+    private Boolean isFirstLogin;
     private SchoolSummary school;
 
     @Getter
