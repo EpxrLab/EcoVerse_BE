@@ -6,8 +6,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-@Repository
-public interface FileRepository extends JpaRepository<FileEntity, Long> {
+import java.util.UUID;
 
-    Page<FileEntity> findByUploadedById(Long userId, Pageable pageable);
+@Repository
+public interface FileRepository extends JpaRepository<FileEntity, UUID> {
+
+    Page<FileEntity> findByUploadedById(UUID userId, Pageable pageable);
 }

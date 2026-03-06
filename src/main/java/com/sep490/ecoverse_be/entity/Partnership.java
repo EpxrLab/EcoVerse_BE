@@ -11,12 +11,10 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "partnerships", indexes = {
-        @Index(name = "idx_partnerships_user_id", columnList = "user_id"),
+@Table(name = "partnerships", indexes = {@Index(name = "idx_partnerships_user_id", columnList = "user_id"),
         @Index(name = "idx_partnerships_type", columnList = "partnership_type"),
         @Index(name = "idx_partnerships_approval_status", columnList = "approval_status"),
-        @Index(name = "idx_partnerships_geo_scope", columnList = "geographic_scope_ward, geographic_scope_district")
-})
+        @Index(name = "idx_partnerships_geo_scope", columnList = "geographic_scope_district")})
 @Getter
 @Setter
 @AllArgsConstructor
@@ -34,28 +32,38 @@ public class Partnership extends BaseEntity {
     @Column(nullable = false)
     private PartnershipType partnershipType;
 
+    private String contactEmail;
+
     @Column(columnDefinition = "text")
     private String description;
 
-    private String contactPerson;
-
-    @Column(length = 20)
+    //    sửa lại thành 10
+    @Column(length = 10)
     private String phoneNumber;
 
     @Column(columnDefinition = "text")
     private String registeredAddress;
 
     @Column(length = 100)
-    private String geographicScopeWard;
-
-    @Column(length = 100)
     private String geographicScopeDistrict;
 
     @Column(length = 100)
-    private String geographicScopeCity;
-
-    @Column(length = 100)
     private String geographicScopeProvince;
+
+    private String contactPerson;
+
+
+    //thêm chức vụ
+    @Column(length = 100)
+    private String position;
+
+    //    thêm mã số thuế
+    @Column(length = 100)
+    private String taxCode;
+
+    //    thêm link web
+    @Column(length = 100)
+    private String linkWeb;
 
     @Enumerated(EnumType.STRING)
     private ApprovalStatus approvalStatus = ApprovalStatus.PENDING;

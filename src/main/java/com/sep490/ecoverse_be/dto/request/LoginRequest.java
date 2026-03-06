@@ -1,6 +1,5 @@
 package com.sep490.ecoverse_be.dto.request;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
@@ -10,8 +9,7 @@ import lombok.*;
 @NoArgsConstructor
 public class LoginRequest {
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Invalid email format")
+    @NotBlank(message = "Email/username is required")
     private String email;
 
     @NotBlank(message = "Password is required")

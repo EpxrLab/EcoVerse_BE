@@ -88,7 +88,7 @@ public class TokenServiceImpl implements ITokenService {
                     .parseSignedClaims(token)
                     .getPayload();
 
-            Long id = Long.parseLong(claims.getSubject());
+            UUID id = UUID.fromString(claims.getSubject());
             return userRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Account not found."));
         } catch (ExpiredJwtException e) {
@@ -166,14 +166,14 @@ public class TokenServiceImpl implements ITokenService {
 
         redisTemplate.delete(REFRESH_TOKEN_PREFIX + refreshToken);
 
-        User user = userRepository.findById(Long.parseLong(userId))
+        User user = userRepository.findById(UUID.fromString(userId))
                 .orElseThrow(() -> new RuntimeException("Account not found."));
 
         String newAccessToken = generateToken(user);
         String newRefreshToken = generateRefreshToken(user);
 
         return AuthResponse.builder()
-                .token(newAccessToken)
+                .accessToken(newAccessToken)
                 .refreshToken(newRefreshToken)
                 .build();
     }

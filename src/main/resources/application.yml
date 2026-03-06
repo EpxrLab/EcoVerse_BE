@@ -1,6 +1,8 @@
 server:
   port: 8080
 spring:
+  config:
+    import: optional:file:.env[.properties]
   application:
     name: EcoVerse_be
   datasource:
@@ -38,6 +40,8 @@ spring:
           auth: true
           starttls:
             enable: true
+        transport:
+          protocol: smtp
 
 app:
   jwt:

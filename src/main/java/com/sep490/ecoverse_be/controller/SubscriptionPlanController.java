@@ -18,10 +18,12 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/admin/subscription-plans")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMINISTRATOR')")
+@PreAuthorize("hasAuthority('ADMINISTRATOR')")
 public class SubscriptionPlanController {
 
     private final ISubscriptionPlanService subscriptionPlanService;
@@ -41,7 +43,7 @@ public class SubscriptionPlanController {
 
     @PutMapping("/{id}")
     public ResponseEntity<ResponseDto<SubscriptionPlanResponse>> updatePlan(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @Valid @RequestBody UpdateSubscriptionPlanRequest request
     ) {
         SubscriptionPlanResponse response = subscriptionPlanService.updatePlan(id, request);
@@ -49,7 +51,7 @@ public class SubscriptionPlanController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ResponseDto<SubscriptionPlanResponse>> getPlanById(@PathVariable Long id) {
+    public ResponseEntity<ResponseDto<SubscriptionPlanResponse>> getPlanById(@PathVariable UUID id) {
         SubscriptionPlanResponse response = subscriptionPlanService.getPlanById(id);
         return ResponseEntity.ok(ResponseDto.success(response, "Subscription plan retrieved successfully."));
     }
@@ -74,13 +76,13 @@ public class SubscriptionPlanController {
     }
 
     @PatchMapping("/{id}/toggle-active")
-    public ResponseEntity<ResponseDto<Void>> toggleActiveStatus(@PathVariable Long id) {
+    public ResponseEntity<ResponseDto<Void>> toggleActiveStatus(@PathVariable UUID id) {
         subscriptionPlanService.toggleActiveStatus(id);
         return ResponseEntity.ok(ResponseDto.success(null, "Subscription plan active status toggled successfully."));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ResponseDto<Void>> deletePlan(@PathVariable Long id) {
+    public ResponseEntity<ResponseDto<Void>> deletePlan(@PathVariable UUID id) {
         subscriptionPlanService.deletePlan(id);
         return ResponseEntity.ok(ResponseDto.success(null, "Subscription plan deleted successfully."));
     }
