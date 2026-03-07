@@ -6,13 +6,14 @@ import com.sep490.ecoverse_be.enums.SubscriberType;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public record PaymentResponse(
-        Long id,
+        UUID id,
         String paymentCode,
         SubscriberType subscriberType,
         String subscriberName,
-        Long subscriptionId,
+        UUID subscriptionId,
         String subscriptionCode,
         BigDecimal amount,
         String currency,

@@ -10,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/payments")
@@ -46,7 +47,7 @@ public class PaymentController {
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP', 'ADMINISTRATOR')")
-    public ResponseEntity<ResponseDto<PaymentResponse>> getPaymentById(@PathVariable Long id) {
+    public ResponseEntity<ResponseDto<PaymentResponse>> getPaymentById(@PathVariable UUID id) {
         PaymentResponse response = paymentService.getPaymentById(id);
         return ResponseEntity.ok(ResponseDto.success(response, "Payment retrieved."));
     }

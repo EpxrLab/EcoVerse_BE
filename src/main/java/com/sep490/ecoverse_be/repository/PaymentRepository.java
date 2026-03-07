@@ -10,24 +10,25 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
-public interface PaymentRepository extends JpaRepository<Payment, Long> {
+public interface PaymentRepository extends JpaRepository<Payment, UUID> {
 
     Optional<Payment> findByPaymentCode(String paymentCode);
 
     Optional<Payment> findByTransactionRef(String transactionRef);
 
     @Query("SELECT p FROM Payment p WHERE p.subscription.id = :subscriptionId ORDER BY p.createdAt DESC")
-    Page<Payment> findBySubscriptionId(@Param("subscriptionId") Long subscriptionId, Pageable pageable);
+    Page<Payment> findBySubscriptionId(@Param("subscriptionId") UUID subscriptionId, Pageable pageable);
 
     @Query("SELECT p FROM Payment p WHERE p.school.id = :schoolId ORDER BY p.createdAt DESC")
-    Page<Payment> findBySchoolId(@Param("schoolId") Long schoolId, Pageable pageable);
+    Page<Payment> findBySchoolId(@Param("schoolId") UUID schoolId, Pageable pageable);
 
     @Query("SELECT p FROM Payment p WHERE p.partnership.id = :partnershipId ORDER BY p.createdAt DESC")
-    Page<Payment> findByPartnershipId(@Param("partnershipId") Long partnershipId, Pageable pageable);
+    Page<Payment> findByPartnershipId(@Param("partnershipId") UUID partnershipId, Pageable pageable);
 
     @Query("SELECT p FROM Payment p WHERE p.subscription.id = :subscriptionId AND p.status = :status")
-    Optional<Payment> findBySubscriptionIdAndStatus(@Param("subscriptionId") Long subscriptionId,
+    Optional<Payment> findBySubscriptionIdAndStatus(@Param("subscriptionId") UUID subscriptionId,
                                                      @Param("status") PaymentStatus status);
 }

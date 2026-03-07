@@ -19,6 +19,7 @@ public class CloudinaryServiceImpl implements ICloudinaryService {
 
     @Override
     @Transactional
+    @SuppressWarnings("unchecked")
     public CloudinaryResponse uploadFile(final MultipartFile file, final String fileName) {
         try {
             final Map<String, Object> result = this.cloudinary.uploader()

@@ -4,13 +4,14 @@ import com.sep490.ecoverse_be.enums.SubscriberType;
 import com.sep490.ecoverse_be.enums.SubscriptionStatus;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public record SubscriptionResponse(
-        Long id,
+        UUID id,
         String subscriptionCode,
         SubscriberType subscriberType,
         String subscriberName,
-        Long planId,
+        UUID planId,
         String planCode,
         String planName,
         SubscriptionStatus status,

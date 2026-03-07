@@ -2,11 +2,13 @@ package com.sep490.ecoverse_be.dto.request;
 
 import jakarta.validation.constraints.NotNull;
 
+import java.util.UUID;
+
 public record RenewSubscriptionRequest(
 
         @NotNull(message = "Subscription ID is required")
-        Long subscriptionId,
+        UUID subscriptionId,
 
-        Long planId
+        UUID planId
 ) {
 }

@@ -42,7 +42,7 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
 
     @Override
     @Transactional
-    public PaymentResponse subscribe(CreateSubscriptionRequest request, Long userId) {
+    public PaymentResponse subscribe(CreateSubscriptionRequest request, UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found."));
 
@@ -110,7 +110,7 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
 
     @Override
     @Transactional
-    public PaymentResponse renewSubscription(RenewSubscriptionRequest request, Long userId) {
+    public PaymentResponse renewSubscription(RenewSubscriptionRequest request, UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found."));
 
@@ -168,7 +168,7 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
 
     @Override
     @Transactional(readOnly = true)
-    public SubscriptionResponse getMySubscription(Long userId) {
+    public SubscriptionResponse getMySubscription(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found."));
 
@@ -192,7 +192,7 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<SubscriptionResponse> getMySubscriptionHistory(Long userId, Pageable pageable) {
+    public PageResponse<SubscriptionResponse> getMySubscriptionHistory(UUID userId, Pageable pageable) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found."));
 
@@ -214,7 +214,7 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
 
     @Override
     @Transactional(readOnly = true)
-    public SubscriptionResponse getSubscriptionById(Long subscriptionId) {
+    public SubscriptionResponse getSubscriptionById(UUID subscriptionId) {
         Subscription subscription = subscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription not found."));
         return subscriptionMapper.toResponse(subscription);
@@ -232,7 +232,7 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
 
     @Override
     @Transactional
-    public SubscriptionResponse cancelSubscription(Long subscriptionId, String reason, Long userId) {
+    public SubscriptionResponse cancelSubscription(UUID subscriptionId, String reason, UUID userId) {
         Subscription subscription = subscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription not found."));
 
@@ -263,7 +263,7 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         throw new FuncErrorException("Only School and Partnership accounts can manage subscriptions.");
     }
 
-    private void verifyOwnership(Subscription subscription, Long userId) {
+    private void verifyOwnership(Subscription subscription, UUID userId) {
         boolean isOwner = false;
         if (subscription.getSubscriberType() == SubscriberType.SCHOOL && subscription.getSchool() != null) {
             isOwner = subscription.getSchool().getUser().getId().equals(userId);

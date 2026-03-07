@@ -17,6 +17,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/subscriptions")
 @RequiredArgsConstructor
@@ -85,7 +87,7 @@ public class SubscriptionController {
     @PatchMapping("/{id}/cancel")
     @PreAuthorize("hasAnyRole('PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
     public ResponseEntity<ResponseDto<SubscriptionResponse>> cancelSubscription(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @RequestParam(required = false) String reason,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
@@ -101,7 +103,7 @@ public class SubscriptionController {
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRATOR')")
-    public ResponseEntity<ResponseDto<SubscriptionResponse>> getSubscriptionById(@PathVariable Long id) {
+    public ResponseEntity<ResponseDto<SubscriptionResponse>> getSubscriptionById(@PathVariable UUID id) {
         SubscriptionResponse response = subscriptionService.getSubscriptionById(id);
         return ResponseEntity.ok(ResponseDto.success(response, "Subscription retrieved."));
     }

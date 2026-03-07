@@ -13,25 +13,26 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
-public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {
+public interface SubscriptionRepository extends JpaRepository<Subscription, UUID> {
 
     Optional<Subscription> findBySubscriptionCode(String subscriptionCode);
 
     @Query("SELECT s FROM Subscription s WHERE s.school.id = :schoolId AND s.status = :status")
-    Optional<Subscription> findBySchoolIdAndStatus(@Param("schoolId") Long schoolId,
+    Optional<Subscription> findBySchoolIdAndStatus(@Param("schoolId") UUID schoolId,
                                                    @Param("status") SubscriptionStatus status);
 
     @Query("SELECT s FROM Subscription s WHERE s.partnership.id = :partnershipId AND s.status = :status")
-    Optional<Subscription> findByPartnershipIdAndStatus(@Param("partnershipId") Long partnershipId,
+    Optional<Subscription> findByPartnershipIdAndStatus(@Param("partnershipId") UUID partnershipId,
                                                         @Param("status") SubscriptionStatus status);
 
     @Query("SELECT s FROM Subscription s WHERE s.school.id = :schoolId ORDER BY s.createdAt DESC")
-    Page<Subscription> findBySchoolId(@Param("schoolId") Long schoolId, Pageable pageable);
+    Page<Subscription> findBySchoolId(@Param("schoolId") UUID schoolId, Pageable pageable);
 
     @Query("SELECT s FROM Subscription s WHERE s.partnership.id = :partnershipId ORDER BY s.createdAt DESC")
-    Page<Subscription> findByPartnershipId(@Param("partnershipId") Long partnershipId, Pageable pageable);
+    Page<Subscription> findByPartnershipId(@Param("partnershipId") UUID partnershipId, Pageable pageable);
 
     @Query("""
             SELECT s FROM Subscription s

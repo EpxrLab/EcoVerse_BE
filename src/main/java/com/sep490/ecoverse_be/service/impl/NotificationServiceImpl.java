@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -39,7 +40,7 @@ public class NotificationServiceImpl implements INotificationService {
     @Override
     @Transactional
     public void sendNotification(User recipient, NotificationType type, String title, String message,
-                                 String referenceType, Long referenceId, Map<String, Object> metadata) {
+                                 String referenceType, UUID referenceId, Map<String, Object> metadata) {
         // 1. Save in-app notification to DB
         Notification notification = new Notification();
         notification.setRecipientUser(recipient);
@@ -48,6 +49,7 @@ public class NotificationServiceImpl implements INotificationService {
         notification.setMessage(message);
         notification.setStatus(NotificationStatus.UNREAD);
         notification.setReferenceType(referenceType);
+        notification.setReferenceId(referenceId);
         notification.setMetadata(metadata);
 
         notificationRepository.save(notification);

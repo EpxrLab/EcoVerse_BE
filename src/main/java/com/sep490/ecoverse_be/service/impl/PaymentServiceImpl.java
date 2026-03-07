@@ -191,7 +191,7 @@ public class PaymentServiceImpl implements IPaymentService {
 
     @Override
     @Transactional(readOnly = true)
-    public PaymentResponse getPaymentById(Long paymentId) {
+    public PaymentResponse getPaymentById(UUID paymentId) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found."));
         return paymentMapper.toResponse(payment);
