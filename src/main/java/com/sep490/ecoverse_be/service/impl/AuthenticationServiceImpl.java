@@ -11,8 +11,12 @@ import com.sep490.ecoverse_be.exception.DisabledException;
 import com.sep490.ecoverse_be.exception.DuplicateEntity;
 import com.sep490.ecoverse_be.exception.NotFoundException;
 import com.sep490.ecoverse_be.model.UserPrincipal;
+import com.sep490.ecoverse_be.entity.Parent;
+import com.sep490.ecoverse_be.entity.Student;
+import com.sep490.ecoverse_be.repository.ParentRepository;
 import com.sep490.ecoverse_be.repository.PartnershipRepository;
 import com.sep490.ecoverse_be.repository.SchoolRepository;
+import com.sep490.ecoverse_be.repository.StudentRepository;
 import com.sep490.ecoverse_be.repository.UserRepository;
 import com.sep490.ecoverse_be.service.*;
 import org.modelmapper.ModelMapper;
@@ -58,6 +62,10 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
     private SchoolRepository schoolRepository;
     @Autowired
     private PartnershipRepository partnershipRepository;
+    @Autowired
+    private StudentRepository studentRepository;
+    @Autowired
+    private ParentRepository parentRepository;
 
     @Override
     public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
@@ -171,10 +179,9 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
             String refreshToken = tokenService.generateRefreshToken(user);
 
             AuthResponse authResponse = modelMapper.map(user, AuthResponse.class);
-            if (authentication.isAuthenticated()) {
-                authResponse.setAccessToken(accessToken);
-                authResponse.setRefreshToken(refreshToken);
-            }
+            authResponse.setAccessToken(accessToken);
+            authResponse.setRefreshToken(refreshToken);
+            authResponse.setIsFirstLogin(resolveIsFirstLogin(user));
             return authResponse;
         } catch (DisabledException e) {
             throw new DisabledException(e.getMessage());
@@ -184,6 +191,18 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
             e.printStackTrace();
             throw new RuntimeException("Đã xảy ra lỗi trong quá trình đăng nhập, vui lòng thử lại sau.");
         }
+    }
+
+    private Boolean resolveIsFirstLogin(User user) {
+        return switch (user.getRole()) {
+            case STUDENT -> studentRepository.findByUserId(user.getId())
+                    .map(Student::getIsFirstLogin)
+                    .orElse(false);
+            case PARENT -> parentRepository.findByUserId(user.getId())
+                    .map(Parent::getIsFirstLogin)
+                    .orElse(false);
+            default -> false;
+        };
     }
 
     private void verifyOtpOrThrow(String email, String otp) {
@@ -221,7 +240,7 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 
     @Override
     public void forgotPassword(ForgotPasswordRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
+        userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new NotFoundException("Tài khoản không tồn tại: " + request.getEmail()));
 
         emailService.sendForgotPasswordEmail(request.getEmail(), otpService.generateOtp(request.getEmail()));
@@ -269,6 +288,15 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
+
+        // sau khi doi mat khau thanh cong, tat co isFirstLogin
+        switch (user.getRole()) {
+            case STUDENT -> studentRepository.findByUserId(user.getId())
+                    .ifPresent(s -> { s.setIsFirstLogin(false); studentRepository.save(s); });
+            case PARENT -> parentRepository.findByUserId(user.getId())
+                    .ifPresent(p -> { p.setIsFirstLogin(false); parentRepository.save(p); });
+            default -> { }
+        }
     }
 
 

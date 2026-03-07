@@ -16,7 +16,8 @@ import java.time.LocalDate;
         @Index(name = "idx_students_school_id", columnList = "school_id"),
         @Index(name = "idx_students_student_code", columnList = "student_code"),
         @Index(name = "idx_students_grade_level", columnList = "grade_level"),
-        @Index(name = "idx_students_class_name", columnList = "class_name")
+        @Index(name = "idx_students_class_name", columnList = "class_name"),
+        @Index(name = "idx_students_academic_year_id", columnList = "academic_year_id")
 }, uniqueConstraints = {
         @UniqueConstraint(name = "uk_students_school_student_code", columnNames = {"school_id", "student_code"})
 })
@@ -33,6 +34,10 @@ public class Student extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "school_id", nullable = false)
     private School school;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "academic_year_id")
+    private AcademicYear academicYear;
 
     @Column(name = "student_code", nullable = false, length = 50)
     private String studentCode;
@@ -59,4 +64,7 @@ public class Student extends BaseEntity {
 
     @Column(length = 500)
     private String avatarUrl;
+
+    @Column(name = "is_first_login")
+    private Boolean isFirstLogin = true;
 }
