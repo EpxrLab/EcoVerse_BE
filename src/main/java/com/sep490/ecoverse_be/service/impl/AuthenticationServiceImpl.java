@@ -7,7 +7,6 @@ import com.sep490.ecoverse_be.entity.Partnership;
 import com.sep490.ecoverse_be.entity.School;
 import com.sep490.ecoverse_be.entity.User;
 import com.sep490.ecoverse_be.enums.Role;
-import com.sep490.ecoverse_be.exception.DisabledException;
 import com.sep490.ecoverse_be.exception.DuplicateEntity;
 import com.sep490.ecoverse_be.exception.NotFoundException;
 import com.sep490.ecoverse_be.model.UserPrincipal;
@@ -24,8 +23,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -168,11 +169,8 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
                     new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
             );
 
-            if (!authentication.isAuthenticated()) {
-                throw new BadCredentialsException("Invalid email or password.");
-            }
-            UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
 
+            UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
             User user = userPrincipal.getUser();
 
             String accessToken = tokenService.generateToken(user);
@@ -183,10 +181,18 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
             authResponse.setRefreshToken(refreshToken);
             authResponse.setIsFirstLogin(resolveIsFirstLogin(user));
             return authResponse;
-        } catch (DisabledException e) {
-            throw new DisabledException(e.getMessage());
-        } catch (BadCredentialsException e) {
-            throw new RuntimeException("Email/số điện thoại/username hoặc mật khẩu sai!");
+        } catch (AuthenticationException e) {
+
+            if (e instanceof DisabledException) {
+                throw new RuntimeException("Tài khoản đã bị vô hiệu hóa!");
+            }
+
+            if (e instanceof BadCredentialsException) {
+                throw new RuntimeException("Email hoặc mật khẩu sai!");
+            }
+
+            throw new RuntimeException("Xác thực thất bại!");
+
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("Đã xảy ra lỗi trong quá trình đăng nhập, vui lòng thử lại sau.");

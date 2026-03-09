@@ -1,5 +1,7 @@
 package com.sep490.ecoverse_be.service;
 
+import com.sep490.ecoverse_be.dto.request.UpdatePartnershipProfileRequest;
+import com.sep490.ecoverse_be.dto.request.UpdateSchoolProfileRequest;
 import com.sep490.ecoverse_be.dto.response.ParentProfileResponse;
 import com.sep490.ecoverse_be.dto.response.PartnershipProfileResponse;
 import com.sep490.ecoverse_be.dto.response.SchoolProfileResponse;
@@ -19,4 +21,8 @@ public interface IProfileService {
     SchoolProfileResponse getSchoolProfile(UUID userId);
 
     PartnershipProfileResponse getPartnershipProfile(UUID userId);
+
+    SchoolProfileResponse updateSchoolProfile(UUID userId, UpdateSchoolProfileRequest request);
+
+    PartnershipProfileResponse updatePartnershipProfile(UUID userId, UpdatePartnershipProfileRequest request);
 }

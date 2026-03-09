@@ -44,6 +44,33 @@ public class FileController {
         return ResponseDto.success(response, "Upload thành công");
     }
 
+    @PostMapping(value = "/upload/model", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(
+            summary = "Upload 3D model (.glb, .gltf) lên Cloudinary",
+            description = """
+                    Upload file 3D model dạng `.glb` hoặc `.gltf` lên Cloudinary, hỗ trợ file tới **250MB**.
+
+                    - Sử dụng chunked upload (20MB/chunk) nên phù hợp với file lớn.
+                    - File được lưu tại `ecoverse/models/` trên Cloudinary.
+                    - Trả về `url` và `publicId` để FE dùng load model trong game.
+
+                    **Header:**
+                    ```
+                    Authorization: Bearer <accessToken>
+                    ```
+                    """
+    )
+    public ResponseDto<CloudinaryResponse> uploadModelToCloudinary(
+            @RequestPart("file") MultipartFile file) {
+
+        // Validate định dạng và kích thước (tối đa 250MB)
+        FileUpLoadUtil.assertModelAllowed(file);
+        String fileName = FileUpLoadUtil.getFileName(file.getOriginalFilename());
+        CloudinaryResponse response = cloudinaryService.uploadModelFile(file, fileName);
+
+        return ResponseDto.success(response, "Upload 3D model thành công");
+    }
+
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Upload file và lưu thông tin vào DB")
     public ResponseEntity<ResponseDto<FileResponse>> uploadFile(

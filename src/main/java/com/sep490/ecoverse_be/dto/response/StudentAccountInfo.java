@@ -2,6 +2,8 @@ package com.sep490.ecoverse_be.dto.response;
 
 import lombok.*;
 
+import java.util.UUID;
+
 @Getter
 @Setter
 @Builder
@@ -9,6 +11,7 @@ import lombok.*;
 @NoArgsConstructor
 public class StudentAccountInfo {
 
+    private UUID studentId;
     private String studentFullName;
     private String studentCode;
     private String password;

@@ -1,7 +1,6 @@
 package com.sep490.ecoverse_be.util;
 
 import com.sep490.ecoverse_be.exception.FuncErrorException;
-import org.apache.commons.io.FilenameUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.text.DateFormat;
@@ -12,7 +11,13 @@ import java.util.regex.Pattern;
 public class FileUpLoadUtil {
     public static final long MAX_FILE_SIZE = 100 * 1024 * 1024;
 
+    // Giới hạn riêng cho 3D model (250MB)
+    public static final long MAX_MODEL_SIZE = 250L * 1024 * 1024;
+
     public static final String IMAGE_PATTERN = "(.+\\.(?i)(jpg|png|gif|bmp))$";
+
+    // Pattern dành riêng cho 3D model .glb
+    public static final String MODEL_PATTERN = "(.+\\.(?i)(glb|gltf))$";
 
     public static final String VIDEO_PATTERN = "(.+\\.(?i)(mp4|mov|avi|mkv))$";
 
@@ -27,13 +32,22 @@ public class FileUpLoadUtil {
 
     public static void assertAllowed(MultipartFile file, String pattern) {
         final long size = file.getSize();
-        if(size > MAX_FILE_SIZE) {
-            throw new FuncErrorException("Max file size is 100MB");
+        if (size > MAX_FILE_SIZE) {
+            throw new FuncErrorException("Kích thước file tối đa là 100MB");
         }
-        final String fileName = file.getOriginalFilename();
-        final String extension = FilenameUtils.getExtension(fileName);
         if (!isAllowedExtension(file.getOriginalFilename(), pattern)) {
             throw new FuncErrorException("Chỉ hỗ trợ các định dạng: " + pattern);
+        }
+    }
+
+    // Validate riêng cho 3D model, cho phép tới 250MB
+    public static void assertModelAllowed(MultipartFile file) {
+        final long size = file.getSize();
+        if (size > MAX_MODEL_SIZE) {
+            throw new FuncErrorException("Kích thước file 3D model tối đa là 250MB");
+        }
+        if (!isAllowedExtension(file.getOriginalFilename(), MODEL_PATTERN)) {
+            throw new FuncErrorException("Chỉ hỗ trợ định dạng 3D model: .glb, .gltf");
         }
     }
 

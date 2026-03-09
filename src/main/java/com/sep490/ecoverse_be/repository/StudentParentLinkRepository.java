@@ -15,4 +15,6 @@ public interface StudentParentLinkRepository extends JpaRepository<StudentParent
     List<StudentParentLink> findByStudentId(UUID studentId);
 
     boolean existsByStudentIdAndParentId(UUID studentId, UUID parentId);
+
+    void deleteByStudentId(UUID studentId);
 }
