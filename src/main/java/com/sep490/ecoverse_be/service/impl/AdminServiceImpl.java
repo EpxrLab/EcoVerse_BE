@@ -180,7 +180,7 @@ public class AdminServiceImpl implements IAdminService {
             user.setStatus(AccountStatus.ACTIVE);
             user.setIsActive(true);
         }else{
-            user.setStatus(AccountStatus.INACTIVE);
+            user.setStatus(AccountStatus.SUSPENDED);
             user.setIsActive(false);
         }
         userRepository.save(user);

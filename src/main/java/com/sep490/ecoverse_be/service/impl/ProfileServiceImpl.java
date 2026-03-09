@@ -79,7 +79,7 @@ public class ProfileServiceImpl implements IProfileService {
                 .gender(student.getGender() != null ? student.getGender().name() : null)
                 .address(student.getAddress())
                 .avatarUrl(student.getAvatarUrl())
-                .totalCoins(student.getTotalCoins() != null ? student.getTotalCoins().toPlainString() : "0.00")
+                .totalCoins(student.getTotalCoins() != null ? student.getTotalCoins() : null)
                 .isFirstLogin(student.getIsFirstLogin())
                 .school(StudentProfileResponse.SchoolSummary.builder()
                         .id(student.getSchool().getId())

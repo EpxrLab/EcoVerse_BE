@@ -1,13 +1,14 @@
 package com.sep490.ecoverse_be.controller;
 
-import com.sep490.ecoverse_be.dto.response.AccountListResponse;
-import com.sep490.ecoverse_be.dto.response.ImportResultResponse;
-import com.sep490.ecoverse_be.dto.response.ResponseDto;
+import com.sep490.ecoverse_be.dto.request.StudentInformationRequest;
+import com.sep490.ecoverse_be.dto.request.UpdateSchoolProfileRequest;
+import com.sep490.ecoverse_be.dto.response.*;
 import com.sep490.ecoverse_be.model.UserPrincipal;
 import com.sep490.ecoverse_be.service.ISchoolService;
 import com.sep490.ecoverse_be.service.IStudentImportService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -16,6 +17,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -198,5 +200,106 @@ public class ImportFileStudentController {
             @PathVariable UUID studentId) {
         schoolService.softDeleteStudent(principal.getUser().getId(), studentId);
         return new ResponseDto<>(HttpStatus.OK.value(), "Xóa học sinh thành công", null);
+    }
+
+    @GetMapping("/students")
+    @Operation(
+            summary = "Lấy danh sách thông tin học sinh",
+            description = """
+                    Lấy toàn bộ danh sách học sinh.
+
+                    **Header:**
+                    ```
+                    Authorization: Bearer <accessToken>
+                    ```
+
+                    **Response mẫu:**
+                    ```json
+                    {
+                      "status": 200,
+                      "message": "Lấy danh sách thành công",
+                      "data": {
+                                "studentId": "uuid"
+                                "studentFullName": "Nguyễn Hoàng Nhật Ân",
+                                "studentCode": "AnNHN",
+                                "className": "5A",
+                                "gradeLevel": "5",
+                                "academicYear": "2025-2026",
+                                "dateOfBirth": "2015-03-20",
+                                "gender": "MALE",
+                                "address": "Lương Định Của",
+                                "avatar": "https://cloudinary.com/avatar.png"
+                               }
+                    }
+                    """
+    )
+    public ResponseDto<List<ListStudentResponse>> getStudents() {
+        List<ListStudentResponse> studentResponse = schoolService.getAllStudent();
+        return new ResponseDto<>(HttpStatus.OK.value(), "Lấy danh sách thành công", studentResponse);
+    }
+
+    @GetMapping("/parents")
+    @Operation(
+            summary = "Lấy danh sách thông tin phụ huynh",
+            description = """
+                    Lấy toàn bộ danh sách phụ huynh.
+
+                    **Header:**
+                    ```
+                    Authorization: Bearer <accessToken>
+                    ```
+
+                    **Response mẫu:**
+                    ```json
+                    {
+                      "status": 200,
+                      "message": "Lấy danh sách thành công",
+                      "data": {
+                                "parentId": "uuid"
+                                "fullName": "Nguyễn Văn Quốc",
+                                "phoneNumber": "0905324995",
+                                "parentEmail": "nguyenhoangnhatan31@gmail.com"
+                               }
+                    }
+                    """
+    )
+    public ResponseDto<List<ListParentResponse>> getParents() {
+        List<ListParentResponse> parentResponse = schoolService.getAllParent();
+        return new ResponseDto<>(HttpStatus.OK.value(), "Lấy danh sách thành công", parentResponse);
+    }
+
+    @PutMapping("/update/students/{studentId}")
+    @PreAuthorize("hasAuthority('PARTNERSHIP_SCHOOL')")
+    @Operation(
+            summary = "Cập nhật hồ sơ học sinh",
+            description = """
+                    Cập nhật thông tin hồ sơ của học sinh. Chỉ dành cho role **PARTNERSHIP_SCHOOL**.
+
+                    **Hỗ trợ partial update:** chỉ gửi các trường cần thay đổi, các trường không gửi sẽ giữ nguyên.
+
+                    **Header:**
+                    ```
+                    Authorization: Bearer <accessToken>
+                    Content-Type: application/json
+                    ```
+
+                    **Request body mẫu:**
+                    ```json
+                    {
+                      "fullName": "Nguyễn Hoàng Nhật Ân",
+                      "studentCode": "AnNHN",
+                      "className": "A2",
+                      "gradeLevel": "1",
+                      "dateOfBirth": "2004-08-20",
+                      "gender": "MALE",
+                      "address": "Lương Định Của"
+                    }
+                    """
+    )
+    public ResponseDto<StudentProfileResponse> updateStudentProfileBySchool(
+            @RequestParam UUID studentId,
+            @Valid @RequestBody StudentInformationRequest request) {
+        StudentProfileResponse response = schoolService.updateStudentInformation(studentId, request);
+        return new ResponseDto<>(HttpStatus.OK.value(), "Cập nhật hồ sơ trường học thành công", response);
     }
 }
