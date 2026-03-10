@@ -2,7 +2,6 @@ package com.sep490.ecoverse_be.dto.response;
 
 import lombok.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -10,12 +9,9 @@ import java.util.UUID;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class ParentAccountInfo {
-
+public class ListParentResponse {
     private UUID parentId;
-    private String parentFullName;
+    private String fullName;
     private String phoneNumber;
-    private String password;
     private String parentEmail;
-    private List<StudentAccountInfo> children;
 }

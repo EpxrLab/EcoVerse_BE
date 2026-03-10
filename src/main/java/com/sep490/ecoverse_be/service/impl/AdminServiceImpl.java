@@ -153,6 +153,40 @@ public class AdminServiceImpl implements IAdminService {
         return mapToPartnershipDetailResponse(partnership);
     }
 
+    @Override
+    public List<SchoolDetailResponse> getApprovedSchools() {
+        return schoolRepository.findByApprovalStatus(ApprovalStatus.APPROVED)
+                .stream()
+                .map(this::mapToSchoolDetailResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<PartnershipDetailResponse> getApprovedPartnerships() {
+        return partnershipRepository.findByApprovalStatus(ApprovalStatus.APPROVED)
+                .stream()
+                .map(this::mapToPartnershipDetailResponse)
+                .collect(Collectors.toList());
+    }
+
+
+    @Override
+    public void updateUserStatus(UUID userId, boolean isActive) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản"));
+
+        if(isActive){
+            user.setStatus(AccountStatus.ACTIVE);
+            user.setIsActive(true);
+        }else{
+            user.setStatus(AccountStatus.SUSPENDED);
+            user.setIsActive(false);
+        }
+        userRepository.save(user);
+    }
+
+
     private SchoolDetailResponse mapToSchoolDetailResponse(School school) {
         return SchoolDetailResponse.builder()
                 .id(school.getId())
