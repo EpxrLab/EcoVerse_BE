@@ -23,11 +23,8 @@ public class CloudinaryServiceImpl implements ICloudinaryService {
     private static final int CHUNK_SIZE = 20 * 1024 * 1024;
 
     @Override
-<<<<<<< HEAD
     @Transactional
     @SuppressWarnings("unchecked")
-=======
->>>>>>> cfb71a3c9b7d2f3c33b38de46f12e8db6f7905c7
     public CloudinaryResponse uploadFile(final MultipartFile file, final String fileName) {
         try {
             // Dùng InputStream thay getBytes() để tránh load toàn bộ file vào RAM
