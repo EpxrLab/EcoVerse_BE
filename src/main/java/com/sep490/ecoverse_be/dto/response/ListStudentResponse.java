@@ -2,6 +2,7 @@ package com.sep490.ecoverse_be.dto.response;
 
 import lombok.*;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Getter
@@ -9,12 +10,15 @@ import java.util.UUID;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class StudentAccountInfo {
-
+public class ListStudentResponse {
     private UUID studentId;
     private String studentFullName;
     private String studentCode;
-    private String password;
     private String className;
     private String gradeLevel;
+    private String academicYear;
+    private LocalDate dateOfBirth;
+    private String gender;
+    private String address;
+    private String avatarUrl;
 }

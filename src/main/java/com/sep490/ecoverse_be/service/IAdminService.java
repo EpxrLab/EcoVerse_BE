@@ -13,7 +13,13 @@ public interface IAdminService {
 
     List<PartnershipDetailResponse> getPendingPartnerships();
 
+    List<SchoolDetailResponse> getApprovedSchools();
+
+    List<PartnershipDetailResponse> getApprovedPartnerships();
+
     SchoolDetailResponse updateSchoolApproval(UUID id, UpdateApprovalRequest request);
 
     PartnershipDetailResponse updatePartnershipApproval(UUID id, UpdateApprovalRequest request);
+
+    void updateUserStatus(UUID userId, boolean isActive);
 }

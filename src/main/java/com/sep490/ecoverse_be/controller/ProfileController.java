@@ -1,5 +1,7 @@
 package com.sep490.ecoverse_be.controller;
 
+import com.sep490.ecoverse_be.dto.request.UpdatePartnershipProfileRequest;
+import com.sep490.ecoverse_be.dto.request.UpdateSchoolProfileRequest;
 import com.sep490.ecoverse_be.dto.response.ParentProfileResponse;
 import com.sep490.ecoverse_be.dto.response.PartnershipProfileResponse;
 import com.sep490.ecoverse_be.dto.response.ResponseDto;
@@ -10,13 +12,13 @@ import com.sep490.ecoverse_be.model.UserPrincipal;
 import com.sep490.ecoverse_be.service.IProfileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
 
 @RestController
 @RequestMapping("/api/profile")
@@ -238,5 +240,107 @@ public class ProfileController {
     public ResponseDto<PartnershipProfileResponse> getPartnershipProfile(@AuthenticationPrincipal UserPrincipal principal) {
         PartnershipProfileResponse response = profileService.getPartnershipProfile(principal.getUser().getId());
         return new ResponseDto<>(HttpStatus.OK.value(), "Lấy thông tin thành công", response);
+    }
+
+    @PutMapping("/school")
+    @PreAuthorize("hasAuthority('PARTNERSHIP_SCHOOL')")
+    @Operation(
+            summary = "Cập nhật hồ sơ trường học",
+            description = """
+                    Cập nhật thông tin hồ sơ của trường học đang đăng nhập. Chỉ dành cho role **PARTNERSHIP_SCHOOL**.
+
+                    **Các trường ĐƯỢC phép cập nhật:**
+                    `schoolName`, `schoolType`, `address`, `district`, `province`, `phoneNumber`,
+                    `principalName`, `position`, `contactEmail`, `linkWeb`, `description`
+
+                    **Các trường KHÔNG được phép cập nhật qua API này:**
+                    - `taxCode` — bất biến sau khi đăng ký
+                    - `logoUrl` — cập nhật qua API upload logo riêng
+                    - `licenseUrl` — cập nhật qua API upload giấy phép riêng
+
+                    **Hỗ trợ partial update:** chỉ gửi các trường cần thay đổi, các trường không gửi sẽ giữ nguyên.
+
+                    **Header:**
+                    ```
+                    Authorization: Bearer <accessToken>
+                    Content-Type: application/json
+                    ```
+
+                    **Request body mẫu:**
+                    ```json
+                    {
+                      "schoolName": "Trường Tiểu Học Lê Văn Tám",
+                      "schoolType": "PUBLIC",
+                      "address": "123 Lê Lợi",
+                      "district": "Quận 1",
+                      "province": "Hồ Chí Minh",
+                      "phoneNumber": "0901234567",
+                      "principalName": "Nguyễn Văn B",
+                      "position": "Hiệu trưởng",
+                      "contactEmail": "school@example.com",
+                      "linkWeb": "https://school.edu.vn",
+                      "description": "Mô tả mới"
+                    }
+                    ```
+
+                    **schoolType:** `PUBLIC` | `PRIVATE` | `SEMI_PUBLIC`
+                    """
+    )
+    public ResponseDto<SchoolProfileResponse> updateSchoolProfile(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody UpdateSchoolProfileRequest request) {
+        SchoolProfileResponse response = profileService.updateSchoolProfile(principal.getUser().getId(), request);
+        return new ResponseDto<>(HttpStatus.OK.value(), "Cập nhật hồ sơ trường học thành công", response);
+    }
+
+    @PutMapping("/partnership")
+    @PreAuthorize("hasAuthority('THIRD_PARTY_PARTNERSHIP')")
+    @Operation(
+            summary = "Cập nhật hồ sơ đối tác",
+            description = """
+                    Cập nhật thông tin hồ sơ của tổ chức đối tác đang đăng nhập. Chỉ dành cho role **THIRD_PARTY_PARTNERSHIP**.
+
+                    **Các trường ĐƯỢC phép cập nhật:**
+                    `organizationName`, `partnershipType`, `contactEmail`, `phoneNumber`, `registeredAddress`,
+                    `geographicScopeDistrict`, `geographicScopeProvince`, `contactPerson`, `position`, `linkWeb`, `description`
+
+                    **Các trường KHÔNG được phép cập nhật qua API này:**
+                    - `taxCode` — bất biến sau khi đăng ký
+                    - `logoUrl` — cập nhật qua API upload logo riêng
+                    - `licenseUrl` — cập nhật qua API upload giấy phép riêng
+
+                    **Hỗ trợ partial update:** chỉ gửi các trường cần thay đổi, các trường không gửi sẽ giữ nguyên.
+
+                    **Header:**
+                    ```
+                    Authorization: Bearer <accessToken>
+                    Content-Type: application/json
+                    ```
+
+                    **Request body mẫu:**
+                    ```json
+                    {
+                      "organizationName": "Đoàn Thanh Niên Quận 1",
+                      "partnershipType": "YOUTH_UNION",
+                      "contactEmail": "partner@example.com",
+                      "phoneNumber": "0901234567",
+                      "registeredAddress": "456 Nguyễn Huệ",
+                      "geographicScopeDistrict": "Quận 1",
+                      "geographicScopeProvince": "Hồ Chí Minh",
+                      "contactPerson": "Trần Thị C",
+                      "position": "Phó phòng",
+                      "linkWeb": "https://partner.org.vn",
+                      "description": "Mô tả mới"
+                    }
+                    ```
+
+                    **partnershipType:** `YOUTH_UNION` | `WARD_GOVERNMENT` | `COMMUNE_GOVERNMENT` | `PUBLIC_ORGANIZATION` | `NGO` | `OTHER`
+                    """
+    )
+    public ResponseDto<PartnershipProfileResponse> updatePartnershipProfile(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody UpdatePartnershipProfileRequest request) {
+        PartnershipProfileResponse response = profileService.updatePartnershipProfile(principal.getUser().getId(), request);
+        return new ResponseDto<>(HttpStatus.OK.value(), "Cập nhật hồ sơ đối tác thành công", response);
     }
 }

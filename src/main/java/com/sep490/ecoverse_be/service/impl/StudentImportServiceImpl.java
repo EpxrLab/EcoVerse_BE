@@ -219,6 +219,7 @@ public class StudentImportServiceImpl implements IStudentImportService {
                     List<StudentAccountInfo> children = entry.getValue().stream()
                             .map(s -> StudentAccountInfo.builder()
                                     .studentFullName(s.getFullName())
+                                    .studentId(s.getId())
                                     .studentCode(s.getStudentCode())
                                     .className(s.getClassName())
                                     .gradeLevel(s.getGradeLevel())
@@ -226,6 +227,7 @@ public class StudentImportServiceImpl implements IStudentImportService {
                             .toList();
 
                     return ParentAccountInfo.builder()
+                            .parentId(parent.getId())
                             .parentFullName(parent.getFullName())
                             .phoneNumber(parent.getPhoneNumber())
                             .parentEmail(parent.getUser().getEmail())
