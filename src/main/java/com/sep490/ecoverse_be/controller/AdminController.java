@@ -1,10 +1,11 @@
 package com.sep490.ecoverse_be.controller;
 
-import com.sep490.ecoverse_be.dto.request.ApprovalRequest;
 import com.sep490.ecoverse_be.dto.request.UpdateApprovalRequest;
+import com.sep490.ecoverse_be.dto.response.AdminUserListResponse;
 import com.sep490.ecoverse_be.dto.response.PartnershipDetailResponse;
 import com.sep490.ecoverse_be.dto.response.ResponseDto;
 import com.sep490.ecoverse_be.dto.response.SchoolDetailResponse;
+import com.sep490.ecoverse_be.enums.Role;
 import com.sep490.ecoverse_be.exception.BadRequestException;
 import com.sep490.ecoverse_be.exception.NotFoundException;
 import com.sep490.ecoverse_be.service.IAdminService;
@@ -208,6 +209,120 @@ public class AdminController {
             return ResponseDto.notFound(e.getMessage());
         } catch (BadRequestException e) {
             return ResponseDto.badRequest(null, e.getMessage());
+        }
+    }
+
+    @GetMapping("/users")
+    @Operation(
+            summary = "Lấy danh sách tất cả người dùng",
+            description = """
+                    Trả về danh sách người dùng toàn hệ thống, có thể lọc theo `role`.
+                    Chỉ dành cho role **ADMINISTRATOR**.
+
+                    **Quy tắc lọc:**
+                    - Không truyền `role` → trả về tất cả loại user (school, partnership, student, parent).
+                    - `role=PARTNERSHIP_SCHOOL` → chỉ trường học.
+                    - `role=THIRD_PARTY_PARTNERSHIP` → chỉ đối tác.
+                    - `role=STUDENT` → chỉ học sinh. Có thể lọc thêm `schoolId` để lấy học sinh của một trường cụ thể.
+                    - `role=PARENT` → chỉ phụ huynh. Có thể lọc thêm `schoolId` để lấy phụ huynh có con em tại trường đó.
+
+                    **Query params:**
+                    - `role` *(tuỳ chọn)*: `PARTNERSHIP_SCHOOL` | `THIRD_PARTY_PARTNERSHIP` | `STUDENT` | `PARENT`
+                    - `schoolId` *(tuỳ chọn, chỉ hiệu lực khi role là `STUDENT` hoặc `PARENT`)*: UUID của trường học
+
+                    **Header:**
+                    ```
+                    Authorization: Bearer <accessToken>
+                    ```
+                    """
+    )
+    public ResponseDto<List<AdminUserListResponse>> getAllUsers(
+            @RequestParam(required = false) Role role,
+            @RequestParam(required = false) UUID schoolId) {
+        return ResponseDto.success(adminService.getAllUsers(role, schoolId), "Danh sách người dùng");
+    }
+
+    @GetMapping("/users/{userId}")
+    @Operation(
+            summary = "Lấy chi tiết một người dùng",
+            description = """
+                    Trả về thông tin chi tiết của một người dùng theo `userId`.
+                    Chỉ dành cho role **ADMINISTRATOR**.
+
+                    Tự động phân tích role của user và trả về các field phù hợp:
+                    - **PARTNERSHIP_SCHOOL** → bổ sung `displayName` là tên trường.
+                    - **THIRD_PARTY_PARTNERSHIP** → bổ sung `displayName` là tên tổ chức.
+                    - **STUDENT** → bổ sung `displayName`, `studentCode`, `className`, `gradeLevel`, `schoolName`.
+                    - **PARENT** → bổ sung `displayName`, `phoneNumber`, `schoolName` (trường của con đầu tiên).
+
+                    **Path variable:** `userId` — UUID của bản ghi User
+
+                    **Header:**
+                    ```
+                    Authorization: Bearer <accessToken>
+                    ```
+
+                    **Lỗi có thể xảy ra:**
+                    - `404` — Không tìm thấy người dùng
+                    """
+    )
+    public ResponseDto<AdminUserListResponse> getUserDetail(@PathVariable UUID userId) {
+        try {
+            return ResponseDto.success(adminService.getUserDetail(userId), "Chi tiết người dùng");
+        } catch (NotFoundException e) {
+            return ResponseDto.notFound(e.getMessage());
+        }
+    }
+
+    @GetMapping("/schools/{schoolId}")
+    @Operation(
+            summary = "Lấy chi tiết một trường học",
+            description = """
+                    Trả về thông tin đầy đủ của một trường học theo `schoolId` (là UUID của bản ghi School, không phải userId).
+                    Chỉ dành cho role **ADMINISTRATOR**.
+
+                    **Path variable:** `schoolId` — UUID của bản ghi School
+
+                    **Header:**
+                    ```
+                    Authorization: Bearer <accessToken>
+                    ```
+
+                    **Lỗi có thể xảy ra:**
+                    - `404` — Không tìm thấy trường học
+                    """
+    )
+    public ResponseDto<SchoolDetailResponse> getSchoolById(@PathVariable UUID schoolId) {
+        try {
+            return ResponseDto.success(adminService.getSchoolById(schoolId), "Chi tiết trường học");
+        } catch (NotFoundException e) {
+            return ResponseDto.notFound(e.getMessage());
+        }
+    }
+
+    @GetMapping("/partnerships/{partnershipId}")
+    @Operation(
+            summary = "Lấy chi tiết một đối tác",
+            description = """
+                    Trả về thông tin đầy đủ của một đối tác theo `partnershipId` (là UUID của bản ghi Partnership, không phải userId).
+                    Chỉ dành cho role **ADMINISTRATOR**.
+
+                    **Path variable:** `partnershipId` — UUID của bản ghi Partnership
+
+                    **Header:**
+                    ```
+                    Authorization: Bearer <accessToken>
+                    ```
+
+                    **Lỗi có thể xảy ra:**
+                    - `404` — Không tìm thấy đối tác
+                    """
+    )
+    public ResponseDto<PartnershipDetailResponse> getPartnershipById(@PathVariable UUID partnershipId) {
+        try {
+            return ResponseDto.success(adminService.getPartnershipById(partnershipId), "Chi tiết đối tác");
+        } catch (NotFoundException e) {
+            return ResponseDto.notFound(e.getMessage());
         }
     }
 
