@@ -18,6 +18,7 @@ import com.sep490.ecoverse_be.util.StudentCodeGenerator;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -54,6 +55,9 @@ public class StudentImportServiceImpl implements IStudentImportService {
 
     @Autowired
     private IEmailService emailService;
+
+    @Value("${app.default-avatar-url}")
+    private String defaultAvatarUrl;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder(12);
 
@@ -160,7 +164,7 @@ public class StudentImportServiceImpl implements IStudentImportService {
                 student.setClassName(row.getClassName());
                 student.setGradeLevel(row.getGradeLevel());
                 student.setAddress(row.getAddress());
-                student.setAvatarUrl("https://res.cloudinary.com/dsqlivxid/image/upload/v1772641395/ecoverse/user/8f1ca2029e2efceebd22fa05cca423d7.jpg_20260304232313.jpg");
+                student.setAvatarUrl(defaultAvatarUrl);
                 student.setDateOfBirth(LocalDate.parse(row.getDateOfBirth(), DATE_FORMAT));
                 student.setGender(Gender.valueOf(row.getGender().toUpperCase()));
                 student.setIsFirstLogin(true);

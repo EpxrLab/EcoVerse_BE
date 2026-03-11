@@ -27,7 +27,7 @@ public class FileServiceImpl implements IFileService {
 
     private final FileRepository fileRepository;
     private final UserRepository userRepository;
-    private final CloudinaryService cloudinaryService;
+    private final S3FileService s3FileService;
     private final FileMapper fileMapper;
 
     @Override
@@ -44,7 +44,7 @@ public class FileServiceImpl implements IFileService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found."));
 
-        Map<String, Object> uploadResult = cloudinaryService.upload(file);
+        Map<String, Object> uploadResult = s3FileService.upload(file);
 
         FileEntity fileEntity = new FileEntity();
         fileEntity.setFileName(file.getOriginalFilename());
@@ -90,7 +90,7 @@ public class FileServiceImpl implements IFileService {
             throw new FuncErrorException("You do not have permission to delete this file.");
         }
 
-        cloudinaryService.delete(file.getPublicId());
+        s3FileService.delete(file.getPublicId());
         fileRepository.delete(file);
     }
 }
