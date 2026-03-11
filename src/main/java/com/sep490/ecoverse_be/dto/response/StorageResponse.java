@@ -7,7 +7,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class CloudinaryResponse {
+public class StorageResponse {
     private String publicId;
     private String url;
 }
