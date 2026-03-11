@@ -24,6 +24,9 @@ public class SwaggerConfig {
                 .addServersItem(new Server()
                         .url("http://localhost:8080")
                         .description("Local Development Server"))
+                .addServersItem(new Server()
+                        .url("http://13.212.15.242:8080")
+                        .description("Production Server"))
                 .addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEMES))
                 .components(new Components()
                         .addSecuritySchemes(SECURITY_SCHEMES,
