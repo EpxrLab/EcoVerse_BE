@@ -59,8 +59,6 @@ public class VerifyRegisterSchoolRequest {
             message = "Passwords must include uppercase letters, lowercase letters, numbers, and special characters.")
     private String password;
 
-    private String otp;
-
     @NotBlank(message = "Logo URL is required")
     private String logoUrl;
 

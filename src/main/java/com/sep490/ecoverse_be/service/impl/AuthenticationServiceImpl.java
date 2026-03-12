@@ -90,7 +90,10 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
     @Override
     public UserResponse verifyRegisterSchool(VerifyRegisterSchoolRequest registerRequest) {
         try {
-            verifyOtpOrThrow(registerRequest.getContactEmail(), registerRequest.getOtp());
+            // Kiểm tra email đã xác thực OTP qua /verify-otp chưa
+            if (!otpService.isEmailVerified(registerRequest.getContactEmail())) {
+                throw new IllegalArgumentException("Email chưa được xác thực OTP. Vui lòng xác thực OTP trước khi đăng ký.");
+            }
 
             User newUser = buildUser(registerRequest.getContactEmail(), registerRequest.getPassword(), Role.PARTNERSHIP_SCHOOL);
 
@@ -112,6 +115,9 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
             school.setLicenseUrl(registerRequest.getLicenseUrl());
             schoolRepository.save(school);
 
+            // Xóa trạng thái verified sau khi tạo tài khoản thành công
+            otpService.clearVerified(registerRequest.getContactEmail());
+
             return modelMapper.map(newUser, UserResponse.class);
         } catch (DataIntegrityViolationException e) {
             e.printStackTrace();
@@ -128,7 +134,10 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
     @Override
     public UserResponse verifyRegisterPartnership(VerifyRegisterPartnershipRequest registerRequest) {
         try {
-            verifyOtpOrThrow(registerRequest.getContactEmail(), registerRequest.getOtp());
+            // Kiểm tra email đã xác thực OTP qua /verify-otp chưa
+            if (!otpService.isEmailVerified(registerRequest.getContactEmail())) {
+                throw new IllegalArgumentException("Email chưa được xác thực OTP. Vui lòng xác thực OTP trước khi đăng ký.");
+            }
 
             User newUser = buildUser(registerRequest.getContactEmail(), registerRequest.getPassword(), Role.THIRD_PARTY_PARTNERSHIP);
 
@@ -149,6 +158,9 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
             partnership.setLogoUrl(registerRequest.getLogoUrl());
             partnership.setLicenseUrl(registerRequest.getLicenseUrl());
             partnershipRepository.save(partnership);
+
+            // Xóa trạng thái verified sau khi tạo tài khoản thành công
+            otpService.clearVerified(registerRequest.getContactEmail());
 
             return modelMapper.map(newUser, UserResponse.class);
         } catch (DataIntegrityViolationException e) {
@@ -211,10 +223,13 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
         };
     }
 
-    private void verifyOtpOrThrow(String email, String otp) {
+    @Override
+    public void verifyOtpOrThrow(String email, String otp) {
         if (!otpService.verifyOtp(email, otp)) {
-            throw new NotFoundException("Invalid Otp");
+            throw new NotFoundException("OTP không hợp lệ hoặc đã hết hạn");
         }
+        // Đánh dấu email đã xác thực OTP — cho phép tiến hành đăng ký trong 15 phút
+        otpService.markAsVerified(email);
     }
 
     private User buildUser(String email, String password, Role role) {

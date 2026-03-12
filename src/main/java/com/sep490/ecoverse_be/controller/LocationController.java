@@ -20,8 +20,8 @@ public class LocationController {
         return new ResponseDto<>(HttpStatus.OK.value(), "Get the list of provinces successes", ILocationService.getProvinces());
     }
 
-    @GetMapping("/districts/{provinceCode}")
-    public ResponseDto<?> getDistricts(@PathVariable String provinceCode) {
-        return new ResponseDto<>(HttpStatus.OK.value(), "Get the list of districts successes", ILocationService.getDistricts(provinceCode));
+    @GetMapping("/wards/{provinceCode}")
+    public ResponseDto<?> getWards(@PathVariable String provinceCode) {
+        return new ResponseDto<>(HttpStatus.OK.value(), "Get the list of districts successes", ILocationService.getWards(provinceCode));
     }
 }

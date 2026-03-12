@@ -8,6 +8,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 public interface IAuthenticationService extends UserDetailsService {
     void register(RegisterRequest registerRequest);
     UserResponse verifyRegisterSchool(VerifyRegisterSchoolRequest registerRequest);
+    void verifyOtpOrThrow(String email, String otp);
     UserResponse verifyRegisterPartnership(VerifyRegisterPartnershipRequest registerRequest);
     AuthResponse login(LoginRequest loginRequest);
     void logout(String token, RefreshTokenRequest request);

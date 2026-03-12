@@ -20,11 +20,12 @@ public final class AppConstants {
             "/api/otp/verify-reset-password",
             "/api/payments/webhook/payos",
             "/api/locations/provinces",
-            "/api/locations/districts/**",
+            "/api/locations/wards/**",
             "/api/auth/verify-register/school",
             "/api/auth/verify-register/partnership",
             "/api/files/upload/cloudinary",
-            "/api/files/upload/model"
+            "/api/files/upload/model",
+            "/api/auth/verify-otp"
 
     };
 }
