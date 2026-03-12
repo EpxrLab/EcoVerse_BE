@@ -30,27 +30,39 @@ spring:
       max-file-size: 250MB
       max-request-size: 250MB
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
           auth: true
-          starttls.enable: true
-        transport.protocol: smtp
+          starttls:
+            enable: true
+        transport:
+          protocol: smtp
 
 app:
   jwt:
     secret-key: ${JWT_SECRET_KEY:defaultSecretKeyChangeThisInProduction}
     access-token-expiration: 3600000       # 60 minutes
     refresh-token-expiration: 604800000    # 7 days
+  default-avatar-url: ${DEFAULT_AVATAR_URL:}
 
-cloudinary:
-  cloud-name: ${CLOUDINARY_CLOUD_NAME:}
-  api-key: ${CLOUDINARY_API_KEY:}
-  api-secret: ${CLOUDINARY_API_SECRET:}
+aws:
+  access-key: ${AWS_ACCESS_KEY:}
+  secret-key: ${AWS_SECRET_KEY:}
+  region: ${AWS_REGION:ap-southeast-1}
+  s3:
+    bucket: ${AWS_S3_BUCKET:}
+
+payos:
+  client-id: ${PAYOS_CLIENT_ID:}
+  api-key: ${PAYOS_API_KEY:}
+  checksum-key: ${PAYOS_CHECKSUM_KEY:}
+  return-url: ${PAYOS_RETURN_URL:http://localhost:5173/payment/success}
+  cancel-url: ${PAYOS_CANCEL_URL:http://localhost:5173/payment/cancel}
 
 #logging:
 #  level:

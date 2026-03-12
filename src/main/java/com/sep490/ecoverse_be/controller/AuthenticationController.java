@@ -80,8 +80,9 @@ public class AuthenticationController {
                       "description": "Mô tả trường",
                       "schoolType": "PUBLIC",
                       "password": "Pass@1234",
-                      "logoUrl": "https://cloudinary.com/logo.png",
-                      "licenseUrl": "https://cloudinary.com/license.pdf"
+                      "otp": "123456",
+                      "logoUrl": "https://example.s3.amazonaws.com/logo.png",
+                      "licenseUrl": "https://example.s3.amazonaws.com/license.pdf"
                     }
                     ```
 
@@ -150,8 +151,8 @@ public class AuthenticationController {
                       "partnershipType": "YOUTH_UNION",
                       "password": "Pass@1234",
                       "otp": "123456",
-                      "logoUrl": "https://cloudinary.com/logo.png",
-                      "licenseUrl": "https://cloudinary.com/license.pdf"
+                      "logoUrl": "https://example.s3.amazonaws.com/logo.png",
+                      "licenseUrl": "https://example.s3.amazonaws.com/license.pdf"
                     }
                     ```
 

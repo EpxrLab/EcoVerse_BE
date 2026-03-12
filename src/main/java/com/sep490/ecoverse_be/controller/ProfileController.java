@@ -180,8 +180,8 @@ public class ProfileController {
                         "linkWeb": "https://school.edu.vn",
                         "description": "Mô tả trường",
                         "approvalStatus": "APPROVED",
-                        "logoUrl": "https://cloudinary.com/logo.png",
-                        "licenseUrl": "https://cloudinary.com/license.pdf"
+                        "logoUrl": "https://example.s3.amazonaws.com/logo.png",
+                        "licenseUrl": "https://example.s3.amazonaws.com/license.pdf"
                       }
                     }
                     ```
@@ -226,8 +226,8 @@ public class ProfileController {
                         "linkWeb": "https://partner.org.vn",
                         "description": "Mô tả tổ chức",
                         "approvalStatus": "APPROVED",
-                        "logoUrl": "https://cloudinary.com/logo.png",
-                        "licenseUrl": "https://cloudinary.com/license.pdf"
+                        "logoUrl": "https://example.s3.amazonaws.com/logo.png",
+                        "licenseUrl": "https://example.s3.amazonaws.com/license.pdf"
                       }
                     }
                     ```

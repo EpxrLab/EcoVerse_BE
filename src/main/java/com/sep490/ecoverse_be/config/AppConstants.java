@@ -18,6 +18,7 @@ public final class AppConstants {
             "/swagger-resources/**",
             "/api/otp/verify-register",
             "/api/otp/verify-reset-password",
+            "/api/payments/webhook/payos",
             "/api/locations/provinces",
             "/api/locations/wards/**",
             "/api/auth/verify-register/school",

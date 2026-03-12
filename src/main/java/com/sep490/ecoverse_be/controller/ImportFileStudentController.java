@@ -228,7 +228,7 @@ public class ImportFileStudentController {
                                 "dateOfBirth": "2015-03-20",
                                 "gender": "MALE",
                                 "address": "Lương Định Của",
-                                "avatar": "https://cloudinary.com/avatar.png"
+                                "avatar": "https://example.s3.amazonaws.com/avatar.png"
                                }
                     }
                     """
