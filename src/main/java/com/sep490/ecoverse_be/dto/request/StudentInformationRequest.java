@@ -1,6 +1,5 @@
 package com.sep490.ecoverse_be.dto.request;
 
-import com.sep490.ecoverse_be.entity.AcademicYear;
 import lombok.*;
 
 import java.time.LocalDate;

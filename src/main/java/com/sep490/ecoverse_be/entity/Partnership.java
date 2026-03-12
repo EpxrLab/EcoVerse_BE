@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Table(name = "partnerships", indexes = {@Index(name = "idx_partnerships_user_id", columnList = "user_id"),
         @Index(name = "idx_partnerships_type", columnList = "partnership_type"),
         @Index(name = "idx_partnerships_approval_status", columnList = "approval_status"),
-        @Index(name = "idx_partnerships_geo_scope", columnList = "geographic_scope_district")})
+        @Index(name = "idx_partnerships_geo_scope", columnList = "geographic_scope_ward")})
 @Getter
 @Setter
 @AllArgsConstructor
@@ -45,7 +45,7 @@ public class Partnership extends BaseEntity {
     private String registeredAddress;
 
     @Column(length = 100)
-    private String geographicScopeDistrict;
+    private String geographicScopeWard;
 
     @Column(length = 100)
     private String geographicScopeProvince;

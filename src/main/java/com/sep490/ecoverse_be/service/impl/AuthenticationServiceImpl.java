@@ -102,7 +102,7 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
             school.setSchoolName(registerRequest.getSchoolName());
             school.setContactEmail(registerRequest.getContactEmail());
             school.setProvince(registerRequest.getProvince());
-            school.setDistrict(registerRequest.getDistrict());
+            school.setWard(registerRequest.getWard());
             school.setAddress(registerRequest.getStreetAddress());
             school.setPhoneNumber(registerRequest.getPhoneNumber());
             school.setPrincipalName(registerRequest.getPrincipalName());
@@ -146,7 +146,7 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
             partnership.setOrganizationName(registerRequest.getOrganizationName());
             partnership.setContactEmail(registerRequest.getContactEmail());
             partnership.setGeographicScopeProvince(registerRequest.getProvince());
-            partnership.setGeographicScopeDistrict(registerRequest.getDistrict());
+            partnership.setGeographicScopeWard(registerRequest.getWard());
             partnership.setRegisteredAddress(registerRequest.getStreetAddress());
             partnership.setPhoneNumber(registerRequest.getPhoneNumber());
             partnership.setContactPerson(registerRequest.getContactPerson());
@@ -178,7 +178,7 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
     public AuthResponse login(LoginRequest request){
         try {
             Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+                    new UsernamePasswordAuthenticationToken(request.getEmailOrUsername(), request.getPassword())
             );
 
 

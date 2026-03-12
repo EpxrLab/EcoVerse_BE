@@ -74,7 +74,6 @@ public class ProfileServiceImpl implements IProfileService {
                 .fullName(student.getFullName())
                 .className(student.getClassName())
                 .gradeLevel(student.getGradeLevel())
-                .academicYear(student.getAcademicYear() != null ? student.getAcademicYear().getName() : null)
                 .dateOfBirth(student.getDateOfBirth())
                 .gender(student.getGender() != null ? student.getGender().name() : null)
                 .address(student.getAddress())
@@ -129,7 +128,7 @@ public class ProfileServiceImpl implements IProfileService {
                 .schoolType(school.getSchoolType() != null ? school.getSchoolType().name() : null)
                 .taxCode(school.getTaxCode())
                 .address(school.getAddress())
-                .district(school.getDistrict())
+                .ward(school.getWard())
                 .province(school.getProvince())
                 .phoneNumber(school.getPhoneNumber())
                 .principalName(school.getPrincipalName())
@@ -155,7 +154,7 @@ public class ProfileServiceImpl implements IProfileService {
                 .contactEmail(partnership.getContactEmail())
                 .phoneNumber(partnership.getPhoneNumber())
                 .registeredAddress(partnership.getRegisteredAddress())
-                .geographicScopeDistrict(partnership.getGeographicScopeDistrict())
+                .geographicScopeWard(partnership.getGeographicScopeWard())
                 .geographicScopeProvince(partnership.getGeographicScopeProvince())
                 .contactPerson(partnership.getContactPerson())
                 .position(partnership.getPosition())
@@ -178,7 +177,7 @@ public class ProfileServiceImpl implements IProfileService {
         if (request.getSchoolName() != null) school.setSchoolName(request.getSchoolName());
         if (request.getSchoolType() != null) school.setSchoolType(request.getSchoolType());
         if (request.getAddress() != null) school.setAddress(request.getAddress());
-        if (request.getDistrict() != null) school.setDistrict(request.getDistrict());
+        if (request.getWard() != null) school.setWard(request.getWard());
         if (request.getProvince() != null) school.setProvince(request.getProvince());
         if (request.getPhoneNumber() != null) school.setPhoneNumber(request.getPhoneNumber());
         if (request.getPrincipalName() != null) school.setPrincipalName(request.getPrincipalName());
@@ -195,7 +194,7 @@ public class ProfileServiceImpl implements IProfileService {
                 .schoolType(school.getSchoolType() != null ? school.getSchoolType().name() : null)
                 .taxCode(school.getTaxCode())
                 .address(school.getAddress())
-                .district(school.getDistrict())
+                .ward(school.getWard())
                 .province(school.getProvince())
                 .phoneNumber(school.getPhoneNumber())
                 .principalName(school.getPrincipalName())
@@ -221,7 +220,7 @@ public class ProfileServiceImpl implements IProfileService {
         if (request.getContactEmail() != null) partnership.setContactEmail(request.getContactEmail());
         if (request.getPhoneNumber() != null) partnership.setPhoneNumber(request.getPhoneNumber());
         if (request.getRegisteredAddress() != null) partnership.setRegisteredAddress(request.getRegisteredAddress());
-        if (request.getGeographicScopeDistrict() != null) partnership.setGeographicScopeDistrict(request.getGeographicScopeDistrict());
+        if (request.getGeographicScopeWard() != null) partnership.setGeographicScopeWard(request.getGeographicScopeWard());
         if (request.getGeographicScopeProvince() != null) partnership.setGeographicScopeProvince(request.getGeographicScopeProvince());
         if (request.getContactPerson() != null) partnership.setContactPerson(request.getContactPerson());
         if (request.getPosition() != null) partnership.setPosition(request.getPosition());
@@ -237,7 +236,7 @@ public class ProfileServiceImpl implements IProfileService {
                 .contactEmail(partnership.getContactEmail())
                 .phoneNumber(partnership.getPhoneNumber())
                 .registeredAddress(partnership.getRegisteredAddress())
-                .geographicScopeDistrict(partnership.getGeographicScopeDistrict())
+                .geographicScopeWard(partnership.getGeographicScopeWard())
                 .geographicScopeProvince(partnership.getGeographicScopeProvince())
                 .contactPerson(partnership.getContactPerson())
                 .position(partnership.getPosition())

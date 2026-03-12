@@ -22,7 +22,7 @@ public class SchoolDetailResponse {
     private String contactEmail;
     private String phoneNumber;
     private String address;
-    private String district;
+    private String ward;
     private String province;
     private String principalName;
     private String position;

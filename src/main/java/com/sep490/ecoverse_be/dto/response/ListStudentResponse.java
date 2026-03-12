@@ -16,7 +16,6 @@ public class ListStudentResponse {
     private String studentCode;
     private String className;
     private String gradeLevel;
-    private String academicYear;
     private LocalDate dateOfBirth;
     private String gender;
     private String address;

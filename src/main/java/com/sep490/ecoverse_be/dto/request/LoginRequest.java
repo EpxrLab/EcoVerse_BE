@@ -10,7 +10,7 @@ import lombok.*;
 public class LoginRequest {
 
     @NotBlank(message = "Email/username is required")
-    private String email;
+    private String emailOrUsername;
 
     @NotBlank(message = "Password is required")
     private String password;

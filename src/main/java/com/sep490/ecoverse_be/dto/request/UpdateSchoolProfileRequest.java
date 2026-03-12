@@ -24,7 +24,7 @@ public class UpdateSchoolProfileRequest {
     private String address;
 
     @Size(max = 100, message = "Quận/huyện tối đa 100 ký tự")
-    private String district;
+    private String ward;
 
     @Size(max = 100, message = "Tỉnh/thành tối đa 100 ký tự")
     private String province;
