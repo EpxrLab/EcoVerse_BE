@@ -51,10 +51,18 @@ public class AuthenticationController {
 
     @PostMapping("/verify-register/school")
     @Operation(
-            summary = "Xác thực OTP và tạo tài khoản Trường học",
+            summary = "Tạo tài khoản Trường học (sau khi đã xác thực OTP)",
             description = """
-                    Xác thực mã OTP và tạo tài khoản cho **Trường học** (PARTNERSHIP_SCHOOL).
+                    Tạo tài khoản cho **Trường học** (PARTNERSHIP_SCHOOL).
                     Tài khoản sẽ ở trạng thái **PENDING** chờ Admin duyệt.
+
+                    > **Yêu cầu:** Phải gọi `/verify-otp` thành công trước với email tương ứng.
+                    > OTP verified có hiệu lực trong **15 phút**.
+
+                    **Luồng đúng:**
+                    1. `POST /register` → nhận OTP qua email
+                    2. `POST /verify-otp` → xác thực OTP ✓
+                    3. `POST /verify-register/school` → điền thông tin và tạo tài khoản
 
                     **Body:**
                     ```json
@@ -72,13 +80,16 @@ public class AuthenticationController {
                       "description": "Mô tả trường",
                       "schoolType": "PUBLIC",
                       "password": "Pass@1234",
-                      "otp": "123456",
                       "logoUrl": "https://cloudinary.com/logo.png",
                       "licenseUrl": "https://cloudinary.com/license.pdf"
                     }
                     ```
 
                     **schoolType:** `PUBLIC` | `PRIVATE`
+
+                    **Lỗi có thể xảy ra:**
+                    - `400` — Email chưa xác thực OTP hoặc OTP đã hết hạn 15 phút
+                    - `409` — Email đã tồn tại trong hệ thống
                     """
     )
     public ResponseDto<UserResponse> verifyRegisterSchool(@RequestBody @Valid VerifyRegisterSchoolRequest request) {
@@ -94,6 +105,26 @@ public class AuthenticationController {
                     "Đã xảy ra lỗi trong quá trình đăng ký, vui lòng thử lại sau.", null);
         }
     }
+
+    @PostMapping("/verify-otp")
+    @Operation(
+            summary = "Xác thực OTP",
+            description = """
+                    Xác thực mã OTP
+                    **Body:**
+                    ```json
+                    {
+                      "email": "abc@gmail.com"
+                      "otp": "123456"
+                    }
+                    ```
+                    """
+    )
+    public ResponseDto<Void> verifyOtp(@RequestBody @Valid VerifyOtpRequest request){
+        authenticationService.verifyOtpOrThrow(request.getEmail(), request.getOtp());
+        return ResponseDto.success(null, "Xác thực otp thành công");
+    }
+
 
     @PostMapping("/verify-register/partnership")
     @Operation(

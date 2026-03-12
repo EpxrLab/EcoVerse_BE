@@ -1,10 +1,7 @@
 package com.sep490.ecoverse_be.dto.request;
 
 import com.sep490.ecoverse_be.enums.PartnershipType;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -53,7 +50,7 @@ public class VerifyRegisterPartnershipRequest {
 
     private String description;
 
-    @NotBlank(message = "Partnership type is required")
+    @NotNull(message = "Partnership type is required")
     private PartnershipType partnershipType;
 
     @NotBlank(message = "Password is required")
@@ -61,8 +58,6 @@ public class VerifyRegisterPartnershipRequest {
     @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
             message = "Passwords must include uppercase letters, lowercase letters, numbers, and special characters.")
     private String password;
-
-    private String otp;
 
     @NotBlank(message = "Logo URL is required")
     private String logoUrl;

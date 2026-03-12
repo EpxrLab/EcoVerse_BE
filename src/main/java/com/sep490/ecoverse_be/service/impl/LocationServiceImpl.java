@@ -19,8 +19,7 @@ public class LocationServiceImpl implements ILocationService {
     }
 
     @Override
-    public Object getDistricts(String provinceCode) {
+    public Object getWards(String provinceCode) {
         return restTemplate.getForObject(BASE_URL + "/p/" + provinceCode + "?depth=2", Object.class);
     }
-
 }

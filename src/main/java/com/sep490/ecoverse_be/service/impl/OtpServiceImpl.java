@@ -14,6 +14,8 @@ public class OtpServiceImpl implements IOtpService {
 
     private final Map<String, OtpEntry> otpStorage = new ConcurrentHashMap<>();
 
+    private final Map<String, LocalDateTime> verifiedEmails = new ConcurrentHashMap<>();
+
     public String generateOtp(String email) {
         String otp = String.format("%06d", random.nextInt(1_000_000));
         otpStorage.put(email, new OtpEntry(otp, LocalDateTime.now().plusMinutes(5)));
@@ -28,8 +30,29 @@ public class OtpServiceImpl implements IOtpService {
             return false;
         }
         boolean isValid = entry.otp.equals(otp);
-        if (isValid) otpStorage.remove(email); // dùng xong xoá
+        if (isValid) otpStorage.remove(email); // dùng xong xóa
         return isValid;
+    }
+
+    @Override
+    public void markAsVerified(String email) {
+        verifiedEmails.put(email, LocalDateTime.now().plusMinutes(15));
+    }
+
+    @Override
+    public boolean isEmailVerified(String email) {
+        LocalDateTime expiry = verifiedEmails.get(email);
+        if (expiry == null) return false;
+        if (LocalDateTime.now().isAfter(expiry)) {
+            verifiedEmails.remove(email);
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public void clearVerified(String email) {
+        verifiedEmails.remove(email);
     }
 
     private static class OtpEntry {
