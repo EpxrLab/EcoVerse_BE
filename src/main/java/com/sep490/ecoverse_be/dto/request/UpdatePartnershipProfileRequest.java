@@ -30,7 +30,7 @@ public class UpdatePartnershipProfileRequest {
     private String registeredAddress;
 
     @Size(max = 100, message = "Quận/huyện tối đa 100 ký tự")
-    private String geographicScopeDistrict;
+    private String geographicScopeWard;
 
     @Size(max = 100, message = "Tỉnh/thành tối đa 100 ký tự")
     private String geographicScopeProvince;

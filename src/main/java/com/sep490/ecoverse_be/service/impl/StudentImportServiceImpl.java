@@ -1,5 +1,6 @@
 package com.sep490.ecoverse_be.service.impl;
 
+import com.sep490.ecoverse_be.dto.request.AddStudentManualRequest;
 import com.sep490.ecoverse_be.dto.request.StudentExcelRowDto;
 import com.sep490.ecoverse_be.dto.response.*;
 import com.sep490.ecoverse_be.entity.*;
@@ -12,7 +13,6 @@ import com.sep490.ecoverse_be.model.UserPrincipal;
 import com.sep490.ecoverse_be.repository.*;
 import com.sep490.ecoverse_be.service.IEmailService;
 import com.sep490.ecoverse_be.service.IStudentImportService;
-import com.sep490.ecoverse_be.entity.AcademicYear;
 import com.sep490.ecoverse_be.util.PasswordGenerator;
 import com.sep490.ecoverse_be.util.StudentCodeGenerator;
 import org.apache.poi.ss.usermodel.*;
@@ -51,9 +51,6 @@ public class StudentImportServiceImpl implements IStudentImportService {
     private SchoolRepository schoolRepository;
 
     @Autowired
-    private AcademicYearRepository academicYearRepository;
-
-    @Autowired
     private IEmailService emailService;
 
     @Value("${app.default-avatar-url}")
@@ -63,7 +60,7 @@ public class StudentImportServiceImpl implements IStudentImportService {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final String[] EXPECTED_HEADERS = {
-            "Academic Year","Student Full Name", "Class Name", "Grade Level", "Date of Birth",
+            "Student Full Name", "Class Name", "Grade Level", "Date of Birth",
             "Gender", "Address", "Parent Full Name", "Parent Phone Number", "Parent Email"
     };
 
@@ -78,7 +75,7 @@ public class StudentImportServiceImpl implements IStudentImportService {
     public ImportResultResponse importStudentsFromExcel(MultipartFile file) {
         UUID userId = getCurrentUserId();
         School school = schoolRepository.findByUserId(userId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
 
         List<StudentExcelRowDto> rows = parseExcel(file);
         List<ImportErrorDetail> errors = new ArrayList<>();
@@ -104,17 +101,6 @@ public class StudentImportServiceImpl implements IStudentImportService {
                 String studentCode = StudentCodeGenerator.generateUniqueCode(row.getStudentFullName(), existingCodes);
                 existingCodes.add(studentCode);
 
-                // lay hoac tao moi academic year theo ten + school
-                AcademicYear academicYear = academicYearRepository
-                        .findBySchoolIdAndName(school.getId(), row.getAcademicYear())
-                        .orElseGet(() -> {
-                            AcademicYear newYear = new AcademicYear();
-                            newYear.setSchool(school);
-                            newYear.setName(row.getAcademicYear());
-                            newYear.setIsActive(true);
-                            return academicYearRepository.save(newYear);
-                        });
-
                 String studentRawPassword = PasswordGenerator.generate();
                 String parentRawPassword;
 
@@ -123,7 +109,7 @@ public class StudentImportServiceImpl implements IStudentImportService {
 
                 if (existingParent.isPresent()) {
                     parent = existingParent.get();
-                    parentRawPassword = parentPasswordMap.getOrDefault(row.getParentPhone(), "(đã tạo trước đó)");
+                    parentRawPassword = parentPasswordMap.getOrDefault(row.getParentPhone(), "(đã tạo trước đó)");
                 } else {
                     parentRawPassword = PasswordGenerator.generate();
 
@@ -141,6 +127,7 @@ public class StudentImportServiceImpl implements IStudentImportService {
                     parent.setFullName(row.getParentFullName());
                     parent.setPhoneNumber(row.getParentPhone());
                     parent.setIsFirstLogin(true);
+                    parent.setCredentialEmailSent(false);
                     parent = parentRepository.save(parent);
 
                     parentPasswordMap.put(row.getParentPhone(), parentRawPassword);
@@ -158,7 +145,6 @@ public class StudentImportServiceImpl implements IStudentImportService {
                 Student student = new Student();
                 student.setUser(studentUser);
                 student.setSchool(school);
-                student.setAcademicYear(academicYear);
                 student.setStudentCode(studentCode);
                 student.setFullName(row.getStudentFullName());
                 student.setClassName(row.getClassName());
@@ -184,7 +170,7 @@ public class StudentImportServiceImpl implements IStudentImportService {
                 errors.add(ImportErrorDetail.builder()
                         .rowNumber(row.getRowNumber())
                         .field("general")
-                        .message("Lỗi xử lý dòng: " + e.getMessage())
+                        .message("Lỗi xử lí dòng: " + e.getMessage())
                         .build());
             }
         }
@@ -198,10 +184,82 @@ public class StudentImportServiceImpl implements IStudentImportService {
     }
 
     @Override
+    @Transactional
+    public void addStudentManually(AddStudentManualRequest request) {
+        UUID userId = getCurrentUserId();
+        School school = schoolRepository.findByUserId(userId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
+
+        Set<String> existingCodes = new HashSet<>(
+                studentRepository.findBySchoolId(school.getId()).stream()
+                        .map(Student::getStudentCode)
+                        .toList()
+        );
+
+        String studentCode = StudentCodeGenerator.generateUniqueCode(request.getStudentFullName(), existingCodes);
+
+        // Xu ly phu huynh: tai su dung neu so dien thoai da ton tai
+        Parent parent;
+        Optional<Parent> existingParent = parentRepository.findByPhoneNumber(request.getParentPhone());
+
+        if (existingParent.isPresent()) {
+            parent = existingParent.get();
+        } else {
+            User parentUser = new User();
+            parentUser.setEmail(request.getParentEmail());
+            parentUser.setUsername(request.getParentPhone());
+            parentUser.setPasswordHash(passwordEncoder.encode(PasswordGenerator.generate()));
+            parentUser.setRole(Role.PARENT);
+            parentUser.setStatus(AccountStatus.ACTIVE);
+            parentUser.setIsActive(true);
+            parentUser = userRepository.save(parentUser);
+
+            parent = new Parent();
+            parent.setUser(parentUser);
+            parent.setFullName(request.getParentFullName());
+            parent.setPhoneNumber(request.getParentPhone());
+            parent.setIsFirstLogin(true);
+            parent.setCredentialEmailSent(false);
+            parent = parentRepository.save(parent);
+        }
+
+        // Tao tai khoan hoc sinh
+        User studentUser = new User();
+        studentUser.setEmail(null);
+        studentUser.setUsername(studentCode);
+        studentUser.setPasswordHash(passwordEncoder.encode(PasswordGenerator.generate()));
+        studentUser.setRole(Role.STUDENT);
+        studentUser.setStatus(AccountStatus.ACTIVE);
+        studentUser.setIsActive(true);
+        studentUser = userRepository.save(studentUser);
+
+        Student student = new Student();
+        student.setUser(studentUser);
+        student.setSchool(school);
+        student.setStudentCode(studentCode);
+        student.setFullName(request.getStudentFullName());
+        student.setClassName(request.getClassName());
+        student.setGradeLevel(request.getGradeLevel());
+        student.setAddress(request.getAddress());
+        student.setAvatarUrl(defaultAvatarUrl);
+        student.setDateOfBirth(request.getDateOfBirth());
+        student.setGender(Gender.valueOf(request.getGender().toUpperCase()));
+        student.setIsFirstLogin(true);
+        studentRepository.save(student);
+
+        if (!studentParentLinkRepository.existsByStudentIdAndParentId(student.getId(), parent.getId())) {
+            StudentParentLink link = new StudentParentLink();
+            link.setStudent(student);
+            link.setParent(parent);
+            studentParentLinkRepository.save(link);
+        }
+    }
+
+    @Override
     public AccountListResponse getImportedAccounts() {
         UUID userId = getCurrentUserId();
         School school = schoolRepository.findByUserId(userId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
 
         List<Student> students = studentRepository.findBySchoolId(school.getId());
 
@@ -235,6 +293,7 @@ public class StudentImportServiceImpl implements IStudentImportService {
                             .parentFullName(parent.getFullName())
                             .phoneNumber(parent.getPhoneNumber())
                             .parentEmail(parent.getUser().getEmail())
+                            .credentialEmailSent(parent.getCredentialEmailSent())
                             .children(children)
                             .build();
                 })
@@ -250,10 +309,10 @@ public class StudentImportServiceImpl implements IStudentImportService {
 
     @Override
     @Transactional
-    public void sendCredentialEmails() {
+    public SendCredentialSummaryResponse sendCredentialEmails() {
         UUID userId = getCurrentUserId();
         School school = schoolRepository.findByUserId(userId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
 
         List<Student> students = studentRepository.findBySchoolId(school.getId());
 
@@ -269,8 +328,17 @@ public class StudentImportServiceImpl implements IStudentImportService {
             }
         }
 
+        int sentCount = 0;
+        int skippedCount = 0;
+
         for (Map.Entry<UUID, List<Student>> entry : parentStudentMap.entrySet()) {
             Parent parent = parentMap.get(entry.getKey());
+
+            // Chi gui cho phu huynh chua nhan duoc email
+            if (Boolean.TRUE.equals(parent.getCredentialEmailSent())) {
+                skippedCount++;
+                continue;
+            }
 
             String parentRawPassword = PasswordGenerator.generate();
             parent.getUser().setPasswordHash(passwordEncoder.encode(parentRawPassword));
@@ -304,19 +372,81 @@ public class StudentImportServiceImpl implements IStudentImportService {
                         parentRawPassword,
                         children
                 );
+                // Danh dau da gui email thanh cong
+                parent.setCredentialEmailSent(true);
+                parentRepository.save(parent);
+                sentCount++;
             }
         }
+
+        return SendCredentialSummaryResponse.builder()
+                .sentCount(sentCount)
+                .skippedCount(skippedCount)
+                .build();
     }
 
+    @Override
+    @Transactional
+    public void resendCredentialEmail(UUID parentId) {
+        UUID userId = getCurrentUserId();
+        School school = schoolRepository.findByUserId(userId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
+
+        Parent parent = parentRepository.findById(parentId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy phụ huynh"));
+
+        List<StudentParentLink> links = studentParentLinkRepository.findByParentId(parentId);
+        List<StudentAccountInfo> children = new ArrayList<>();
+
+        String parentRawPassword = PasswordGenerator.generate();
+        parent.getUser().setPasswordHash(passwordEncoder.encode(parentRawPassword));
+        userRepository.save(parent.getUser());
+        parent.setIsFirstLogin(true);
+
+        for (StudentParentLink link : links) {
+            Student student = link.getStudent();
+            if (!student.getSchool().getId().equals(school.getId())) continue;
+
+            String studentRawPassword = PasswordGenerator.generate();
+            student.getUser().setPasswordHash(passwordEncoder.encode(studentRawPassword));
+            userRepository.save(student.getUser());
+            student.setIsFirstLogin(true);
+            studentRepository.save(student);
+
+            children.add(StudentAccountInfo.builder()
+                    .studentFullName(student.getFullName())
+                    .studentCode(student.getStudentCode())
+                    .password(studentRawPassword)
+                    .className(student.getClassName())
+                    .gradeLevel(student.getGradeLevel())
+                    .build());
+        }
+
+        String parentEmail = parent.getUser().getEmail();
+        if (parentEmail == null || parentEmail.isBlank()) {
+            throw new BadRequestException("Phụ huynh này không có email");
+        }
+
+        emailService.sendCredentialEmail(
+                parentEmail,
+                parent.getFullName(),
+                parent.getPhoneNumber(),
+                parentRawPassword,
+                children
+        );
+
+        parent.setCredentialEmailSent(true);
+        parentRepository.save(parent);
+    }
 
     private List<StudentExcelRowDto> parseExcel(MultipartFile file) {
         if (file.isEmpty()) {
-            throw new BadRequestException("File không được rỗng");
+            throw new BadRequestException("File không được rỗng");
         }
 
         String filename = file.getOriginalFilename();
         if (filename == null || (!filename.endsWith(".xlsx") && !filename.endsWith(".xls"))) {
-            throw new BadRequestException("Chỉ hỗ trợ file Excel (.xlsx, .xls)");
+            throw new BadRequestException("Chỉ hỗ trợ file Excel (.xlsx, .xls)");
         }
 
         List<StudentExcelRowDto> rows = new ArrayList<>();
@@ -326,12 +456,12 @@ public class StudentImportServiceImpl implements IStudentImportService {
 
             Sheet sheet = workbook.getSheetAt(0);
             if (sheet == null) {
-                throw new BadRequestException("File Excel không có sheet nào");
+                throw new BadRequestException("File Excel không có sheet nào");
             }
 
             Row headerRow = sheet.getRow(0);
             if (headerRow == null) {
-                throw new BadRequestException("File Excel không có header row");
+                throw new BadRequestException("File Excel không có header row");
             }
 
             validateHeaders(headerRow);
@@ -342,26 +472,25 @@ public class StudentImportServiceImpl implements IStudentImportService {
 
                 StudentExcelRowDto dto = new StudentExcelRowDto();
                 dto.setRowNumber(i + 1);
-                dto.setAcademicYear(getCellStringValue(headerRow.getCell(0)));
-                dto.setStudentFullName(getCellStringValue(row.getCell(1)));
-                dto.setClassName(getCellStringValue(row.getCell(2)));
-                dto.setGradeLevel(getCellStringValue(row.getCell(3)));
-                dto.setDateOfBirth(getCellStringValue(row.getCell(4)));
-                dto.setGender(getCellStringValue(row.getCell(5)));
-                dto.setAddress((getCellStringValue(row.getCell(6))));
-                dto.setParentFullName(getCellStringValue(row.getCell(7)));
-                dto.setParentPhone(getCellStringValue(row.getCell(8)));
-                dto.setParentEmail(getCellStringValue(row.getCell(9)));
+                dto.setStudentFullName(getCellStringValue(row.getCell(0)));
+                dto.setClassName(getCellStringValue(row.getCell(1)));
+                dto.setGradeLevel(getCellStringValue(row.getCell(2)));
+                dto.setDateOfBirth(getCellStringValue(row.getCell(3)));
+                dto.setGender(getCellStringValue(row.getCell(4)));
+                dto.setAddress((getCellStringValue(row.getCell(5))));
+                dto.setParentFullName(getCellStringValue(row.getCell(6)));
+                dto.setParentPhone(getCellStringValue(row.getCell(7)));
+                dto.setParentEmail(getCellStringValue(row.getCell(8)));
                 rows.add(dto);
             }
         } catch (BadRequestException e) {
             throw e;
         } catch (Exception e) {
-            throw new BadRequestException("Lỗi đọc file Excel: " + e.getMessage());
+            throw new BadRequestException("Lỗi đọc file Excel: " + e.getMessage());
         }
 
         if (rows.isEmpty()) {
-            throw new BadRequestException("File Excel không có dữ liệu");
+            throw new BadRequestException("File Excel không có dữ liệu");
         }
 
         return rows;
@@ -373,7 +502,7 @@ public class StudentImportServiceImpl implements IStudentImportService {
             String value = (cell != null) ? cell.getStringCellValue().trim() : "";
             if (!EXPECTED_HEADERS[i].equalsIgnoreCase(value)) {
                 throw new BadRequestException(
-                        "Header cột " + (i + 1) + " phải là '" + EXPECTED_HEADERS[i] + "', nhận được: '" + value + "'");
+                        "Header cột " + (i + 1) + " phải là '" + EXPECTED_HEADERS[i] + "', nhận được: '" + value + "'");
             }
         }
     }
@@ -381,56 +510,52 @@ public class StudentImportServiceImpl implements IStudentImportService {
     private List<ImportErrorDetail> validateRow(StudentExcelRowDto row) {
         List<ImportErrorDetail> errors = new ArrayList<>();
 
-        if (isBlank(row.getAcademicYear())) {
-            errors.add(buildError(row.getRowNumber(), "Academic Year", "Niên khóa không được rỗng"));
-        }
-
         if (isBlank(row.getStudentFullName())) {
-            errors.add(buildError(row.getRowNumber(), "Student Full Name", "Tên học sinh không được rỗng"));
+            errors.add(buildError(row.getRowNumber(), "Student Full Name", "Tên học sinh không được rỗng"));
         }
 
         if (isBlank(row.getClassName())) {
-            errors.add(buildError(row.getRowNumber(), "Class Name", "Tên lớp không được rỗng"));
+            errors.add(buildError(row.getRowNumber(), "Class Name", "Tên lớp không được rỗng"));
         }
 
         if (isBlank(row.getGradeLevel())) {
-            errors.add(buildError(row.getRowNumber(), "Grade Level", "Khối lớp không được rỗng"));
+            errors.add(buildError(row.getRowNumber(), "Grade Level", "Khối lớp không được rỗng"));
         }
 
         if (isBlank(row.getDateOfBirth())) {
-            errors.add(buildError(row.getRowNumber(), "Date of Birth", "Ngày sinh không được rỗng"));
+            errors.add(buildError(row.getRowNumber(), "Date of Birth", "Ngày sinh không được rỗng"));
         } else {
             try {
                 LocalDate.parse(row.getDateOfBirth(), DATE_FORMAT);
             } catch (DateTimeParseException e) {
-                errors.add(buildError(row.getRowNumber(), "Date of Birth", "Ngày sinh không đúng định dạng YYYY-MM-DD"));
+                errors.add(buildError(row.getRowNumber(), "Date of Birth", "Ngày sinh không đúng định dạng YYYY-MM-DD"));
             }
         }
 
         if (isBlank(row.getGender())) {
-            errors.add(buildError(row.getRowNumber(), "Gender", "Giới tính không được rỗng"));
+            errors.add(buildError(row.getRowNumber(), "Gender", "Giới tính không được rỗng"));
         } else if (!row.getGender().equalsIgnoreCase("MALE") && !row.getGender().equalsIgnoreCase("FEMALE")) {
-            errors.add(buildError(row.getRowNumber(), "Gender", "Giới tính phải là Male hoặc Female"));
+            errors.add(buildError(row.getRowNumber(), "Gender", "Giới tính phải là Male hoặc Female"));
         }
 
-        if(isBlank(row.getAddress())){
+        if (isBlank(row.getAddress())) {
             errors.add(buildError(row.getRowNumber(), "Address", "Địa chỉ không được rỗng"));
         }
 
         if (isBlank(row.getParentFullName())) {
-            errors.add(buildError(row.getRowNumber(), "Parent Full Name", "Tên phụ huynh không được rỗng"));
+            errors.add(buildError(row.getRowNumber(), "Parent Full Name", "Tên phụ huynh không được rỗng"));
         }
 
         if (isBlank(row.getParentPhone())) {
-            errors.add(buildError(row.getRowNumber(), "Parent Phone Number", "Số điện thoại phụ huynh không được rỗng"));
+            errors.add(buildError(row.getRowNumber(), "Parent Phone Number", "Số điện thoại phụ huynh không được rỗng"));
         } else if (!row.getParentPhone().matches("^(03|05|07|08|09)[0-9]{8}$")) {
-            errors.add(buildError(row.getRowNumber(), "Parent Phone Number", "Số điện thoại phải có 10 chữ số, bắt đầu bằng 0"));
+            errors.add(buildError(row.getRowNumber(), "Parent Phone Number", "Số điện thoại phải có 10 chữ số, bắt đầu bằng 0"));
         }
 
         if (isBlank(row.getParentEmail())) {
-            errors.add(buildError(row.getRowNumber(), "Parent Email", "Email phụ huynh không được rỗng"));
+            errors.add(buildError(row.getRowNumber(), "Parent Email", "Email phụ huynh không được rỗng"));
         } else if (!row.getParentEmail().matches("^[\\w.+-]+@[\\w-]+\\.[\\w.]+$")) {
-            errors.add(buildError(row.getRowNumber(), "Parent Email", "Email không hợp lệ"));
+            errors.add(buildError(row.getRowNumber(), "Parent Email", "Email không hợp lệ"));
         }
 
         return errors;

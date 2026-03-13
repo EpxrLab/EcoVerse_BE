@@ -32,4 +32,6 @@ public interface ISchoolService {
     List<ListParentResponse> getAllParent();
 
     StudentProfileResponse updateStudentInformation(UUID studentId, StudentInformationRequest request);
+
+    void updateStudentStatus(UUID userId, boolean isActive);
 }

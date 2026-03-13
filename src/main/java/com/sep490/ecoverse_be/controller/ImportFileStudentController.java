@@ -1,7 +1,7 @@
 package com.sep490.ecoverse_be.controller;
 
+import com.sep490.ecoverse_be.dto.request.AddStudentManualRequest;
 import com.sep490.ecoverse_be.dto.request.StudentInformationRequest;
-import com.sep490.ecoverse_be.dto.request.UpdateSchoolProfileRequest;
 import com.sep490.ecoverse_be.dto.response.*;
 import com.sep490.ecoverse_be.model.UserPrincipal;
 import com.sep490.ecoverse_be.service.ISchoolService;
@@ -139,26 +139,77 @@ public class ImportFileStudentController {
         return new ResponseDto<>(HttpStatus.OK.value(), "Lấy danh sách thành công", accounts);
     }
 
+    @PostMapping("/add-student")
+    @Operation(
+            summary = "Thêm học sinh và phụ huynh thủ công",
+            description = """
+                Thêm một học sinh và phụ huynh vào hệ thống bằng cách nhập thủ công (không thông qua file Excel).
+                Email thông tin đăng nhập sẽ **chưa được gửi ngay** — cần gọi API `/send-credentials` riêng để gửi email.
+
+                - `studentCode` sẽ được **tự động sinh** dựa trên tên của học sinh.
+                - Nếu **số điện thoại của phụ huynh đã tồn tại** → hệ thống sẽ **tái sử dụng tài khoản phụ huynh hiện có**, 
+                  chỉ thêm liên kết với học sinh mới.
+
+                **Header:**
+                ```
+                Authorization: Bearer <accessToken>
+                Content-Type: application/json
+                ```
+                """
+    )
+    public ResponseDto<Void> addStudentManually(@Valid @RequestBody AddStudentManualRequest request) {
+        studentImportService.addStudentManually(request);
+        return new ResponseDto<>(HttpStatus.OK.value(), "Thêm học sinh thành công. Vui lòng gửi email sau.", null);
+    }
+
     @PostMapping("/send-credentials")
     @Operation(
-            summary = "Gửi email thông tin đăng nhập cho phụ huynh",
+            summary = "Gửi email thông tin đăng nhập cho các phụ huynh chưa nhận",
             description = """
-                    Reset mật khẩu mới cho toàn bộ học sinh và phụ huynh của trường, sau đó gửi email thông tin đăng nhập tới từng phụ huynh.
+                Chỉ gửi email cho các phụ huynh có `credentialEmailSent = false` (chưa từng nhận email).
+                Các phụ huynh đã nhận email trước đó sẽ bị **bỏ qua** để tránh gửi trùng lần 2.
 
-                    - Mỗi phụ huynh nhận **1 email** chứa:
-                      - Thông tin đăng nhập của chính phụ huynh (số điện thoại + mật khẩu mới)
-                      - Bảng thông tin đăng nhập của tất cả con em (student code + mật khẩu mới)
-                    - **Lưu ý:** API này sẽ **reset mật khẩu** — học sinh/phụ huynh cần dùng mật khẩu mới được gửi qua email.
+                - Mỗi phụ huynh sẽ nhận **1 email** chứa thông tin đăng nhập của họ và các học sinh con.
+                - Mật khẩu sẽ được **reset mới** cho cả phụ huynh và học sinh khi gửi email.
 
-                    **Header:**
-                    ```
-                    Authorization: Bearer <accessToken>
-                    ```
-                    """
+                **Response trả về:**
+                - `sentCount`: số phụ huynh được gửi email trong lần này
+                - `skippedCount`: số phụ huynh bị bỏ qua (đã nhận email trước đó)
+
+                **Header:**
+                ```
+                Authorization: Bearer <accessToken>
+                ```
+                """
     )
-    public ResponseDto<String> sendCredentials() {
-        studentImportService.sendCredentialEmails();
-        return new ResponseDto<>(HttpStatus.OK.value(), "Đã gửi email thông tin đăng nhập cho tất cả phụ huynh", null);
+    public ResponseDto<SendCredentialSummaryResponse> sendCredentials() {
+        SendCredentialSummaryResponse summary = studentImportService.sendCredentialEmails();
+        return new ResponseDto<>(HttpStatus.OK.value(),
+                "Đã gửi " + summary.getSentCount() + " email. Bỏ qua " + summary.getSkippedCount() + " phụ huynh đã nhận.",
+                summary);
+    }
+
+    @PostMapping("/resend-credentials/{parentId}")
+    @Operation(
+            summary = "Gửi lại email cho một phụ huynh cụ thể",
+            description = """
+                Reset mật khẩu và gửi lại email thông tin đăng nhập cho **1 phụ huynh cụ thể**.
+                Dùng khi phụ huynh báo chưa nhận được email ở lần gửi trước.
+
+                - Mật khẩu của phụ huynh và các học sinh con sẽ được **reset mới**.
+                - Sau khi gửi xong, `credentialEmailSent` của phụ huynh sẽ được đặt lại thành `true`.
+
+                **Path variable:** `parentId` — UUID của bản ghi Parent
+
+                **Header:**
+                ```
+                Authorization: Bearer <accessToken>
+                ```
+                """
+    )
+    public ResponseDto<Void> resendCredentials(@PathVariable UUID parentId) {
+        studentImportService.resendCredentialEmail(parentId);
+        return new ResponseDto<>(HttpStatus.OK.value(), "Đã gửi lại email thành công", null);
     }
 
     @DeleteMapping("/students/{studentId}")
@@ -301,5 +352,41 @@ public class ImportFileStudentController {
             @Valid @RequestBody StudentInformationRequest request) {
         StudentProfileResponse response = schoolService.updateStudentInformation(studentId, request);
         return new ResponseDto<>(HttpStatus.OK.value(), "Cập nhật hồ sơ trường học thành công", response);
+    }
+
+    @PutMapping("/de-active/student/{studentId}")
+    @Operation(
+            summary = "Kích hoạt hoặc khóa tài khoản học sinh",
+            description = """
+                    Bật/tắt trạng thái hoạt động của một tài khoản bất kỳ. Chỉ dành cho role **PARTNERSHIP_SCHOOL**.
+
+                    - `true` → Kích hoạt: `status = ACTIVE`, `isActive = true`
+                    - `false` → Khóa: `status = INACTIVE`, `isActive = false`
+
+                    Dùng để block học sinh khi vi phạm.
+
+                    **Header:**
+                    ```
+                    Authorization: Bearer <accessToken>
+                    Content-Type: application/json
+                    ```
+
+                    **Request body:** `true` hoặc `false` (boolean thuần)
+
+                    **Path variable:** `studentId` — UUID của bản ghi Student
+
+                    **Response mẫu:**
+                    ```json
+                    {
+                      "status": 200,
+                      "message": "Thành công",
+                      "data": null
+                    }
+                    ```
+                    """
+    )
+    public ResponseDto<String> blockUser(@PathVariable UUID studentId, @RequestBody boolean isActive) {
+        schoolService.updateStudentStatus(studentId, isActive);
+        return ResponseDto.success(null, "Thành công");
     }
 }

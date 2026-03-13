@@ -22,6 +22,6 @@ public class LocationController {
 
     @GetMapping("/wards/{provinceCode}")
     public ResponseDto<?> getWards(@PathVariable String provinceCode) {
-        return new ResponseDto<>(HttpStatus.OK.value(), "Get the list of districts successes", ILocationService.getWards(provinceCode));
+        return new ResponseDto<>(HttpStatus.OK.value(), "Get the list of wards successes", ILocationService.getWards(provinceCode));
     }
 }

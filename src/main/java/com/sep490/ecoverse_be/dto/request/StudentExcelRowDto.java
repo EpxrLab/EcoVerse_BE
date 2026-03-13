@@ -12,7 +12,6 @@ import lombok.Setter;
 public class StudentExcelRowDto {
 
     private int rowNumber;
-    private String academicYear;
     private String studentFullName;
     private String className;
     private String gradeLevel;

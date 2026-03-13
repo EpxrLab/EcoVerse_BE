@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
         @Index(name = "idx_schools_user_id", columnList = "user_id"),
         @Index(name = "idx_schools_tax_code", columnList = "tax_code"),
         @Index(name = "idx_schools_approval_status", columnList = "approval_status"),
-        @Index(name = "idx_schools_location", columnList = "district")
+        @Index(name = "idx_schools_location", columnList = "ward")
 })
 @Getter
 @Setter
@@ -42,7 +42,7 @@ public class School extends BaseEntity {
     private String address;
 
     @Column(length = 100)
-    private String district;
+    private String ward;
 
     @Column(length = 100)
     private String province;

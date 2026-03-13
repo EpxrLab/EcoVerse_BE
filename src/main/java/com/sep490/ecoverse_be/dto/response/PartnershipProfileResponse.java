@@ -17,7 +17,7 @@ public class PartnershipProfileResponse {
     private String contactEmail;
     private String phoneNumber;
     private String registeredAddress;
-    private String geographicScopeDistrict;
+    private String geographicScopeWard;
     private String geographicScopeProvince;
     private String contactPerson;
     private String position;

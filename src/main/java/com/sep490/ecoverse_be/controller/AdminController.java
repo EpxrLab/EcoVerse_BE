@@ -54,7 +54,7 @@ public class AdminController {
                           "contactEmail": "school@example.com",
                           "phoneNumber": "0901234567",
                           "address": "123 Lê Lợi",
-                          "district": "Quận 1",
+                          "ward": "Quận 1",
                           "province": "Hồ Chí Minh",
                           "principalName": "Nguyễn Văn A",
                           "position": "Hiệu trưởng",

@@ -16,7 +16,7 @@ public class SchoolProfileResponse {
     private String schoolType;
     private String taxCode;
     private String address;
-    private String district;
+    private String ward;
     private String province;
     private String phoneNumber;
     private String principalName;

@@ -27,7 +27,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -129,6 +128,25 @@ public class SchoolServiceImpl implements ISchoolService {
         return result;
     }
 
+    @Override
+    public void updateStudentStatus(UUID studentId, boolean isActive) {
+
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy học sinh"));
+
+        User user = userRepository.findById(student.getUser().getId())
+                .orElseThrow(() ->new RuntimeException("Không tìm thấy tài khoản"));
+
+        if(isActive){
+            user.setStatus(AccountStatus.ACTIVE);
+            user.setIsActive(true);
+        }else{
+            user.setStatus(AccountStatus.SUSPENDED);
+            user.setIsActive(false);
+        }
+        userRepository.save(user);
+    }
+
 
     @Override
     @Transactional
@@ -162,7 +180,6 @@ public class SchoolServiceImpl implements ISchoolService {
         Student updateStudent = studentRepository.save(student);
         StudentProfileResponse response = modelMapper.map(updateStudent, StudentProfileResponse.class);
         response.setId(updateStudent.getId());
-        response.setAcademicYear(updateStudent.getAcademicYear().getName());
         response.setAvatarUrl(updateStudent.getAvatarUrl());
         response.setTotalCoins(updateStudent.getTotalCoins());
         response.setIsFirstLogin(updateStudent.getIsFirstLogin());
@@ -187,7 +204,6 @@ public class SchoolServiceImpl implements ISchoolService {
                 .studentCode(student.getStudentCode())
                 .className(student.getClassName())
                 .gradeLevel(student.getGradeLevel())
-                .academicYear(student.getAcademicYear().getName())
                 .dateOfBirth(student.getDateOfBirth())
                 .gender(student.getGender().name())
                 .address((student.getAddress()))

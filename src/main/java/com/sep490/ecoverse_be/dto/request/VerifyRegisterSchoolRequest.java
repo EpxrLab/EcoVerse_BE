@@ -31,8 +31,8 @@ public class VerifyRegisterSchoolRequest {
     @NotBlank(message = "Province/City is required")
     private String province;
 
-    @NotBlank(message = "District is required")
-    private String district;
+    @NotBlank(message = "Ward is required")
+    private String ward;
 
     @NotBlank(message = "Street address is required")
     private String streetAddress;

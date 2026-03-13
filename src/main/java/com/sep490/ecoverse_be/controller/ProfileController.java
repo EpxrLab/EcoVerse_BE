@@ -171,7 +171,7 @@ public class ProfileController {
                         "schoolType": "PUBLIC",
                         "taxCode": "0312345678",
                         "address": "123 Lê Lợi",
-                        "district": "Quận 1",
+                        "ward": "Quận 1",
                         "province": "Hồ Chí Minh",
                         "phoneNumber": "0901234567",
                         "principalName": "Nguyễn Văn A",
@@ -218,7 +218,7 @@ public class ProfileController {
                         "contactEmail": "partner@example.com",
                         "phoneNumber": "0901234567",
                         "registeredAddress": "456 Nguyễn Huệ",
-                        "geographicScopeDistrict": "Quận 1",
+                        "geographicScopeWard": "Quận 1",
                         "geographicScopeProvince": "Hồ Chí Minh",
                         "contactPerson": "Trần Thị B",
                         "position": "Trưởng phòng",
@@ -250,7 +250,7 @@ public class ProfileController {
                     Cập nhật thông tin hồ sơ của trường học đang đăng nhập. Chỉ dành cho role **PARTNERSHIP_SCHOOL**.
 
                     **Các trường ĐƯỢC phép cập nhật:**
-                    `schoolName`, `schoolType`, `address`, `district`, `province`, `phoneNumber`,
+                    `schoolName`, `schoolType`, `address`, `ward`, `province`, `phoneNumber`,
                     `principalName`, `position`, `contactEmail`, `linkWeb`, `description`
 
                     **Các trường KHÔNG được phép cập nhật qua API này:**
@@ -272,7 +272,7 @@ public class ProfileController {
                       "schoolName": "Trường Tiểu Học Lê Văn Tám",
                       "schoolType": "PUBLIC",
                       "address": "123 Lê Lợi",
-                      "district": "Quận 1",
+                      "ward": "Quận 1",
                       "province": "Hồ Chí Minh",
                       "phoneNumber": "0901234567",
                       "principalName": "Nguyễn Văn B",
@@ -302,7 +302,7 @@ public class ProfileController {
 
                     **Các trường ĐƯỢC phép cập nhật:**
                     `organizationName`, `partnershipType`, `contactEmail`, `phoneNumber`, `registeredAddress`,
-                    `geographicScopeDistrict`, `geographicScopeProvince`, `contactPerson`, `position`, `linkWeb`, `description`
+                    `geographicScopeWard`, `geographicScopeProvince`, `contactPerson`, `position`, `linkWeb`, `description`
 
                     **Các trường KHÔNG được phép cập nhật qua API này:**
                     - `taxCode` — bất biến sau khi đăng ký
@@ -325,7 +325,7 @@ public class ProfileController {
                       "contactEmail": "partner@example.com",
                       "phoneNumber": "0901234567",
                       "registeredAddress": "456 Nguyễn Huệ",
-                      "geographicScopeDistrict": "Quận 1",
+                      "geographicScopeWard": "Quận 1",
                       "geographicScopeProvince": "Hồ Chí Minh",
                       "contactPerson": "Trần Thị C",
                       "position": "Phó phòng",
