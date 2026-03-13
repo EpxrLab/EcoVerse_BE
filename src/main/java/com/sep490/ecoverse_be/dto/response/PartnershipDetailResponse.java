@@ -1,5 +1,6 @@
 package com.sep490.ecoverse_be.dto.response;
 
+import com.sep490.ecoverse_be.enums.AccountStatus;
 import com.sep490.ecoverse_be.enums.ApprovalStatus;
 import com.sep490.ecoverse_be.enums.PartnershipType;
 import lombok.*;
@@ -12,7 +13,7 @@ import java.util.UUID;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class PartnershipDetailResponse {
+public class PartnershipDetailResponse implements AdminUserDetail {
 
     private UUID id;
     private String userId;
@@ -26,8 +27,14 @@ public class PartnershipDetailResponse {
     private String geographicScopeProvince;
     private String contactPerson;
     private String position;
+    private String linkWeb;
+    private String description;
     private String logoUrl;
     private String licenseUrl;
     private ApprovalStatus approvalStatus;
+    private LocalDateTime approvedAt;
+    private AccountStatus accountStatus;
+    private Boolean isActive;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

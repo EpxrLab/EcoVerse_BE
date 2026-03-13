@@ -34,7 +34,6 @@ public class School extends BaseEntity {
     @Column(nullable = false)
     private SchoolType schoolType;
 
-    //đổi lại là mã số thuế
     @Column(length = 50, unique = true)
     private String taxCode;
 
@@ -50,7 +49,6 @@ public class School extends BaseEntity {
     @Column(length = 100)
     private String country = "Vietnam";
 
-    //sửa lại thành 10
     @Column(length = 10)
     private String phoneNumber;
 
@@ -58,11 +56,9 @@ public class School extends BaseEntity {
 
     private String contactEmail;
 
-    //thêm chức vụ
     @Column(length = 100)
     private String position;
 
-    //thêm link web
     @Column(length = 100)
     private String linkWeb;
 

@@ -90,7 +90,6 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
     @Override
     public UserResponse verifyRegisterSchool(VerifyRegisterSchoolRequest registerRequest) {
         try {
-            // Kiểm tra email đã xác thực OTP qua /verify-otp chưa
             if (!otpService.isEmailVerified(registerRequest.getContactEmail())) {
                 throw new IllegalArgumentException("Email chưa được xác thực OTP. Vui lòng xác thực OTP trước khi đăng ký.");
             }
@@ -134,7 +133,6 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
     @Override
     public UserResponse verifyRegisterPartnership(VerifyRegisterPartnershipRequest registerRequest) {
         try {
-            // Kiểm tra email đã xác thực OTP qua /verify-otp chưa
             if (!otpService.isEmailVerified(registerRequest.getContactEmail())) {
                 throw new IllegalArgumentException("Email chưa được xác thực OTP. Vui lòng xác thực OTP trước khi đăng ký.");
             }
@@ -228,7 +226,6 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
         if (!otpService.verifyOtp(email, otp)) {
             throw new NotFoundException("OTP không hợp lệ hoặc đã hết hạn");
         }
-        // Đánh dấu email đã xác thực OTP — cho phép tiến hành đăng ký trong 15 phút
         otpService.markAsVerified(email);
     }
 

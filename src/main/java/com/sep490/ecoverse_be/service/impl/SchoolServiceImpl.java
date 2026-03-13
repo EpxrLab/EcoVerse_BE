@@ -60,24 +60,18 @@ public class SchoolServiceImpl implements ISchoolService {
     @Override
     @Transactional
     public void softDeleteStudent(UUID schoolUserId, UUID studentId) {
-        // Lấy thông tin trường dựa vào userId của tài khoản đang đăng nhập
         School school = schoolRepository.findByUserId(schoolUserId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin trường học"));
 
-        // Lấy thông tin học sinh cần xóa
         Student student = studentRepository.findById(studentId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy học sinh với id: " + studentId));
 
-        // Kiểm tra học sinh có thuộc trường này không
         if (!student.getSchool().getId().equals(school.getId())) {
             throw new BadRequestException("Học sinh không thuộc trường của bạn");
         }
 
-        // Xóa toàn bộ liên kết StudentParentLink của học sinh này
-        // (giữ nguyên tài khoản phụ huynh, chỉ hủy liên kết)
         studentParentLinkRepository.deleteByStudentId(studentId);
 
-        // Vô hiệu hóa tài khoản User của học sinh (soft delete)
         User studentUser = student.getUser();
         studentUser.setStatus(AccountStatus.INACTIVE);
         studentUser.setIsActive(false);
@@ -106,11 +100,8 @@ public class SchoolServiceImpl implements ISchoolService {
         School school = schoolRepository.findByUserId(userId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
 
-        // Lấy toàn bộ học sinh thuộc trường
         List<Student> students = studentRepository.findBySchoolId(school.getId());
 
-        // Dùng LinkedHashMap để deduplicate phụ huynh (1 phụ huynh có thể có nhiều con)
-        // và giữ nguyên thứ tự thêm vào
         Map<UUID, Parent> parentMap = new LinkedHashMap<>();
         for (Student student : students) {
             List<StudentParentLink> links = studentParentLinkRepository.findByStudentId(student.getId());

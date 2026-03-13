@@ -30,7 +30,7 @@ public class OtpServiceImpl implements IOtpService {
             return false;
         }
         boolean isValid = entry.otp.equals(otp);
-        if (isValid) otpStorage.remove(email); // dùng xong xóa
+        if (isValid) otpStorage.remove(email);
         return isValid;
     }
 
