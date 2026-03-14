@@ -13,12 +13,16 @@ import com.sep490.ecoverse_be.mapper.SubscriptionPlanMapper;
 import com.sep490.ecoverse_be.repository.SubscriptionPlanRepository;
 import com.sep490.ecoverse_be.repository.UserRepository;
 import com.sep490.ecoverse_be.service.ISubscriptionPlanService;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -92,10 +96,26 @@ public class SubscriptionPlanServiceImpl implements ISubscriptionPlanService {
             String keyword,
             Pageable pageable
     ) {
-        Page<SubscriptionPlan> page = subscriptionPlanRepository.findAllWithFilters(
-                subscriberType, isActive, keyword, pageable
-        );
+        Specification<SubscriptionPlan> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
 
+            if (subscriberType != null) {
+                predicates.add(cb.equal(root.get("subscriberType"), subscriberType));
+            }
+            if (isActive != null) {
+                predicates.add(cb.equal(root.get("isActive"), isActive));
+            }
+            if (keyword != null && !keyword.isBlank()) {
+                String pattern = "%" + keyword.trim().toLowerCase() + "%";
+                Predicate nameLike = cb.like(cb.lower(root.get("planName")), pattern);
+                Predicate codeLike = cb.like(cb.lower(root.get("planCode")), pattern);
+                predicates.add(cb.or(nameLike, codeLike));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<SubscriptionPlan> page = subscriptionPlanRepository.findAll(spec, pageable);
         return PageResponse.from(page, subscriptionPlanMapper::toResponse);
     }
 
