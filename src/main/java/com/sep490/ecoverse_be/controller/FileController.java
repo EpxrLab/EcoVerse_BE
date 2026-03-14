@@ -34,14 +34,13 @@ public class FileController {
 
     @PostMapping(value = "/upload/cloudinary", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Upload file ảnh lên S3, trả về URL")
-    public ResponseDto<StorageResponse> uploadToCloudinary(
+    public ResponseEntity<ResponseDto<StorageResponse>> uploadToCloudinary(
             @RequestPart("file") MultipartFile file) {
 
         FileUpLoadUtil.assertAllowed(file, FileUpLoadUtil.IMAGE_PATTERN);
         String fileName = FileUpLoadUtil.getFileName(file.getOriginalFilename());
         StorageResponse response = storageService.uploadFile(file, fileName);
-
-        return ResponseDto.success(response, "Upload thành công");
+        return ResponseEntity.ok(ResponseDto.success(response, "Upload thành công"));
     }
 
     @PostMapping(value = "/upload/model", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -60,15 +59,13 @@ public class FileController {
                     ```
                     """
     )
-    public ResponseDto<StorageResponse> uploadModelToCloudinary(
+    public ResponseEntity<ResponseDto<StorageResponse>> uploadModelToCloudinary(
             @RequestPart("file") MultipartFile file) {
 
-        // Validate định dạng và kích thước (tối đa 250MB)
         FileUpLoadUtil.assertModelAllowed(file);
         String fileName = FileUpLoadUtil.getFileName(file.getOriginalFilename());
         StorageResponse response = storageService.uploadModelFile(file, fileName);
-
-        return ResponseDto.success(response, "Upload 3D model thành công");
+        return ResponseEntity.ok(ResponseDto.success(response, "Upload 3D model thành công"));
     }
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

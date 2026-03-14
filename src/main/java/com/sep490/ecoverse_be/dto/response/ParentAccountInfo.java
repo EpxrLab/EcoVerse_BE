@@ -17,7 +17,6 @@ public class ParentAccountInfo {
     private String phoneNumber;
     private String password;
     private String parentEmail;
-    // true = da gui email thong tin dang nhap, false = chua gui
     private Boolean credentialEmailSent;
     private List<StudentAccountInfo> children;
 }

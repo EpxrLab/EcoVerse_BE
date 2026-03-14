@@ -25,16 +25,15 @@ public interface IAdminService {
 
     void updateUserStatus(UUID userId, boolean isActive);
 
-    // Lấy danh sách tất cả user theo role (null = tất cả role)
-    // Khi role là STUDENT hoặc PARENT, có thể lọc thêm theo schoolId
     List<AdminUserListResponse> getAllUsers(Role role, UUID schoolId);
 
-    // Lấy chi tiết một user theo userId
     AdminUserListResponse getUserDetail(UUID userId);
 
-    // Lấy chi tiết một trường học theo school entity id
     SchoolDetailResponse getSchoolById(UUID schoolId);
 
-    // Lấy chi tiết một đối tác theo partnership entity id
     PartnershipDetailResponse getPartnershipById(UUID partnershipId);
+
+    List<SchoolDetailResponse> getAllSchools();
+
+    List<PartnershipDetailResponse> getAllPartnerships();
 }

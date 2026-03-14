@@ -12,6 +12,7 @@ import com.sep490.ecoverse_be.service.IAdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,38 +39,11 @@ public class AdminController {
                     ```
                     Authorization: Bearer <accessToken>
                     ```
-
-                    **Response mẫu:**
-                    ```json
-                    {
-                      "status": 200,
-                      "message": "Danh sách trường học chờ duyệt",
-                      "data": [
-                        {
-                          "id": "uuid",
-                          "userId": "uuid",
-                          "schoolName": "Trường Tiểu Học Lê Văn Tám",
-                          "schoolType": "PUBLIC",
-                          "taxCode": "0312345678",
-                          "contactEmail": "school@example.com",
-                          "phoneNumber": "0901234567",
-                          "address": "123 Lê Lợi",
-                          "ward": "Quận 1",
-                          "province": "Hồ Chí Minh",
-                          "principalName": "Nguyễn Văn A",
-                          "position": "Hiệu trưởng",
-                          "logoUrl": "https://...",
-                          "licenseUrl": "https://...",
-                          "approvalStatus": "PENDING",
-                          "createdAt": "2025-01-01T10:00:00"
-                        }
-                      ]
-                    }
-                    ```
                     """
     )
-    public ResponseDto<List<SchoolDetailResponse>> getPendingSchools() {
-        return ResponseDto.success(adminService.getPendingSchools(), "Danh sách trường học chờ duyệt");
+    public ResponseEntity<ResponseDto<List<SchoolDetailResponse>>> getPendingSchools() {
+        return ResponseEntity.ok(
+                ResponseDto.success(adminService.getPendingSchools(), "Danh sách trường học chờ duyệt"));
     }
 
     @GetMapping("/partnerships/pending")
@@ -85,8 +59,9 @@ public class AdminController {
                     ```
                     """
     )
-    public ResponseDto<List<PartnershipDetailResponse>> getPendingPartnerships() {
-        return ResponseDto.success(adminService.getPendingPartnerships(), "Danh sách đối tác chờ duyệt");
+    public ResponseEntity<ResponseDto<List<PartnershipDetailResponse>>> getPendingPartnerships() {
+        return ResponseEntity.ok(
+                ResponseDto.success(adminService.getPendingPartnerships(), "Danh sách đối tác chờ duyệt"));
     }
 
     @GetMapping("/schools/approved")
@@ -102,8 +77,9 @@ public class AdminController {
                     ```
                     """
     )
-    public ResponseDto<List<SchoolDetailResponse>> getApprovedSchools() {
-        return ResponseDto.success(adminService.getApprovedSchools(), "Danh sách trường học đã duyệt");
+    public ResponseEntity<ResponseDto<List<SchoolDetailResponse>>> getApprovedSchools() {
+        return ResponseEntity.ok(
+                ResponseDto.success(adminService.getApprovedSchools(), "Danh sách trường học đã duyệt"));
     }
 
     @GetMapping("/partnerships/approved")
@@ -119,8 +95,49 @@ public class AdminController {
                     ```
                     """
     )
-    public ResponseDto<List<PartnershipDetailResponse>> getApprovedPartnerships() {
-        return ResponseDto.success(adminService.getApprovedPartnerships(), "Danh sách đối tác đã duyệt");
+    public ResponseEntity<ResponseDto<List<PartnershipDetailResponse>>> getApprovedPartnerships() {
+        return ResponseEntity.ok(
+                ResponseDto.success(adminService.getApprovedPartnerships(), "Danh sách đối tác đã duyệt"));
+    }
+
+    @GetMapping("/schools")
+    @Operation(
+            summary = "Lấy toàn bộ danh sách trường học (đầy đủ chi tiết)",
+            description = """
+                    Trả về toàn bộ danh sách trường học không phân biệt trạng thái phê duyệt.
+                    Bao gồm đầy đủ thông tin: tên trường, loại trường, địa chỉ, thông tin liên hệ,
+                    logo, giấy phép, trạng thái tài khoản, v.v.
+                    Chỉ dành cho role **ADMINISTRATOR**.
+
+                    **Header:**
+                    ```
+                    Authorization: Bearer <accessToken>
+                    ```
+                    """
+    )
+    public ResponseEntity<ResponseDto<List<SchoolDetailResponse>>> getAllSchools() {
+        return ResponseEntity.ok(
+                ResponseDto.success(adminService.getAllSchools(), "Danh sách tất cả trường học"));
+    }
+
+    @GetMapping("/partnerships")
+    @Operation(
+            summary = "Lấy toàn bộ danh sách đối tác (đầy đủ chi tiết)",
+            description = """
+                    Trả về toàn bộ danh sách đối tác không phân biệt trạng thái phê duyệt.
+                    Bao gồm đầy đủ thông tin: tên tổ chức, loại đối tác, địa chỉ, thông tin liên hệ,
+                    logo, giấy phép, trạng thái tài khoản, v.v.
+                    Chỉ dành cho role **ADMINISTRATOR**.
+
+                    **Header:**
+                    ```
+                    Authorization: Bearer <accessToken>
+                    ```
+                    """
+    )
+    public ResponseEntity<ResponseDto<List<PartnershipDetailResponse>>> getAllPartnerships() {
+        return ResponseEntity.ok(
+                ResponseDto.success(adminService.getAllPartnerships(), "Danh sách tất cả đối tác"));
     }
 
     @PutMapping("/schools/{id}/approve")
@@ -130,29 +147,8 @@ public class AdminController {
                     Phê duyệt hoặc từ chối tài khoản trường học đang ở trạng thái `PENDING`.
                     Chỉ dành cho role **ADMINISTRATOR**.
 
-                    - Khi **APPROVED**: tài khoản trường được kích hoạt (`status = ACTIVE`), trường nhận email thông báo duyệt thành công.
-                    - Khi **REJECTED**: trường nhận email thông báo từ chối kèm lý do. Bắt buộc phải cung cấp `reason`.
-
-                    **Header:**
-                    ```
-                    Authorization: Bearer <accessToken>
-                    Content-Type: application/json
-                    ```
-
-                    **Request body:**
-                    ```json
-                    {
-                      "status": "APPROVED",
-                      "reason": null
-                    }
-                    ```
-                    hoặc
-                    ```json
-                    {
-                      "status": "REJECTED",
-                      "reason": "Giấy phép hoạt động không hợp lệ"
-                    }
-                    ```
+                    - Khi **APPROVED**: tài khoản trường được kích hoạt (`status = ACTIVE`), trường nhận email thông báo.
+                    - Khi **REJECTED**: trường nhận email thông báo từ chối kèm lý do. Bắt buộc cung cấp `reason`.
 
                     **status:** `APPROVED` | `REJECTED`
 
@@ -161,13 +157,16 @@ public class AdminController {
                     - `400` — Trường không ở trạng thái PENDING hoặc thiếu lý do từ chối
                     """
     )
-    public ResponseDto<SchoolDetailResponse> approveSchool(@PathVariable UUID id, @RequestBody UpdateApprovalRequest request) {
+    public ResponseEntity<ResponseDto<SchoolDetailResponse>> approveSchool(
+            @PathVariable UUID id,
+            @RequestBody UpdateApprovalRequest request) {
         try {
-            return ResponseDto.success(adminService.updateSchoolApproval(id, request), "Duyệt trường học thành công");
+            return ResponseEntity.ok(
+                    ResponseDto.success(adminService.updateSchoolApproval(id, request), "Duyệt trường học thành công"));
         } catch (NotFoundException e) {
-            return ResponseDto.notFound(e.getMessage());
+            return ResponseEntity.status(404).body(ResponseDto.notFound(e.getMessage()));
         } catch (BadRequestException e) {
-            return ResponseDto.badRequest(null, e.getMessage());
+            return ResponseEntity.badRequest().body(ResponseDto.badRequest(null, e.getMessage()));
         }
     }
 
@@ -179,21 +178,7 @@ public class AdminController {
                     Chỉ dành cho role **ADMINISTRATOR**.
 
                     - Khi **APPROVED**: tài khoản đối tác được kích hoạt (`status = ACTIVE`), đối tác nhận email thông báo.
-                    - Khi **REJECTED**: đối tác nhận email thông báo từ chối kèm lý do. Bắt buộc phải cung cấp `reason`.
-
-                    **Header:**
-                    ```
-                    Authorization: Bearer <accessToken>
-                    Content-Type: application/json
-                    ```
-
-                    **Request body:**
-                    ```json
-                    {
-                      "status": "APPROVED",
-                      "reason": null
-                    }
-                    ```
+                    - Khi **REJECTED**: đối tác nhận email thông báo từ chối kèm lý do. Bắt buộc cung cấp `reason`.
 
                     **status:** `APPROVED` | `REJECTED`
 
@@ -202,13 +187,16 @@ public class AdminController {
                     - `400` — Đối tác không ở trạng thái PENDING hoặc thiếu lý do từ chối
                     """
     )
-    public ResponseDto<PartnershipDetailResponse> approvePartnership(@PathVariable UUID id, @RequestBody UpdateApprovalRequest request) {
+    public ResponseEntity<ResponseDto<PartnershipDetailResponse>> approvePartnership(
+            @PathVariable UUID id,
+            @RequestBody UpdateApprovalRequest request) {
         try {
-            return ResponseDto.success(adminService.updatePartnershipApproval(id, request), "Duyệt đối tác thành công");
+            return ResponseEntity.ok(
+                    ResponseDto.success(adminService.updatePartnershipApproval(id, request), "Duyệt đối tác thành công"));
         } catch (NotFoundException e) {
-            return ResponseDto.notFound(e.getMessage());
+            return ResponseEntity.status(404).body(ResponseDto.notFound(e.getMessage()));
         } catch (BadRequestException e) {
-            return ResponseDto.badRequest(null, e.getMessage());
+            return ResponseEntity.badRequest().body(ResponseDto.badRequest(null, e.getMessage()));
         }
     }
 
@@ -221,10 +209,10 @@ public class AdminController {
 
                     **Quy tắc lọc:**
                     - Không truyền `role` → trả về tất cả loại user (school, partnership, student, parent).
-                    - `role=PARTNERSHIP_SCHOOL` → chỉ trường học.
-                    - `role=THIRD_PARTY_PARTNERSHIP` → chỉ đối tác.
-                    - `role=STUDENT` → chỉ học sinh. Có thể lọc thêm `schoolId` để lấy học sinh của một trường cụ thể.
-                    - `role=PARENT` → chỉ phụ huynh. Có thể lọc thêm `schoolId` để lấy phụ huynh có con em tại trường đó.
+                    - `role=PARTNERSHIP_SCHOOL` → chỉ trường học, kèm đầy đủ `schoolDetail`.
+                    - `role=THIRD_PARTY_PARTNERSHIP` → chỉ đối tác, kèm đầy đủ `partnershipDetail`.
+                    - `role=STUDENT` → chỉ học sinh.
+                    - `role=PARENT` → chỉ phụ huynh.
 
                     **Query params:**
                     - `role` *(tuỳ chọn)*: `PARTNERSHIP_SCHOOL` | `THIRD_PARTY_PARTNERSHIP` | `STUDENT` | `PARENT`
@@ -236,10 +224,11 @@ public class AdminController {
                     ```
                     """
     )
-    public ResponseDto<List<AdminUserListResponse>> getAllUsers(
+    public ResponseEntity<ResponseDto<List<AdminUserListResponse>>> getAllUsers(
             @RequestParam(required = false) Role role,
             @RequestParam(required = false) UUID schoolId) {
-        return ResponseDto.success(adminService.getAllUsers(role, schoolId), "Danh sách người dùng");
+        return ResponseEntity.ok(
+                ResponseDto.success(adminService.getAllUsers(role, schoolId), "Danh sách người dùng"));
     }
 
     @GetMapping("/users/{userId}")
@@ -250,27 +239,21 @@ public class AdminController {
                     Chỉ dành cho role **ADMINISTRATOR**.
 
                     Tự động phân tích role của user và trả về các field phù hợp:
-                    - **PARTNERSHIP_SCHOOL** → bổ sung `displayName` là tên trường.
-                    - **THIRD_PARTY_PARTNERSHIP** → bổ sung `displayName` là tên tổ chức.
+                    - **PARTNERSHIP_SCHOOL** → bổ sung `schoolDetail` đầy đủ.
+                    - **THIRD_PARTY_PARTNERSHIP** → bổ sung `partnershipDetail` đầy đủ.
                     - **STUDENT** → bổ sung `displayName`, `studentCode`, `className`, `gradeLevel`, `schoolName`.
-                    - **PARENT** → bổ sung `displayName`, `phoneNumber`, `schoolName` (trường của con đầu tiên).
-
-                    **Path variable:** `userId` — UUID của bản ghi User
-
-                    **Header:**
-                    ```
-                    Authorization: Bearer <accessToken>
-                    ```
+                    - **PARENT** → bổ sung `displayName`, `phoneNumber`, `schoolName`.
 
                     **Lỗi có thể xảy ra:**
                     - `404` — Không tìm thấy người dùng
                     """
     )
-    public ResponseDto<AdminUserListResponse> getUserDetail(@PathVariable UUID userId) {
+    public ResponseEntity<ResponseDto<AdminUserListResponse>> getUserDetail(@PathVariable UUID userId) {
         try {
-            return ResponseDto.success(adminService.getUserDetail(userId), "Chi tiết người dùng");
+            return ResponseEntity.ok(
+                    ResponseDto.success(adminService.getUserDetail(userId), "Chi tiết người dùng"));
         } catch (NotFoundException e) {
-            return ResponseDto.notFound(e.getMessage());
+            return ResponseEntity.status(404).body(ResponseDto.notFound(e.getMessage()));
         }
     }
 
@@ -278,25 +261,19 @@ public class AdminController {
     @Operation(
             summary = "Lấy chi tiết một trường học",
             description = """
-                    Trả về thông tin đầy đủ của một trường học theo `schoolId` (là UUID của bản ghi School, không phải userId).
+                    Trả về thông tin đầy đủ của một trường học theo `schoolId` (UUID của bản ghi School).
                     Chỉ dành cho role **ADMINISTRATOR**.
-
-                    **Path variable:** `schoolId` — UUID của bản ghi School
-
-                    **Header:**
-                    ```
-                    Authorization: Bearer <accessToken>
-                    ```
 
                     **Lỗi có thể xảy ra:**
                     - `404` — Không tìm thấy trường học
                     """
     )
-    public ResponseDto<SchoolDetailResponse> getSchoolById(@PathVariable UUID schoolId) {
+    public ResponseEntity<ResponseDto<SchoolDetailResponse>> getSchoolById(@PathVariable UUID schoolId) {
         try {
-            return ResponseDto.success(adminService.getSchoolById(schoolId), "Chi tiết trường học");
+            return ResponseEntity.ok(
+                    ResponseDto.success(adminService.getSchoolById(schoolId), "Chi tiết trường học"));
         } catch (NotFoundException e) {
-            return ResponseDto.notFound(e.getMessage());
+            return ResponseEntity.status(404).body(ResponseDto.notFound(e.getMessage()));
         }
     }
 
@@ -304,25 +281,19 @@ public class AdminController {
     @Operation(
             summary = "Lấy chi tiết một đối tác",
             description = """
-                    Trả về thông tin đầy đủ của một đối tác theo `partnershipId` (là UUID của bản ghi Partnership, không phải userId).
+                    Trả về thông tin đầy đủ của một đối tác theo `partnershipId` (UUID của bản ghi Partnership).
                     Chỉ dành cho role **ADMINISTRATOR**.
-
-                    **Path variable:** `partnershipId` — UUID của bản ghi Partnership
-
-                    **Header:**
-                    ```
-                    Authorization: Bearer <accessToken>
-                    ```
 
                     **Lỗi có thể xảy ra:**
                     - `404` — Không tìm thấy đối tác
                     """
     )
-    public ResponseDto<PartnershipDetailResponse> getPartnershipById(@PathVariable UUID partnershipId) {
+    public ResponseEntity<ResponseDto<PartnershipDetailResponse>> getPartnershipById(@PathVariable UUID partnershipId) {
         try {
-            return ResponseDto.success(adminService.getPartnershipById(partnershipId), "Chi tiết đối tác");
+            return ResponseEntity.ok(
+                    ResponseDto.success(adminService.getPartnershipById(partnershipId), "Chi tiết đối tác"));
         } catch (NotFoundException e) {
-            return ResponseDto.notFound(e.getMessage());
+            return ResponseEntity.status(404).body(ResponseDto.notFound(e.getMessage()));
         }
     }
 
@@ -335,30 +306,13 @@ public class AdminController {
                     - `true` → Kích hoạt: `status = ACTIVE`, `isActive = true`
                     - `false` → Khóa: `status = INACTIVE`, `isActive = false`
 
-                    Dùng để block trường học, đối tác, phụ huynh hoặc học sinh khi vi phạm.
-
-                    **Header:**
-                    ```
-                    Authorization: Bearer <accessToken>
-                    Content-Type: application/json
-                    ```
-
                     **Request body:** `true` hoặc `false` (boolean thuần)
-
-                    **Path variable:** `userId` — UUID của bản ghi User
-
-                    **Response mẫu:**
-                    ```json
-                    {
-                      "status": 200,
-                      "message": "Thành công",
-                      "data": null
-                    }
-                    ```
                     """
     )
-    public ResponseDto<String> blockUser(@PathVariable UUID userId, @RequestBody boolean isActive) {
+    public ResponseEntity<ResponseDto<String>> blockUser(
+            @PathVariable UUID userId,
+            @RequestBody boolean isActive) {
         adminService.updateUserStatus(userId, isActive);
-        return ResponseDto.success(null, "Thành công");
+        return ResponseEntity.ok(ResponseDto.success(null, "Thành công"));
     }
 }

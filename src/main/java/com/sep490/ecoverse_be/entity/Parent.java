@@ -30,7 +30,6 @@ public class Parent extends BaseEntity {
     @Column(name = "is_first_login")
     private Boolean isFirstLogin = true;
 
-    // Danh dau da gui email thong tin dang nhap lan dau cho phu huynh hay chua
     @Column(name = "credential_email_sent")
     private Boolean credentialEmailSent = false;
 }

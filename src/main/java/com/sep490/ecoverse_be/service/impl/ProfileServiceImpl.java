@@ -173,7 +173,6 @@ public class ProfileServiceImpl implements IProfileService {
         School school = schoolRepository.findByUserId(userId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin trường học"));
 
-        // Chỉ cập nhật khi giá trị không null để hỗ trợ partial update
         if (request.getSchoolName() != null) school.setSchoolName(request.getSchoolName());
         if (request.getSchoolType() != null) school.setSchoolType(request.getSchoolType());
         if (request.getAddress() != null) school.setAddress(request.getAddress());
@@ -214,7 +213,6 @@ public class ProfileServiceImpl implements IProfileService {
         Partnership partnership = partnershipRepository.findByUserId(userId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin đối tác"));
 
-        // Chỉ cập nhật khi giá trị không null để hỗ trợ partial update
         if (request.getOrganizationName() != null) partnership.setOrganizationName(request.getOrganizationName());
         if (request.getPartnershipType() != null) partnership.setPartnershipType(request.getPartnershipType());
         if (request.getContactEmail() != null) partnership.setContactEmail(request.getContactEmail());

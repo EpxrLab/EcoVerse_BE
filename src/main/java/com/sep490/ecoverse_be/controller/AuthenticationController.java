@@ -44,9 +44,9 @@ public class AuthenticationController {
                     ```
                     """
     )
-    public ResponseDto<String> register(@Valid @RequestBody RegisterRequest user) {
+    public ResponseEntity<ResponseDto<String>> register(@Valid @RequestBody RegisterRequest user) {
         authenticationService.register(user);
-        return new ResponseDto<>(HttpStatus.OK.value(), "Please check mail to get OTP", null);
+        return ResponseEntity.ok(ResponseDto.success(null, "Please check mail to get OTP"));
     }
 
     @PostMapping("/verify-register/school")
@@ -61,30 +61,8 @@ public class AuthenticationController {
 
                     **Luồng đúng:**
                     1. `POST /register` → nhận OTP qua email
-                    2. `POST /verify-otp` → xác thực OTP ✓
+                    2. `POST /verify-otp` → xác thực OTP
                     3. `POST /verify-register/school` → điền thông tin và tạo tài khoản
-
-                    **Body:**
-                    ```json
-                    {
-                      "schoolName": "Trường Tiểu Học Lê Văn Tám",
-                      "contactEmail": "school@example.com",
-                      "phoneNumber": "0901234567",
-                      "province": "Hồ Chí Minh",
-                      "ward": "Quận 1",
-                      "streetAddress": "123 Lê Lợi",
-                      "principalName": "Nguyễn Văn A",
-                      "position": "Hiệu trưởng",
-                      "taxCode": "0312345678",
-                      "linkWeb": "https://school.edu.vn",
-                      "description": "Mô tả trường",
-                      "schoolType": "PUBLIC",
-                      "password": "Pass@1234",
-                      "otp": "123456",
-                      "logoUrl": "https://example.s3.amazonaws.com/logo.png",
-                      "licenseUrl": "https://example.s3.amazonaws.com/license.pdf"
-                    }
-                    ```
 
                     **schoolType:** `PUBLIC` | `PRIVATE`
 
@@ -93,17 +71,20 @@ public class AuthenticationController {
                     - `409` — Email đã tồn tại trong hệ thống
                     """
     )
-    public ResponseDto<UserResponse> verifyRegisterSchool(@RequestBody @Valid VerifyRegisterSchoolRequest request) {
+    public ResponseEntity<ResponseDto<UserResponse>> verifyRegisterSchool(
+            @RequestBody @Valid VerifyRegisterSchoolRequest request) {
         try {
             UserResponse userResponse = authenticationService.verifyRegisterSchool(request);
-            return new ResponseDto<>(HttpStatus.OK.value(), "Đăng ký thành công, chờ hệ thống xét duyệt", userResponse);
+            return ResponseEntity.ok(
+                    ResponseDto.success(userResponse, "Đăng ký thành công, chờ hệ thống xét duyệt"));
         } catch (IllegalArgumentException e) {
-            return new ResponseDto<>(HttpStatus.BAD_REQUEST.value(), e.getMessage(), null);
+            return ResponseEntity.badRequest().body(ResponseDto.badRequest(null, e.getMessage()));
         } catch (DuplicateEntity e) {
-            return new ResponseDto<>(HttpStatus.CONFLICT.value(), e.getMessage(), null);
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ResponseDto.badRequest(null, e.getMessage()));
         } catch (DataIntegrityViolationException e) {
-            return new ResponseDto<>(HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                    "Đã xảy ra lỗi trong quá trình đăng ký, vui lòng thử lại sau.", null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseDto.error("Đã xảy ra lỗi trong quá trình đăng ký, vui lòng thử lại sau."));
         }
     }
 
@@ -121,11 +102,10 @@ public class AuthenticationController {
                     ```
                     """
     )
-    public ResponseDto<Void> verifyOtp(@RequestBody @Valid VerifyOtpRequest request){
+    public ResponseEntity<ResponseDto<Void>> verifyOtp(@RequestBody @Valid VerifyOtpRequest request) {
         authenticationService.verifyOtpOrThrow(request.getEmail(), request.getOtp());
-        return ResponseDto.success(null, "Xác thực otp thành công");
+        return ResponseEntity.ok(ResponseDto.success(null, "Xác thực otp thành công"));
     }
-
 
     @PostMapping("/verify-register/partnership")
     @Operation(
@@ -134,42 +114,23 @@ public class AuthenticationController {
                     Xác thực mã OTP và tạo tài khoản cho **Đối tác** (THIRD_PARTY_PARTNERSHIP).
                     Tài khoản sẽ ở trạng thái **PENDING** chờ Admin duyệt.
 
-                    **Body:**
-                    ```json
-                    {
-                      "organizationName": "Đoàn Thanh Niên Quận 1",
-                      "contactEmail": "partner@example.com",
-                      "phoneNumber": "0901234567",
-                      "province": "Hồ Chí Minh",
-                      "ward": "Quận 1",
-                      "streetAddress": "456 Nguyễn Huệ",
-                      "contactPerson": "Trần Thị B",
-                      "position": "Trưởng phòng",
-                      "taxCode": "0312345679",
-                      "linkWeb": "https://partner.org.vn",
-                      "description": "Mô tả tổ chức",
-                      "partnershipType": "YOUTH_UNION",
-                      "password": "Pass@1234",
-                      "otp": "123456",
-                      "logoUrl": "https://example.s3.amazonaws.com/logo.png",
-                      "licenseUrl": "https://example.s3.amazonaws.com/license.pdf"
-                    }
-                    ```
-
                     **partnershipType:** `YOUTH_UNION` | `WARD_GOVERNMENT` | `COMMUNE_GOVERNMENT` | `PUBLIC_ORGANIZATION` | `NGO` | `OTHER`
                     """
     )
-    public ResponseDto<UserResponse> verifyRegisterPartnership(@RequestBody @Valid VerifyRegisterPartnershipRequest request) {
+    public ResponseEntity<ResponseDto<UserResponse>> verifyRegisterPartnership(
+            @RequestBody @Valid VerifyRegisterPartnershipRequest request) {
         try {
             UserResponse userResponse = authenticationService.verifyRegisterPartnership(request);
-            return new ResponseDto<>(HttpStatus.OK.value(), "Đăng ký thành công, chờ hệ thống xét duyệt", userResponse);
+            return ResponseEntity.ok(
+                    ResponseDto.success(userResponse, "Đăng ký thành công, chờ hệ thống xét duyệt"));
         } catch (IllegalArgumentException e) {
-            return new ResponseDto<>(HttpStatus.BAD_REQUEST.value(), e.getMessage(), null);
+            return ResponseEntity.badRequest().body(ResponseDto.badRequest(null, e.getMessage()));
         } catch (DuplicateEntity e) {
-            return new ResponseDto<>(HttpStatus.CONFLICT.value(), e.getMessage(), null);
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ResponseDto.badRequest(null, e.getMessage()));
         } catch (DataIntegrityViolationException e) {
-            return new ResponseDto<>(HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                    "Đã xảy ra lỗi trong quá trình đăng ký, vui lòng thử lại sau.", null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseDto.error("Đã xảy ra lỗi trong quá trình đăng ký, vui lòng thử lại sau."));
         }
     }
 
@@ -179,43 +140,22 @@ public class AuthenticationController {
             description = """
                     Đăng nhập cho tất cả loại tài khoản. Trường `email` chấp nhận **email**, **số điện thoại** (phụ huynh), hoặc **student code** (học sinh).
 
-                    **Đăng nhập Trường học / Đối tác (bằng email):**
-                    ```json
-                    {
-                      "email": "school@example.com",
-                      "password": "Pass@1234"
-                    }
-                    ```
-
-                    **Đăng nhập Phụ huynh (bằng số điện thoại):**
-                    ```json
-                    {
-                      "email": "0905324995",
-                      "password": "XVsf3pkA"
-                    }
-                    ```
-
-                    **Đăng nhập Học sinh (bằng student code):**
-                    ```json
-                    {
-                      "email": "AnNHN",
-                      "password": "Kp8mVzA1"
-                    }
-                    ```
-
                     **Response trả về** `accessToken` và `refreshToken`.
                     """
     )
-    public ResponseDto<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<ResponseDto<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
         try {
             AuthResponse authResponse = authenticationService.login(request);
-            return new ResponseDto<>(HttpStatus.OK.value(), "Đăng nhập thành công", authResponse);
+            return ResponseEntity.ok(ResponseDto.success(authResponse, "Đăng nhập thành công"));
         } catch (DisabledException e) {
-            return new ResponseDto<>(HttpStatus.FORBIDDEN.value(), e.getMessage(), null);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ResponseDto.forbidden(e.getMessage()));
         } catch (RuntimeException e) {
-            return new ResponseDto<>(HttpStatus.UNAUTHORIZED.value(), e.getMessage(), null);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ResponseDto.unauthorized(e.getMessage()));
         } catch (Exception e) {
-            return new ResponseDto<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), e.getMessage(), null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseDto.error(e.getMessage()));
         }
     }
 
@@ -249,16 +189,9 @@ public class AuthenticationController {
                     ```
                     Authorization: Bearer <accessToken>
                     ```
-
-                    **Body (tùy chọn):**
-                    ```json
-                    {
-                      "refreshToken": "550e8400-e29b-41d4-a716-446655440000"
-                    }
-                    ```
                     """
     )
-    public ResponseDto<String> logout(
+    public ResponseEntity<ResponseDto<String>> logout(
             @RequestHeader("Authorization") String token,
             @RequestBody(required = false) RefreshTokenRequest request) {
 
@@ -266,39 +199,25 @@ public class AuthenticationController {
             token = token.substring(7);
         }
         authenticationService.logout(token, request);
-
-        return ResponseDto.<String>builder()
-                .status(HttpStatus.OK.value())
-                .message("Đăng xuất thành công")
-                .build();
+        return ResponseEntity.ok(ResponseDto.success(null, "Đăng xuất thành công"));
     }
 
     @PostMapping("/forgot-password")
     @Operation(
             summary = "Quên mật khẩu - Gửi OTP về email",
             description = """
-                    Gửi mã OTP về email để đặt lại mật khẩu. Chỉ áp dụng cho tài khoản có email (Trường học, Đối tác, Phụ huynh).
-
-                    **Body:**
-                    ```json
-                    {
-                      "email": "school@example.com"
-                    }
-                    ```
+                    Gửi mã OTP về email để đặt lại mật khẩu. Chỉ áp dụng cho tài khoản có email.
 
                     > Luôn trả về 200 dù email có tồn tại hay không (bảo mật).
                     """
     )
-    public ResponseDto<Object> forgotPassword(@RequestBody @Valid ForgotPasswordRequest request) {
+    public ResponseEntity<ResponseDto<Object>> forgotPassword(@RequestBody @Valid ForgotPasswordRequest request) {
         try {
             authenticationService.forgotPassword(request);
         } catch (Exception ignored) {
-
         }
-        return ResponseDto.builder()
-                .status(HttpStatus.OK.value())
-                .message("Nếu email tồn tại, chúng tôi đã gửi OTP hướng dẫn đặt lại mật khẩu")
-                .build();
+        return ResponseEntity.ok(
+                ResponseDto.success(null, "Nếu email tồn tại, chúng tôi đã gửi OTP hướng dẫn đặt lại mật khẩu"));
     }
 
     @PostMapping("/verify-reset-password")
@@ -307,25 +226,13 @@ public class AuthenticationController {
             description = """
                     Xác thực OTP và đặt mật khẩu mới.
 
-                    **Body:**
-                    ```json
-                    {
-                      "email": "school@example.com",
-                      "otp": "123456",
-                      "newPassword": "NewPass@1234"
-                    }
-                    ```
-
                     **Yêu cầu mật khẩu:** Tối thiểu 8 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt (`@$!%*?&`).
                     """
     )
-    public ResponseDto<Object> verifyResetPassword(@RequestBody @Valid VerifyForgotPasswordRequest request) {
-
-        return ResponseDto.builder()
-                .status(HttpStatus.OK.value())
-                .data(authenticationService.verifyResetPassword(request))
-                .message("Thay đổi mật khẩu thành công!")
-                .build();
+    public ResponseEntity<ResponseDto<Object>> verifyResetPassword(
+            @RequestBody @Valid VerifyForgotPasswordRequest request) {
+        return ResponseEntity.ok(
+                ResponseDto.success(authenticationService.verifyResetPassword(request), "Thay đổi mật khẩu thành công!"));
     }
 
     @PutMapping("/change-password")
@@ -335,27 +242,11 @@ public class AuthenticationController {
             description = """
                     Đổi mật khẩu khi đã đăng nhập. Yêu cầu Bearer token.
 
-                    **Header:**
-                    ```
-                    Authorization: Bearer <accessToken>
-                    ```
-
-                    **Body:**
-                    ```json
-                    {
-                      "oldPassword": "Pass@1234",
-                      "newPassword": "NewPass@5678"
-                    }
-                    ```
-
                     **Yêu cầu mật khẩu:** Tối thiểu 8 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt (`@$!%*?&`).
                     """
     )
-    public ResponseDto<Object> changePassword(@RequestBody @Valid ChangePasswordRequest request) {
+    public ResponseEntity<ResponseDto<Object>> changePassword(@RequestBody @Valid ChangePasswordRequest request) {
         authenticationService.changePassword(request);
-        return ResponseDto.builder()
-                .status(HttpStatus.OK.value())
-                .message("Đổi mật khẩu thành công")
-                .build();
+        return ResponseEntity.ok(ResponseDto.success(null, "Đổi mật khẩu thành công"));
     }
 }

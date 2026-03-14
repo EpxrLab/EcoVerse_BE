@@ -37,7 +37,6 @@ public class Partnership extends BaseEntity {
     @Column(columnDefinition = "text")
     private String description;
 
-    //    sửa lại thành 10
     @Column(length = 10)
     private String phoneNumber;
 
@@ -52,16 +51,12 @@ public class Partnership extends BaseEntity {
 
     private String contactPerson;
 
-
-    //thêm chức vụ
     @Column(length = 100)
     private String position;
 
-    //    thêm mã số thuế
     @Column(length = 100)
     private String taxCode;
 
-    //    thêm link web
     @Column(length = 100)
     private String linkWeb;
 

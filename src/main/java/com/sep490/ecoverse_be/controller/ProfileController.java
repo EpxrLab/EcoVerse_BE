@@ -14,7 +14,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -40,29 +40,11 @@ public class ProfileController {
                     ```
                     Authorization: Bearer <accessToken>
                     ```
-
-                    **Response mẫu:**
-                    ```json
-                    {
-                      "status": 200,
-                      "message": "Lấy thông tin thành công",
-                      "data": {
-                        "id": "805fbb74-0b23-44c6-8f1a-b5478df61d4d",
-                        "email": null,
-                        "username": "AnNHN",
-                        "role": "STUDENT",
-                        "status": "ACTIVE"
-                      }
-                    }
-                    ```
-
-                    - `email`: null nếu là tài khoản Học sinh
-                    - `username`: studentCode (học sinh) hoặc số điện thoại (phụ huynh), null nếu là Trường/Đối tác
                     """
     )
-    public ResponseDto<UserMeResponse> getMe(@AuthenticationPrincipal UserPrincipal principal) {
+    public ResponseEntity<ResponseDto<UserMeResponse>> getMe(@AuthenticationPrincipal UserPrincipal principal) {
         UserMeResponse response = profileService.getMe(principal.getUser().getId());
-        return new ResponseDto<>(HttpStatus.OK.value(), "Lấy thông tin thành công", response);
+        return ResponseEntity.ok(ResponseDto.success(response, "Lấy thông tin thành công"));
     }
 
     @GetMapping("/student")
@@ -76,34 +58,12 @@ public class ProfileController {
                     ```
                     Authorization: Bearer <accessToken>
                     ```
-
-                    **Response mẫu:**
-                    ```json
-                    {
-                      "status": 200,
-                      "message": "Lấy thông tin thành công",
-                      "data": {
-                        "id": "uuid",
-                        "studentCode": "AnNHN",
-                        "fullName": "Nguyễn Hoàng Nhật Ân",
-                        "className": "5A",
-                        "gradeLevel": "5",
-                        "dateOfBirth": "2015-03-20",
-                        "gender": "MALE",
-                        "avatarUrl": null,
-                        "totalCoins": "0.00",
-                        "school": {
-                          "id": "uuid",
-                          "schoolName": "Trường Tiểu Học Lê Văn Tám"
-                        }
-                      }
-                    }
-                    ```
                     """
     )
-    public ResponseDto<StudentProfileResponse> getStudentProfile(@AuthenticationPrincipal UserPrincipal principal) {
+    public ResponseEntity<ResponseDto<StudentProfileResponse>> getStudentProfile(
+            @AuthenticationPrincipal UserPrincipal principal) {
         StudentProfileResponse response = profileService.getStudentProfile(principal.getUser().getId());
-        return new ResponseDto<>(HttpStatus.OK.value(), "Lấy thông tin thành công", response);
+        return ResponseEntity.ok(ResponseDto.success(response, "Lấy thông tin thành công"));
     }
 
     @GetMapping("/parent")
@@ -117,35 +77,12 @@ public class ProfileController {
                     ```
                     Authorization: Bearer <accessToken>
                     ```
-
-                    **Response mẫu:**
-                    ```json
-                    {
-                      "status": 200,
-                      "message": "Lấy thông tin thành công",
-                      "data": {
-                        "id": "uuid",
-                        "fullName": "Nguyễn Văn A",
-                        "phoneNumber": "0905324995",
-                        "email": "parent@gmail.com",
-                        "children": [
-                          {
-                            "id": "uuid",
-                            "studentCode": "AnNHN",
-                            "fullName": "Nguyễn Hoàng Nhật Ân",
-                            "className": "5A",
-                            "gradeLevel": "5",
-                            "schoolName": "Trường Tiểu Học Lê Văn Tám"
-                          }
-                        ]
-                      }
-                    }
-                    ```
                     """
     )
-    public ResponseDto<ParentProfileResponse> getParentProfile(@AuthenticationPrincipal UserPrincipal principal) {
+    public ResponseEntity<ResponseDto<ParentProfileResponse>> getParentProfile(
+            @AuthenticationPrincipal UserPrincipal principal) {
         ParentProfileResponse response = profileService.getParentProfile(principal.getUser().getId());
-        return new ResponseDto<>(HttpStatus.OK.value(), "Lấy thông tin thành công", response);
+        return ResponseEntity.ok(ResponseDto.success(response, "Lấy thông tin thành công"));
     }
 
     @GetMapping("/school")
@@ -160,38 +97,13 @@ public class ProfileController {
                     Authorization: Bearer <accessToken>
                     ```
 
-                    **Response mẫu:**
-                    ```json
-                    {
-                      "status": 200,
-                      "message": "Lấy thông tin thành công",
-                      "data": {
-                        "id": "uuid",
-                        "schoolName": "Trường Tiểu Học Lê Văn Tám",
-                        "schoolType": "PUBLIC",
-                        "taxCode": "0312345678",
-                        "address": "123 Lê Lợi",
-                        "ward": "Quận 1",
-                        "province": "Hồ Chí Minh",
-                        "phoneNumber": "0901234567",
-                        "principalName": "Nguyễn Văn A",
-                        "position": "Hiệu trưởng",
-                        "contactEmail": "school@example.com",
-                        "linkWeb": "https://school.edu.vn",
-                        "description": "Mô tả trường",
-                        "approvalStatus": "APPROVED",
-                        "logoUrl": "https://example.s3.amazonaws.com/logo.png",
-                        "licenseUrl": "https://example.s3.amazonaws.com/license.pdf"
-                      }
-                    }
-                    ```
-
                     **approvalStatus:** `PENDING` | `APPROVED` | `REJECTED`
                     """
     )
-    public ResponseDto<SchoolProfileResponse> getSchoolProfile(@AuthenticationPrincipal UserPrincipal principal) {
+    public ResponseEntity<ResponseDto<SchoolProfileResponse>> getSchoolProfile(
+            @AuthenticationPrincipal UserPrincipal principal) {
         SchoolProfileResponse response = profileService.getSchoolProfile(principal.getUser().getId());
-        return new ResponseDto<>(HttpStatus.OK.value(), "Lấy thông tin thành công", response);
+        return ResponseEntity.ok(ResponseDto.success(response, "Lấy thông tin thành công"));
     }
 
     @GetMapping("/partnership")
@@ -206,40 +118,15 @@ public class ProfileController {
                     Authorization: Bearer <accessToken>
                     ```
 
-                    **Response mẫu:**
-                    ```json
-                    {
-                      "status": 200,
-                      "message": "Lấy thông tin thành công",
-                      "data": {
-                        "id": "uuid",
-                        "organizationName": "Đoàn Thanh Niên Quận 1",
-                        "partnershipType": "YOUTH_UNION",
-                        "contactEmail": "partner@example.com",
-                        "phoneNumber": "0901234567",
-                        "registeredAddress": "456 Nguyễn Huệ",
-                        "geographicScopeWard": "Quận 1",
-                        "geographicScopeProvince": "Hồ Chí Minh",
-                        "contactPerson": "Trần Thị B",
-                        "position": "Trưởng phòng",
-                        "taxCode": "0312345679",
-                        "linkWeb": "https://partner.org.vn",
-                        "description": "Mô tả tổ chức",
-                        "approvalStatus": "APPROVED",
-                        "logoUrl": "https://example.s3.amazonaws.com/logo.png",
-                        "licenseUrl": "https://example.s3.amazonaws.com/license.pdf"
-                      }
-                    }
-                    ```
-
                     **partnershipType:** `YOUTH_UNION` | `WARD_GOVERNMENT` | `COMMUNE_GOVERNMENT` | `PUBLIC_ORGANIZATION` | `NGO` | `OTHER`
 
                     **approvalStatus:** `PENDING` | `APPROVED` | `REJECTED`
                     """
     )
-    public ResponseDto<PartnershipProfileResponse> getPartnershipProfile(@AuthenticationPrincipal UserPrincipal principal) {
+    public ResponseEntity<ResponseDto<PartnershipProfileResponse>> getPartnershipProfile(
+            @AuthenticationPrincipal UserPrincipal principal) {
         PartnershipProfileResponse response = profileService.getPartnershipProfile(principal.getUser().getId());
-        return new ResponseDto<>(HttpStatus.OK.value(), "Lấy thông tin thành công", response);
+        return ResponseEntity.ok(ResponseDto.success(response, "Lấy thông tin thành công"));
     }
 
     @PutMapping("/school")
@@ -249,16 +136,7 @@ public class ProfileController {
             description = """
                     Cập nhật thông tin hồ sơ của trường học đang đăng nhập. Chỉ dành cho role **PARTNERSHIP_SCHOOL**.
 
-                    **Các trường ĐƯỢC phép cập nhật:**
-                    `schoolName`, `schoolType`, `address`, `ward`, `province`, `phoneNumber`,
-                    `principalName`, `position`, `contactEmail`, `linkWeb`, `description`
-
-                    **Các trường KHÔNG được phép cập nhật qua API này:**
-                    - `taxCode` — bất biến sau khi đăng ký
-                    - `logoUrl` — cập nhật qua API upload logo riêng
-                    - `licenseUrl` — cập nhật qua API upload giấy phép riêng
-
-                    **Hỗ trợ partial update:** chỉ gửi các trường cần thay đổi, các trường không gửi sẽ giữ nguyên.
+                    **Hỗ trợ partial update:** chỉ gửi các trường cần thay đổi.
 
                     **Header:**
                     ```
@@ -266,31 +144,14 @@ public class ProfileController {
                     Content-Type: application/json
                     ```
 
-                    **Request body mẫu:**
-                    ```json
-                    {
-                      "schoolName": "Trường Tiểu Học Lê Văn Tám",
-                      "schoolType": "PUBLIC",
-                      "address": "123 Lê Lợi",
-                      "ward": "Quận 1",
-                      "province": "Hồ Chí Minh",
-                      "phoneNumber": "0901234567",
-                      "principalName": "Nguyễn Văn B",
-                      "position": "Hiệu trưởng",
-                      "contactEmail": "school@example.com",
-                      "linkWeb": "https://school.edu.vn",
-                      "description": "Mô tả mới"
-                    }
-                    ```
-
                     **schoolType:** `PUBLIC` | `PRIVATE` | `SEMI_PUBLIC`
                     """
     )
-    public ResponseDto<SchoolProfileResponse> updateSchoolProfile(
+    public ResponseEntity<ResponseDto<SchoolProfileResponse>> updateSchoolProfile(
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody UpdateSchoolProfileRequest request) {
         SchoolProfileResponse response = profileService.updateSchoolProfile(principal.getUser().getId(), request);
-        return new ResponseDto<>(HttpStatus.OK.value(), "Cập nhật hồ sơ trường học thành công", response);
+        return ResponseEntity.ok(ResponseDto.success(response, "Cập nhật hồ sơ trường học thành công"));
     }
 
     @PutMapping("/partnership")
@@ -300,16 +161,7 @@ public class ProfileController {
             description = """
                     Cập nhật thông tin hồ sơ của tổ chức đối tác đang đăng nhập. Chỉ dành cho role **THIRD_PARTY_PARTNERSHIP**.
 
-                    **Các trường ĐƯỢC phép cập nhật:**
-                    `organizationName`, `partnershipType`, `contactEmail`, `phoneNumber`, `registeredAddress`,
-                    `geographicScopeWard`, `geographicScopeProvince`, `contactPerson`, `position`, `linkWeb`, `description`
-
-                    **Các trường KHÔNG được phép cập nhật qua API này:**
-                    - `taxCode` — bất biến sau khi đăng ký
-                    - `logoUrl` — cập nhật qua API upload logo riêng
-                    - `licenseUrl` — cập nhật qua API upload giấy phép riêng
-
-                    **Hỗ trợ partial update:** chỉ gửi các trường cần thay đổi, các trường không gửi sẽ giữ nguyên.
+                    **Hỗ trợ partial update:** chỉ gửi các trường cần thay đổi.
 
                     **Header:**
                     ```
@@ -317,30 +169,13 @@ public class ProfileController {
                     Content-Type: application/json
                     ```
 
-                    **Request body mẫu:**
-                    ```json
-                    {
-                      "organizationName": "Đoàn Thanh Niên Quận 1",
-                      "partnershipType": "YOUTH_UNION",
-                      "contactEmail": "partner@example.com",
-                      "phoneNumber": "0901234567",
-                      "registeredAddress": "456 Nguyễn Huệ",
-                      "geographicScopeWard": "Quận 1",
-                      "geographicScopeProvince": "Hồ Chí Minh",
-                      "contactPerson": "Trần Thị C",
-                      "position": "Phó phòng",
-                      "linkWeb": "https://partner.org.vn",
-                      "description": "Mô tả mới"
-                    }
-                    ```
-
                     **partnershipType:** `YOUTH_UNION` | `WARD_GOVERNMENT` | `COMMUNE_GOVERNMENT` | `PUBLIC_ORGANIZATION` | `NGO` | `OTHER`
                     """
     )
-    public ResponseDto<PartnershipProfileResponse> updatePartnershipProfile(
+    public ResponseEntity<ResponseDto<PartnershipProfileResponse>> updatePartnershipProfile(
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody UpdatePartnershipProfileRequest request) {
         PartnershipProfileResponse response = profileService.updatePartnershipProfile(principal.getUser().getId(), request);
-        return new ResponseDto<>(HttpStatus.OK.value(), "Cập nhật hồ sơ đối tác thành công", response);
+        return ResponseEntity.ok(ResponseDto.success(response, "Cập nhật hồ sơ đối tác thành công"));
     }
 }

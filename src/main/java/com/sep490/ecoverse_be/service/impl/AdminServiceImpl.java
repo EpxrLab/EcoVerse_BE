@@ -2,8 +2,10 @@ package com.sep490.ecoverse_be.service.impl;
 
 import com.sep490.ecoverse_be.dto.request.UpdateApprovalRequest;
 import com.sep490.ecoverse_be.dto.response.AdminUserListResponse;
+import com.sep490.ecoverse_be.dto.response.ParentAdminDetail;
 import com.sep490.ecoverse_be.dto.response.PartnershipDetailResponse;
 import com.sep490.ecoverse_be.dto.response.SchoolDetailResponse;
+import com.sep490.ecoverse_be.dto.response.StudentAdminDetail;
 import com.sep490.ecoverse_be.entity.Parent;
 import com.sep490.ecoverse_be.entity.Partnership;
 import com.sep490.ecoverse_be.entity.School;
@@ -208,9 +210,10 @@ public class AdminServiceImpl implements IAdminService {
 
 
     private SchoolDetailResponse mapToSchoolDetailResponse(School school) {
+        User user = school.getUser();
         return SchoolDetailResponse.builder()
                 .id(school.getId())
-                .userId(school.getUser().getId().toString())
+                .userId(user.getId().toString())
                 .schoolName(school.getSchoolName())
                 .schoolType(school.getSchoolType())
                 .taxCode(school.getTaxCode())
@@ -219,19 +222,27 @@ public class AdminServiceImpl implements IAdminService {
                 .address(school.getAddress())
                 .ward(school.getWard())
                 .province(school.getProvince())
+                .country(school.getCountry())
                 .principalName(school.getPrincipalName())
                 .position(school.getPosition())
+                .linkWeb(school.getLinkWeb())
+                .description(school.getDescription())
                 .logoUrl(school.getLogoUrl())
                 .licenseUrl(school.getLicenseUrl())
                 .approvalStatus(school.getApprovalStatus())
+                .approvedAt(school.getApprovedAt())
+                .accountStatus(user.getStatus())
+                .isActive(user.getIsActive())
                 .createdAt(school.getCreatedAt())
+                .updatedAt(school.getUpdatedAt())
                 .build();
     }
 
     private PartnershipDetailResponse mapToPartnershipDetailResponse(Partnership partnership) {
+        User user = partnership.getUser();
         return PartnershipDetailResponse.builder()
                 .id(partnership.getId())
-                .userId(partnership.getUser().getId().toString())
+                .userId(user.getId().toString())
                 .organizationName(partnership.getOrganizationName())
                 .partnershipType(partnership.getPartnershipType())
                 .taxCode(partnership.getTaxCode())
@@ -242,11 +253,33 @@ public class AdminServiceImpl implements IAdminService {
                 .geographicScopeProvince(partnership.getGeographicScopeProvince())
                 .contactPerson(partnership.getContactPerson())
                 .position(partnership.getPosition())
+                .linkWeb(partnership.getLinkWeb())
+                .description(partnership.getDescription())
                 .logoUrl(partnership.getLogoUrl())
                 .licenseUrl(partnership.getLicenseUrl())
                 .approvalStatus(partnership.getApprovalStatus())
+                .approvedAt(partnership.getApprovedAt())
+                .accountStatus(user.getStatus())
+                .isActive(user.getIsActive())
                 .createdAt(partnership.getCreatedAt())
+                .updatedAt(partnership.getUpdatedAt())
                 .build();
+    }
+
+    @Override
+    public List<SchoolDetailResponse> getAllSchools() {
+        return schoolRepository.findAll()
+                .stream()
+                .map(this::mapToSchoolDetailResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<PartnershipDetailResponse> getAllPartnerships() {
+        return partnershipRepository.findAll()
+                .stream()
+                .map(this::mapToPartnershipDetailResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -296,7 +329,6 @@ public class AdminServiceImpl implements IAdminService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng với id: " + userId));
 
-        // Dựa vào role để lấy entity tương ứng và map sang response
         return switch (user.getRole()) {
             case PARTNERSHIP_SCHOOL -> {
                 School school = schoolRepository.findByUserId(userId)
@@ -326,6 +358,7 @@ public class AdminServiceImpl implements IAdminService {
                     .status(user.getStatus())
                     .isActive(user.getIsActive())
                     .createdAt(user.getCreatedAt())
+                    .detail(null)
                     .build();
         };
     }
@@ -348,14 +381,13 @@ public class AdminServiceImpl implements IAdminService {
         User user = school.getUser();
         return AdminUserListResponse.builder()
                 .userId(user.getId())
-                .schoolId(school.getId())
                 .email(user.getEmail())
                 .username(user.getUsername())
                 .role(user.getRole())
                 .status(user.getStatus())
                 .isActive(user.getIsActive())
                 .createdAt(user.getCreatedAt())
-                .displayName(school.getSchoolName())
+                .detail(mapToSchoolDetailResponse(school))
                 .build();
     }
 
@@ -363,19 +395,35 @@ public class AdminServiceImpl implements IAdminService {
         User user = partnership.getUser();
         return AdminUserListResponse.builder()
                 .userId(user.getId())
-                .partnerId(partnership.getId())
                 .email(user.getEmail())
                 .username(user.getUsername())
                 .role(user.getRole())
                 .status(user.getStatus())
                 .isActive(user.getIsActive())
                 .createdAt(user.getCreatedAt())
-                .displayName(partnership.getOrganizationName())
+                .detail(mapToPartnershipDetailResponse(partnership))
                 .build();
     }
 
     private AdminUserListResponse mapStudentToAdminUserResponse(Student student) {
         User user = student.getUser();
+        School school = student.getSchool();
+        StudentAdminDetail studentDetail = StudentAdminDetail.builder()
+                .studentId(student.getId())
+                .fullName(student.getFullName())
+                .studentCode(student.getStudentCode())
+                .className(student.getClassName())
+                .gradeLevel(student.getGradeLevel())
+                .dateOfBirth(student.getDateOfBirth())
+                .gender(student.getGender() != null ? student.getGender().name() : null)
+                .address(student.getAddress())
+                .avatarUrl(student.getAvatarUrl())
+                .accountStatus(user.getStatus())
+                .isActive(user.getIsActive())
+                .schoolName(school.getSchoolName())
+                .schoolId(school.getId())
+                .build();
+
         return AdminUserListResponse.builder()
                 .userId(user.getId())
                 .email(user.getEmail())
@@ -384,19 +432,27 @@ public class AdminServiceImpl implements IAdminService {
                 .status(user.getStatus())
                 .isActive(user.getIsActive())
                 .createdAt(user.getCreatedAt())
-                .displayName(student.getFullName())
-                .schoolName(student.getSchool().getSchoolName())
-                .studentCode(student.getStudentCode())
-                .className(student.getClassName())
-                .gradeLevel(student.getGradeLevel())
+                .detail(studentDetail)
                 .build();
     }
 
     private AdminUserListResponse mapParentToAdminUserResponse(Parent parent) {
         User user = parent.getUser();
-        // Lấy tên trường từ học sinh đầu tiên được liên kết (phụ huynh có thể có nhiều con ở nhiều trường)
         List<StudentParentLink> links = studentParentLinkRepository.findByParentId(parent.getId());
-        String schoolName = links.isEmpty() ? null : links.get(0).getStudent().getSchool().getSchoolName();
+        List<String> schoolNames = links.stream()
+                .map(link -> link.getStudent().getSchool().getSchoolName())
+                .distinct()
+                .collect(Collectors.toList());
+
+        ParentAdminDetail parentDetail = ParentAdminDetail.builder()
+                .parentId(parent.getId())
+                .fullName(parent.getFullName())
+                .phoneNumber(parent.getPhoneNumber())
+                .email(user.getEmail())
+                .accountStatus(user.getStatus())
+                .isActive(user.getIsActive())
+                .schoolNames(schoolNames)
+                .build();
 
         return AdminUserListResponse.builder()
                 .userId(user.getId())
@@ -406,9 +462,7 @@ public class AdminServiceImpl implements IAdminService {
                 .status(user.getStatus())
                 .isActive(user.getIsActive())
                 .createdAt(user.getCreatedAt())
-                .displayName(parent.getFullName())
-                .phoneNumber(parent.getPhoneNumber())
-                .schoolName(schoolName)
+                .detail(parentDetail)
                 .build();
     }
 }

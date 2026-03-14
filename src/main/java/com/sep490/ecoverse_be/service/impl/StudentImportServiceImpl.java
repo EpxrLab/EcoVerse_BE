@@ -198,7 +198,6 @@ public class StudentImportServiceImpl implements IStudentImportService {
 
         String studentCode = StudentCodeGenerator.generateUniqueCode(request.getStudentFullName(), existingCodes);
 
-        // Xu ly phu huynh: tai su dung neu so dien thoai da ton tai
         Parent parent;
         Optional<Parent> existingParent = parentRepository.findByPhoneNumber(request.getParentPhone());
 
@@ -223,7 +222,6 @@ public class StudentImportServiceImpl implements IStudentImportService {
             parent = parentRepository.save(parent);
         }
 
-        // Tao tai khoan hoc sinh
         User studentUser = new User();
         studentUser.setEmail(null);
         studentUser.setUsername(studentCode);
@@ -333,8 +331,6 @@ public class StudentImportServiceImpl implements IStudentImportService {
 
         for (Map.Entry<UUID, List<Student>> entry : parentStudentMap.entrySet()) {
             Parent parent = parentMap.get(entry.getKey());
-
-            // Chi gui cho phu huynh chua nhan duoc email
             if (Boolean.TRUE.equals(parent.getCredentialEmailSent())) {
                 skippedCount++;
                 continue;

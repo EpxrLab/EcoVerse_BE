@@ -12,14 +12,11 @@ public interface IStudentImportService {
 
     ImportResultResponse importStudentsFromExcel(MultipartFile file);
 
-    // Them hoc sinh va phu huynh thu cong (khong qua Excel)
     void addStudentManually(AddStudentManualRequest request);
 
-    AccountListResponse getImportedAccounts();
+        AccountListResponse getImportedAccounts();
 
-    // Gui email chi cho phu huynh chua nhan (credentialEmailSent = false)
-    SendCredentialSummaryResponse sendCredentialEmails();
+        SendCredentialSummaryResponse sendCredentialEmails();
 
-    // Gui lai email cho mot phu huynh cu the (reset password + gui lai)
-    void resendCredentialEmail(UUID parentId);
+        void resendCredentialEmail(UUID parentId);
 }
