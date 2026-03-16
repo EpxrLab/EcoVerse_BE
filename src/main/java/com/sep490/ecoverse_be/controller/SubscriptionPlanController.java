@@ -10,8 +10,9 @@ import com.sep490.ecoverse_be.model.UserPrincipal;
 import com.sep490.ecoverse_be.service.ISubscriptionPlanService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -67,8 +68,10 @@ public class SubscriptionPlanController {
             @RequestParam(required = false) SubscriberType subscriberType,
             @RequestParam(required = false) Boolean isActive,
             @RequestParam(required = false) String keyword,
-            @PageableDefault(size = 10, sort = "displayOrder") Pageable pageable
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size
     ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("displayOrder").ascending());
         PageResponse<SubscriptionPlanResponse> response = subscriptionPlanService.getAllPlans(
                 subscriberType, isActive, keyword, pageable
         );
