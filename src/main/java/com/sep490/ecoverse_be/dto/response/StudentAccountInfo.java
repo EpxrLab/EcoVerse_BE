@@ -1,7 +1,10 @@
 package com.sep490.ecoverse_be.dto.response;
 
+import com.sep490.ecoverse_be.enums.AccountStatus;
+import com.sep490.ecoverse_be.enums.Gender;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Getter
@@ -17,4 +20,9 @@ public class StudentAccountInfo {
     private String password;
     private String className;
     private String gradeLevel;
+    private String address;
+    private LocalDate dob;
+    private Gender gender;
+    private Boolean active;
+    private AccountStatus accountStatus;
 }

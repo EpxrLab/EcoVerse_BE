@@ -272,7 +272,6 @@ public class StudentImportServiceImpl implements IStudentImportService {
                 parentStudentMap.computeIfAbsent(parent.getId(), k -> new ArrayList<>()).add(student);
             }
         }
-
         List<ParentAccountInfo> accounts = parentStudentMap.entrySet().stream()
                 .map(entry -> {
                     Parent parent = parentMap.get(entry.getKey());
@@ -283,6 +282,11 @@ public class StudentImportServiceImpl implements IStudentImportService {
                                     .studentCode(s.getStudentCode())
                                     .className(s.getClassName())
                                     .gradeLevel(s.getGradeLevel())
+                                    .dob(s.getDateOfBirth())
+                                    .gender(s.getGender())
+                                    .address(s.getAddress())
+                                    .accountStatus(s.getUser().getStatus())
+                                    .active(s.getUser().getIsActive())
                                     .build())
                             .toList();
 
