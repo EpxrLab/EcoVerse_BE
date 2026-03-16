@@ -222,7 +222,7 @@ public class ImportFileStudentController {
                     Bật/tắt trạng thái hoạt động của một tài khoản học sinh. Chỉ dành cho role **PARTNERSHIP_SCHOOL**.
 
                     - `true` → Kích hoạt: `status = ACTIVE`, `isActive = true`
-                    - `false` → Khóa: `status = INACTIVE`, `isActive = false`
+                    - `false` → Khóa: `status = SUSPENDED`, `isActive = false`
 
                     **Request body:** `true` hoặc `false` (boolean thuần)
                     """

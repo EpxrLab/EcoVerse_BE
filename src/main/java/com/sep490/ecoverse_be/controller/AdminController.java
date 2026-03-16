@@ -304,7 +304,7 @@ public class AdminController {
                     Bật/tắt trạng thái hoạt động của một tài khoản bất kỳ. Chỉ dành cho role **ADMINISTRATOR**.
 
                     - `true` → Kích hoạt: `status = ACTIVE`, `isActive = true`
-                    - `false` → Khóa: `status = INACTIVE`, `isActive = false`
+                    - `false` → Khóa: `status = SUSPENDED`, `isActive = false`
 
                     **Request body:** `true` hoặc `false` (boolean thuần)
                     """
