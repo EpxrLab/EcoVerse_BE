@@ -36,7 +36,7 @@ public class PaymentController {
      * Get payment status by order code (for frontend to check after redirect).
      */
     @GetMapping("/status/{orderCode}")
-    @PreAuthorize("hasAnyRole('PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP', 'ADMINISTRATOR')")
+    @PreAuthorize("hasAnyAuthority('PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP', 'ADMINISTRATOR')")
     public ResponseEntity<ResponseDto<PaymentResponse>> getPaymentByOrderCode(@PathVariable long orderCode) {
         PaymentResponse response = paymentService.getPaymentByOrderCode(orderCode);
         return ResponseEntity.ok(ResponseDto.success(response, "Payment status retrieved."));
@@ -46,7 +46,7 @@ public class PaymentController {
      * Get payment by ID.
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP', 'ADMINISTRATOR')")
+    @PreAuthorize("hasAnyAuthority('PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP', 'ADMINISTRATOR')")
     public ResponseEntity<ResponseDto<PaymentResponse>> getPaymentById(@PathVariable UUID id) {
         PaymentResponse response = paymentService.getPaymentById(id);
         return ResponseEntity.ok(ResponseDto.success(response, "Payment retrieved."));

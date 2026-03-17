@@ -49,6 +49,9 @@ public class ProfileServiceImpl implements IProfileService {
     @Autowired
     private StudentParentLinkRepository studentParentLinkRepository;
 
+    @Autowired
+    private S3PresignedUrlService s3PresignedUrlService;
+
     @Override
     public UserMeResponse getMe(UUID userId) {
         User user = userRepository.findById(userId)
@@ -77,7 +80,7 @@ public class ProfileServiceImpl implements IProfileService {
                 .dateOfBirth(student.getDateOfBirth())
                 .gender(student.getGender() != null ? student.getGender().name() : null)
                 .address(student.getAddress())
-                .avatarUrl(student.getAvatarUrl())
+                .avatarUrl(s3PresignedUrlService.generatePresignedUrl(student.getAvatarUrl()))
                 .totalCoins(student.getTotalCoins() != null ? student.getTotalCoins() : null)
                 .isFirstLogin(student.getIsFirstLogin())
                 .school(StudentProfileResponse.SchoolSummary.builder()
@@ -137,8 +140,8 @@ public class ProfileServiceImpl implements IProfileService {
                 .linkWeb(school.getLinkWeb())
                 .description(school.getDescription())
                 .approvalStatus(school.getApprovalStatus() != null ? school.getApprovalStatus().name() : null)
-                .logoUrl(school.getLogoUrl())
-                .licenseUrl(school.getLicenseUrl())
+                .logoUrl(s3PresignedUrlService.generatePresignedUrl(school.getLogoUrl()))
+                .licenseUrl(s3PresignedUrlService.generatePresignedUrl(school.getLicenseUrl()))
                 .build();
     }
 
@@ -162,8 +165,8 @@ public class ProfileServiceImpl implements IProfileService {
                 .linkWeb(partnership.getLinkWeb())
                 .description(partnership.getDescription())
                 .approvalStatus(partnership.getApprovalStatus() != null ? partnership.getApprovalStatus().name() : null)
-                .logoUrl(partnership.getLogoUrl())
-                .licenseUrl(partnership.getLicenseUrl())
+                .logoUrl(s3PresignedUrlService.generatePresignedUrl(partnership.getLogoUrl()))
+                .licenseUrl(s3PresignedUrlService.generatePresignedUrl(partnership.getLicenseUrl()))
                 .build();
     }
 
@@ -202,8 +205,8 @@ public class ProfileServiceImpl implements IProfileService {
                 .linkWeb(school.getLinkWeb())
                 .description(school.getDescription())
                 .approvalStatus(school.getApprovalStatus() != null ? school.getApprovalStatus().name() : null)
-                .logoUrl(school.getLogoUrl())
-                .licenseUrl(school.getLicenseUrl())
+                .logoUrl(s3PresignedUrlService.generatePresignedUrl(school.getLogoUrl()))
+                .licenseUrl(s3PresignedUrlService.generatePresignedUrl(school.getLicenseUrl()))
                 .build();
     }
 
@@ -242,8 +245,8 @@ public class ProfileServiceImpl implements IProfileService {
                 .linkWeb(partnership.getLinkWeb())
                 .description(partnership.getDescription())
                 .approvalStatus(partnership.getApprovalStatus() != null ? partnership.getApprovalStatus().name() : null)
-                .logoUrl(partnership.getLogoUrl())
-                .licenseUrl(partnership.getLicenseUrl())
+                .logoUrl(s3PresignedUrlService.generatePresignedUrl(partnership.getLogoUrl()))
+                .licenseUrl(s3PresignedUrlService.generatePresignedUrl(partnership.getLicenseUrl()))
                 .build();
     }
 }

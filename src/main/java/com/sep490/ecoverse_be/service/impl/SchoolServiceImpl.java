@@ -3,6 +3,7 @@ package com.sep490.ecoverse_be.service.impl;
 import com.sep490.ecoverse_be.dto.request.StudentInformationRequest;
 import com.sep490.ecoverse_be.dto.response.ListParentResponse;
 import com.sep490.ecoverse_be.dto.response.ListStudentResponse;
+import com.sep490.ecoverse_be.dto.response.PageResponse;
 import com.sep490.ecoverse_be.dto.response.StudentProfileResponse;
 import com.sep490.ecoverse_be.entity.Parent;
 import com.sep490.ecoverse_be.entity.School;
@@ -14,14 +15,22 @@ import com.sep490.ecoverse_be.enums.Gender;
 import com.sep490.ecoverse_be.exception.BadRequestException;
 import com.sep490.ecoverse_be.exception.NotFoundException;
 import com.sep490.ecoverse_be.model.UserPrincipal;
+import com.sep490.ecoverse_be.repository.ParentRepository;
 import com.sep490.ecoverse_be.repository.SchoolRepository;
 import com.sep490.ecoverse_be.repository.StudentParentLinkRepository;
 import com.sep490.ecoverse_be.repository.StudentRepository;
 import com.sep490.ecoverse_be.repository.UserRepository;
 import com.sep490.ecoverse_be.service.ISchoolService;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.jetbrains.annotations.NotNull;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -29,9 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -44,12 +51,17 @@ public class SchoolServiceImpl implements ISchoolService {
     private StudentRepository studentRepository;
 
     @Autowired
+    private ParentRepository parentRepository;
+
+    @Autowired
     private StudentParentLinkRepository studentParentLinkRepository;
 
     @Autowired
     private UserRepository userRepository;
     @Autowired
     private ModelMapper modelMapper;
+    @Autowired
+    private S3PresignedUrlService s3PresignedUrlService;
 
     public UUID getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -79,54 +91,72 @@ public class SchoolServiceImpl implements ISchoolService {
     }
 
     @Override
-    public List<ListStudentResponse> getAllStudent(){
+    public PageResponse<ListStudentResponse> getAllStudent(String keyword, Pageable pageable) {
         UUID userId = getCurrentUserId();
         School school = schoolRepository.findByUserId(userId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
 
-        List<Student> students = studentRepository.findBySchoolId(school.getId());
-        List<ListStudentResponse> listStudentResponse = new ArrayList<>();
+        Specification<Student> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("school").get("id"), school.getId()));
 
-        for(Student student: students){
-            ListStudentResponse dto = getListStudentResponse(student);
-            listStudentResponse.add(dto);
-        }
-        return listStudentResponse;
+            if (keyword != null && !keyword.isBlank()) {
+                String pattern = "%" + keyword.trim().toLowerCase() + "%";
+                Predicate nameLike = cb.like(cb.lower(root.get("fullName")), pattern);
+                Predicate codeLike = cb.like(cb.lower(root.get("studentCode")), pattern);
+                Predicate classLike = cb.like(cb.lower(root.get("className")), pattern);
+                predicates.add(cb.or(nameLike, codeLike, classLike));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Student> page = studentRepository.findAll(spec, pageable);
+        return PageResponse.from(page, this::getListStudentResponse);
     }
 
     @Override
-    public List<ListParentResponse> getAllParent() {
+    public PageResponse<ListParentResponse> getAllParent(String keyword, Pageable pageable) {
         UUID userId = getCurrentUserId();
         School school = schoolRepository.findByUserId(userId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
 
-        List<Student> students = studentRepository.findBySchoolId(school.getId());
+        // Find parents who have children in this school via StudentParentLink subquery
+        Specification<Parent> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
 
-        Map<UUID, Parent> parentMap = new LinkedHashMap<>();
-        for (Student student : students) {
-            List<StudentParentLink> links = studentParentLinkRepository.findByStudentId(student.getId());
-            for (StudentParentLink link : links) {
-                Parent parent = link.getParent();
-                parentMap.putIfAbsent(parent.getId(), parent);
+            // Subquery: parent must have at least one StudentParentLink whose student belongs to this school
+            Subquery<UUID> subquery = query.subquery(UUID.class);
+            Root<StudentParentLink> linkRoot = subquery.from(StudentParentLink.class);
+            Join<StudentParentLink, Student> studentJoin = linkRoot.join("student");
+            subquery.select(linkRoot.get("parent").get("id"))
+                    .where(cb.equal(studentJoin.get("school").get("id"), school.getId()));
+
+            predicates.add(root.get("id").in(subquery));
+
+            if (keyword != null && !keyword.isBlank()) {
+                String pattern = "%" + keyword.trim().toLowerCase() + "%";
+                Predicate nameLike = cb.like(cb.lower(root.get("fullName")), pattern);
+                Predicate phoneLike = cb.like(cb.lower(root.get("phoneNumber")), pattern);
+                predicates.add(cb.or(nameLike, phoneLike));
             }
-        }
 
-        // Map từng Parent sang DTO ListParentResponse
-        List<ListParentResponse> result = new ArrayList<>();
-        for (Parent parent : parentMap.values()) {
-            result.add(getListParentResponse(parent));
-        }
-        return result;
+            query.distinct(true);
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Parent> page = parentRepository.findAll(spec, pageable);
+        return PageResponse.from(page, SchoolServiceImpl::getListParentResponse);
     }
 
     @Override
     public void updateStudentStatus(UUID studentId, boolean isActive) {
 
         Student student = studentRepository.findById(studentId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy học sinh"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy học sinh"));
 
         User user = userRepository.findById(student.getUser().getId())
-                .orElseThrow(() ->new RuntimeException("Không tìm thấy tài khoản"));
+                .orElseThrow(() ->new RuntimeException("Không tìm thấy tài khoản"));
 
         if(isActive){
             user.setStatus(AccountStatus.ACTIVE);
@@ -143,7 +173,7 @@ public class SchoolServiceImpl implements ISchoolService {
     @Transactional
     public StudentProfileResponse updateStudentInformation(UUID studentId, StudentInformationRequest request) {
         Student student = studentRepository.findById(studentId)
-                .orElseThrow(() -> new  NotFoundException("Không tìm thấy học sinh"));
+                .orElseThrow(() -> new  NotFoundException("Không tìm thấy học sinh"));
 
         if (request.getGender() != null) {
             student.setGender(Gender.valueOf(request.getGender()));
@@ -171,7 +201,7 @@ public class SchoolServiceImpl implements ISchoolService {
         Student updateStudent = studentRepository.save(student);
         StudentProfileResponse response = modelMapper.map(updateStudent, StudentProfileResponse.class);
         response.setId(updateStudent.getId());
-        response.setAvatarUrl(updateStudent.getAvatarUrl());
+        response.setAvatarUrl(s3PresignedUrlService.generatePresignedUrl(updateStudent.getAvatarUrl()));
         response.setTotalCoins(updateStudent.getTotalCoins());
         response.setIsFirstLogin(updateStudent.getIsFirstLogin());
         return response;
@@ -188,7 +218,7 @@ public class SchoolServiceImpl implements ISchoolService {
     }
 
     @NotNull
-    private static ListStudentResponse getListStudentResponse(Student student) {
+    private ListStudentResponse getListStudentResponse(Student student) {
         return ListStudentResponse.builder()
                 .studentId(student.getId())
                 .studentFullName(student.getFullName())
@@ -198,7 +228,7 @@ public class SchoolServiceImpl implements ISchoolService {
                 .dateOfBirth(student.getDateOfBirth())
                 .gender(student.getGender().name())
                 .address((student.getAddress()))
-                .avatarUrl(student.getAvatarUrl())
+                .avatarUrl(s3PresignedUrlService.generatePresignedUrl(student.getAvatarUrl()))
                 .build();
     }
 }

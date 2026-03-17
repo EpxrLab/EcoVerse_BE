@@ -5,15 +5,12 @@ import com.sep490.ecoverse_be.dto.response.FileResponse;
 import com.sep490.ecoverse_be.dto.response.PageResponse;
 import com.sep490.ecoverse_be.dto.response.ResponseDto;
 import com.sep490.ecoverse_be.model.UserPrincipal;
-import com.sep490.ecoverse_be.service.IStorageService;
 import com.sep490.ecoverse_be.service.IFileService;
-import com.sep490.ecoverse_be.util.FileUpLoadUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -29,23 +26,22 @@ import java.util.UUID;
 @Tag(name = "File", description = "Upload và quản lý file")
 public class FileController {
 
-    private final IStorageService storageService;
     private final IFileService fileService;
 
     @PostMapping(value = "/upload/cloudinary", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Upload file ảnh lên S3, trả về URL")
-    public ResponseEntity<ResponseDto<StorageResponse>> uploadToCloudinary(
-            @RequestPart("file") MultipartFile file) {
+    @Operation(summary = "Upload file ảnh lên S3 và lưu thông tin vào DB")
+    public ResponseEntity<ResponseDto<StorageResponse>> uploadImage(
+            @RequestPart("file") MultipartFile file,
+            @AuthenticationPrincipal UserPrincipal principal) {
 
-        FileUpLoadUtil.assertAllowed(file, FileUpLoadUtil.IMAGE_PATTERN);
-        String fileName = FileUpLoadUtil.getFileName(file.getOriginalFilename());
-        StorageResponse response = storageService.uploadFile(file, fileName);
+        UUID userId = principal.getUser().getId();
+        StorageResponse response = fileService.uploadImage(file, userId);
         return ResponseEntity.ok(ResponseDto.success(response, "Upload thành công"));
     }
 
     @PostMapping(value = "/upload/model", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(
-            summary = "Upload 3D model (.glb, .gltf) lên S3",
+            summary = "Upload 3D model (.glb, .gltf) lên S3 và lưu thông tin vào DB",
             description = """
                     Upload file 3D model dạng `.glb` hoặc `.gltf` lên S3, hỗ trợ file tới **250MB**.
 
@@ -59,26 +55,13 @@ public class FileController {
                     ```
                     """
     )
-    public ResponseEntity<ResponseDto<StorageResponse>> uploadModelToCloudinary(
-            @RequestPart("file") MultipartFile file) {
-
-        FileUpLoadUtil.assertModelAllowed(file);
-        String fileName = FileUpLoadUtil.getFileName(file.getOriginalFilename());
-        StorageResponse response = storageService.uploadModelFile(file, fileName);
-        return ResponseEntity.ok(ResponseDto.success(response, "Upload 3D model thành công"));
-    }
-
-    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Upload file và lưu thông tin vào DB")
-    public ResponseEntity<ResponseDto<FileResponse>> uploadFile(
-            @RequestParam("file") MultipartFile file,
+    public ResponseEntity<ResponseDto<StorageResponse>> uploadModel(
+            @RequestPart("file") MultipartFile file,
             @AuthenticationPrincipal UserPrincipal principal) {
 
         UUID userId = principal.getUser().getId();
-        FileResponse response = fileService.uploadFile(file, userId);
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ResponseDto.created(response, "File uploaded successfully."));
+        StorageResponse response = fileService.uploadModel(file, userId);
+        return ResponseEntity.ok(ResponseDto.success(response, "Upload 3D model thành công"));
     }
 
     @GetMapping("/{id}")
@@ -117,7 +100,7 @@ public class FileController {
 
         UUID userId = principal.getUser().getId();
         boolean isAdmin = principal.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMINISTRATOR"));
+                .anyMatch(a -> a.getAuthority().equals("ADMINISTRATOR"));
         fileService.deleteFile(id, userId, isAdmin);
         return ResponseEntity.ok(ResponseDto.success(null, "File deleted successfully."));
     }

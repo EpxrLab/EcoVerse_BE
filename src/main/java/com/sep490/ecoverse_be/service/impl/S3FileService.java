@@ -23,9 +23,6 @@ public class S3FileService {
     @Value("${aws.s3.bucket}")
     private String bucketName;
 
-    @Value("${aws.region}")
-    private String region;
-
     public Map<String, Object> upload(MultipartFile file) {
         try {
             String originalFilename = file.getOriginalFilename();
@@ -40,10 +37,8 @@ public class S3FileService {
             s3Client.putObject(putRequest,
                     RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
-            String url = String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, key);
-
             Map<String, Object> result = new HashMap<>();
-            result.put("secure_url", url);
+            result.put("secure_url", key);
             result.put("public_id", key);
             return result;
         } catch (IOException e) {
