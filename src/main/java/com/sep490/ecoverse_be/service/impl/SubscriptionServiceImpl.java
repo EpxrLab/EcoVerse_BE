@@ -14,15 +14,20 @@ import com.sep490.ecoverse_be.mapper.SubscriptionMapper;
 import com.sep490.ecoverse_be.repository.*;
 import com.sep490.ecoverse_be.service.IPaymentService;
 import com.sep490.ecoverse_be.service.ISubscriptionService;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -192,23 +197,44 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<SubscriptionResponse> getMySubscriptionHistory(UUID userId, Pageable pageable) {
+    public PageResponse<SubscriptionResponse> getMySubscriptionHistory(UUID userId,
+                                                                        SubscriptionStatus status,
+                                                                        String keyword,
+                                                                        Pageable pageable) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found."));
 
         SubscriberType subscriberType = resolveSubscriberType(user);
-        Page<Subscription> page;
 
-        if (subscriberType == SubscriberType.SCHOOL) {
-            School school = schoolRepository.findByUserId(userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("School profile not found."));
-            page = subscriptionRepository.findBySchoolId(school.getId(), pageable);
-        } else {
-            Partnership partnership = partnershipRepository.findByUserId(userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Partnership profile not found."));
-            page = subscriptionRepository.findByPartnershipId(partnership.getId(), pageable);
-        }
+        Specification<Subscription> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
 
+            if (subscriberType == SubscriberType.SCHOOL) {
+                School school = schoolRepository.findByUserId(userId)
+                        .orElseThrow(() -> new ResourceNotFoundException("School profile not found."));
+                predicates.add(cb.equal(root.get("school").get("id"), school.getId()));
+            } else {
+                Partnership partnership = partnershipRepository.findByUserId(userId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Partnership profile not found."));
+                predicates.add(cb.equal(root.get("partnership").get("id"), partnership.getId()));
+            }
+
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+
+            if (keyword != null && !keyword.isBlank()) {
+                String pattern = "%" + keyword.trim().toLowerCase() + "%";
+                Predicate codeLike = cb.like(cb.lower(root.get("subscriptionCode")), pattern);
+                Join<Subscription, SubscriptionPlan> planJoin = root.join("plan");
+                Predicate planNameLike = cb.like(cb.lower(planJoin.get("planName")), pattern);
+                predicates.add(cb.or(codeLike, planNameLike));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Subscription> page = subscriptionRepository.findAll(spec, pageable);
         return PageResponse.from(page, subscriptionMapper::toResponse);
     }
 
@@ -226,7 +252,27 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
                                                                    SubscriptionStatus status,
                                                                    String keyword,
                                                                    Pageable pageable) {
-        Page<Subscription> page = subscriptionRepository.findAllWithFilters(subscriberType, status, keyword, pageable);
+        Specification<Subscription> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (subscriberType != null) {
+                predicates.add(cb.equal(root.get("subscriberType"), subscriberType));
+            }
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            if (keyword != null && !keyword.isBlank()) {
+                String pattern = "%" + keyword.trim().toLowerCase() + "%";
+                Predicate codeLike = cb.like(cb.lower(root.get("subscriptionCode")), pattern);
+                Join<Subscription, SubscriptionPlan> planJoin = root.join("plan");
+                Predicate planNameLike = cb.like(cb.lower(planJoin.get("planName")), pattern);
+                predicates.add(cb.or(codeLike, planNameLike));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Subscription> page = subscriptionRepository.findAll(spec, pageable);
         return PageResponse.from(page, subscriptionMapper::toResponse);
     }
 

@@ -2,6 +2,7 @@ package com.sep490.ecoverse_be.controller;
 
 import com.sep490.ecoverse_be.dto.request.UpdateApprovalRequest;
 import com.sep490.ecoverse_be.dto.response.AdminUserListResponse;
+import com.sep490.ecoverse_be.dto.response.PageResponse;
 import com.sep490.ecoverse_be.dto.response.PartnershipDetailResponse;
 import com.sep490.ecoverse_be.dto.response.ResponseDto;
 import com.sep490.ecoverse_be.dto.response.SchoolDetailResponse;
@@ -12,11 +13,13 @@ import com.sep490.ecoverse_be.service.IAdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -41,9 +44,13 @@ public class AdminController {
                     ```
                     """
     )
-    public ResponseEntity<ResponseDto<List<SchoolDetailResponse>>> getPendingSchools() {
+    public ResponseEntity<ResponseDto<PageResponse<SchoolDetailResponse>>> getPendingSchools(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         return ResponseEntity.ok(
-                ResponseDto.success(adminService.getPendingSchools(), "Danh sách trường học chờ duyệt"));
+                ResponseDto.success(adminService.getPendingSchools(keyword, pageable), "Danh sách trường học chờ duyệt"));
     }
 
     @GetMapping("/partnerships/pending")
@@ -59,9 +66,13 @@ public class AdminController {
                     ```
                     """
     )
-    public ResponseEntity<ResponseDto<List<PartnershipDetailResponse>>> getPendingPartnerships() {
+    public ResponseEntity<ResponseDto<PageResponse<PartnershipDetailResponse>>> getPendingPartnerships(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         return ResponseEntity.ok(
-                ResponseDto.success(adminService.getPendingPartnerships(), "Danh sách đối tác chờ duyệt"));
+                ResponseDto.success(adminService.getPendingPartnerships(keyword, pageable), "Danh sách đối tác chờ duyệt"));
     }
 
     @GetMapping("/schools/approved")
@@ -77,9 +88,13 @@ public class AdminController {
                     ```
                     """
     )
-    public ResponseEntity<ResponseDto<List<SchoolDetailResponse>>> getApprovedSchools() {
+    public ResponseEntity<ResponseDto<PageResponse<SchoolDetailResponse>>> getApprovedSchools(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         return ResponseEntity.ok(
-                ResponseDto.success(adminService.getApprovedSchools(), "Danh sách trường học đã duyệt"));
+                ResponseDto.success(adminService.getApprovedSchools(keyword, pageable), "Danh sách trường học đã duyệt"));
     }
 
     @GetMapping("/partnerships/approved")
@@ -95,9 +110,13 @@ public class AdminController {
                     ```
                     """
     )
-    public ResponseEntity<ResponseDto<List<PartnershipDetailResponse>>> getApprovedPartnerships() {
+    public ResponseEntity<ResponseDto<PageResponse<PartnershipDetailResponse>>> getApprovedPartnerships(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         return ResponseEntity.ok(
-                ResponseDto.success(adminService.getApprovedPartnerships(), "Danh sách đối tác đã duyệt"));
+                ResponseDto.success(adminService.getApprovedPartnerships(keyword, pageable), "Danh sách đối tác đã duyệt"));
     }
 
     @GetMapping("/schools")
@@ -115,9 +134,13 @@ public class AdminController {
                     ```
                     """
     )
-    public ResponseEntity<ResponseDto<List<SchoolDetailResponse>>> getAllSchools() {
+    public ResponseEntity<ResponseDto<PageResponse<SchoolDetailResponse>>> getAllSchools(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         return ResponseEntity.ok(
-                ResponseDto.success(adminService.getAllSchools(), "Danh sách tất cả trường học"));
+                ResponseDto.success(adminService.getAllSchools(keyword, pageable), "Danh sách tất cả trường học"));
     }
 
     @GetMapping("/partnerships")
@@ -135,9 +158,13 @@ public class AdminController {
                     ```
                     """
     )
-    public ResponseEntity<ResponseDto<List<PartnershipDetailResponse>>> getAllPartnerships() {
+    public ResponseEntity<ResponseDto<PageResponse<PartnershipDetailResponse>>> getAllPartnerships(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         return ResponseEntity.ok(
-                ResponseDto.success(adminService.getAllPartnerships(), "Danh sách tất cả đối tác"));
+                ResponseDto.success(adminService.getAllPartnerships(keyword, pageable), "Danh sách tất cả đối tác"));
     }
 
     @PutMapping("/schools/{id}/approve")
@@ -217,6 +244,9 @@ public class AdminController {
                     **Query params:**
                     - `role` *(tuỳ chọn)*: `PARTNERSHIP_SCHOOL` | `THIRD_PARTY_PARTNERSHIP` | `STUDENT` | `PARENT`
                     - `schoolId` *(tuỳ chọn, chỉ hiệu lực khi role là `STUDENT` hoặc `PARENT`)*: UUID của trường học
+                    - `keyword` *(tuỳ chọn)*: tìm kiếm theo email, username
+                    - `page` *(mặc định: 0)*
+                    - `size` *(mặc định: 10)*
 
                     **Header:**
                     ```
@@ -224,11 +254,15 @@ public class AdminController {
                     ```
                     """
     )
-    public ResponseEntity<ResponseDto<List<AdminUserListResponse>>> getAllUsers(
+    public ResponseEntity<ResponseDto<PageResponse<AdminUserListResponse>>> getAllUsers(
             @RequestParam(required = false) Role role,
-            @RequestParam(required = false) UUID schoolId) {
+            @RequestParam(required = false) UUID schoolId,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         return ResponseEntity.ok(
-                ResponseDto.success(adminService.getAllUsers(role, schoolId), "Danh sách người dùng"));
+                ResponseDto.success(adminService.getAllUsers(role, schoolId, keyword, pageable), "Danh sách người dùng"));
     }
 
     @GetMapping("/users/{userId}")

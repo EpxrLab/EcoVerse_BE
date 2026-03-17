@@ -9,8 +9,9 @@ import com.sep490.ecoverse_be.model.UserPrincipal;
 import com.sep490.ecoverse_be.service.ISubscriptionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,7 +32,7 @@ public class SubscriptionController {
      * Creates subscription and returns PayOS checkout URL for paid plans.
      */
     @PostMapping
-    @PreAuthorize("hasAnyRole('PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
+    @PreAuthorize("hasAnyAuthority('PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
     public ResponseEntity<ResponseDto<PaymentResponse>> subscribe(
             @Valid @RequestBody CreateSubscriptionRequest request,
             @AuthenticationPrincipal UserPrincipal principal
@@ -45,7 +46,7 @@ public class SubscriptionController {
      * Renew an expired subscription.
      */
     @PostMapping("/renew")
-    @PreAuthorize("hasAnyRole('PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
+    @PreAuthorize("hasAnyAuthority('PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
     public ResponseEntity<ResponseDto<PaymentResponse>> renewSubscription(
             @Valid @RequestBody RenewSubscriptionRequest request,
             @AuthenticationPrincipal UserPrincipal principal
@@ -59,7 +60,7 @@ public class SubscriptionController {
      * Get current active subscription of the logged-in School/Partnership.
      */
     @GetMapping("/my")
-    @PreAuthorize("hasAnyRole('PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
+    @PreAuthorize("hasAnyAuthority('PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
     public ResponseEntity<ResponseDto<SubscriptionResponse>> getMySubscription(
             @AuthenticationPrincipal UserPrincipal principal
     ) {
@@ -71,13 +72,17 @@ public class SubscriptionController {
      * Get subscription history of the logged-in School/Partnership.
      */
     @GetMapping("/my/history")
-    @PreAuthorize("hasAnyRole('PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
+    @PreAuthorize("hasAnyAuthority('PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
     public ResponseEntity<ResponseDto<PageResponse<SubscriptionResponse>>> getMySubscriptionHistory(
             @AuthenticationPrincipal UserPrincipal principal,
-            @PageableDefault(size = 10) Pageable pageable
+            @RequestParam(required = false) SubscriptionStatus status,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size
     ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         PageResponse<SubscriptionResponse> response = subscriptionService.getMySubscriptionHistory(
-                principal.getUser().getId(), pageable);
+                principal.getUser().getId(), status, keyword, pageable);
         return ResponseEntity.ok(ResponseDto.success(response, "Subscription history retrieved."));
     }
 
@@ -85,7 +90,7 @@ public class SubscriptionController {
      * Cancel active subscription.
      */
     @PatchMapping("/{id}/cancel")
-    @PreAuthorize("hasAnyRole('PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
+    @PreAuthorize("hasAnyAuthority('PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
     public ResponseEntity<ResponseDto<SubscriptionResponse>> cancelSubscription(
             @PathVariable UUID id,
             @RequestParam(required = false) String reason,
@@ -102,7 +107,7 @@ public class SubscriptionController {
      * Admin: get subscription by ID.
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMINISTRATOR')")
+    @PreAuthorize("hasAuthority('ADMINISTRATOR')")
     public ResponseEntity<ResponseDto<SubscriptionResponse>> getSubscriptionById(@PathVariable UUID id) {
         SubscriptionResponse response = subscriptionService.getSubscriptionById(id);
         return ResponseEntity.ok(ResponseDto.success(response, "Subscription retrieved."));
@@ -112,13 +117,15 @@ public class SubscriptionController {
      * Admin: list all subscriptions with filters.
      */
     @GetMapping("/admin/all")
-    @PreAuthorize("hasRole('ADMINISTRATOR')")
+    @PreAuthorize("hasAuthority('ADMINISTRATOR')")
     public ResponseEntity<ResponseDto<PageResponse<SubscriptionResponse>>> getAllSubscriptions(
             @RequestParam(required = false) SubscriberType subscriberType,
             @RequestParam(required = false) SubscriptionStatus status,
             @RequestParam(required = false) String keyword,
-            @PageableDefault(size = 10) Pageable pageable
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size
     ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         PageResponse<SubscriptionResponse> response = subscriptionService.getAllSubscriptions(
                 subscriberType, status, keyword, pageable);
         return ResponseEntity.ok(ResponseDto.success(response, "Subscriptions retrieved."));

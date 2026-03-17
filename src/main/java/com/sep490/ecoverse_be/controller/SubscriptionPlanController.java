@@ -8,6 +8,8 @@ import com.sep490.ecoverse_be.dto.response.SubscriptionPlanResponse;
 import com.sep490.ecoverse_be.enums.SubscriberType;
 import com.sep490.ecoverse_be.model.UserPrincipal;
 import com.sep490.ecoverse_be.service.ISubscriptionPlanService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -22,48 +24,17 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/subscription-plans")
 @RequiredArgsConstructor
-@PreAuthorize("hasAuthority('ADMINISTRATOR')")
+@Tag(name = "Subscription Plan", description = "APIs quản lý gói đăng ký (public GET + admin CRUD)")
 public class SubscriptionPlanController {
 
     private final ISubscriptionPlanService subscriptionPlanService;
 
-    @PostMapping
-    public ResponseEntity<ResponseDto<SubscriptionPlanResponse>> createPlan(
-            @Valid @RequestBody CreateSubscriptionPlanRequest request,
-            @AuthenticationPrincipal UserPrincipal principal
-    ) {
-        SubscriptionPlanResponse response = subscriptionPlanService.createPlan(
-                request, principal.getUser().getId()
-        );
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ResponseDto.created(response, "Subscription plan created successfully."));
-    }
+    // ==================== Public APIs (không cần đăng nhập) ====================
 
-    @PutMapping("/{id}")
-    public ResponseEntity<ResponseDto<SubscriptionPlanResponse>> updatePlan(
-            @PathVariable UUID id,
-            @Valid @RequestBody UpdateSubscriptionPlanRequest request
-    ) {
-        SubscriptionPlanResponse response = subscriptionPlanService.updatePlan(id, request);
-        return ResponseEntity.ok(ResponseDto.success(response, "Subscription plan updated successfully."));
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<ResponseDto<SubscriptionPlanResponse>> getPlanById(@PathVariable UUID id) {
-        SubscriptionPlanResponse response = subscriptionPlanService.getPlanById(id);
-        return ResponseEntity.ok(ResponseDto.success(response, "Subscription plan retrieved successfully."));
-    }
-
-    @GetMapping("/code/{planCode}")
-    public ResponseEntity<ResponseDto<SubscriptionPlanResponse>> getPlanByCode(@PathVariable String planCode) {
-        SubscriptionPlanResponse response = subscriptionPlanService.getPlanByCode(planCode);
-        return ResponseEntity.ok(ResponseDto.success(response, "Subscription plan retrieved successfully."));
-    }
-
-    @GetMapping
+    @GetMapping("/api/subscription-plans")
+    @Operation(summary = "Lấy danh sách gói đăng ký (public)",
+            description = "Ai cũng có thể xem danh sách gói đăng ký. Hỗ trợ lọc theo loại, trạng thái, tìm kiếm, phân trang.")
     public ResponseEntity<ResponseDto<PageResponse<SubscriptionPlanResponse>>> getAllPlans(
             @RequestParam(required = false) SubscriberType subscriberType,
             @RequestParam(required = false) Boolean isActive,
@@ -78,13 +49,61 @@ public class SubscriptionPlanController {
         return ResponseEntity.ok(ResponseDto.success(response, "Subscription plans retrieved successfully."));
     }
 
-    @PatchMapping("/{id}/toggle-active")
+    @GetMapping("/api/subscription-plans/{id}")
+    @Operation(summary = "Xem chi tiết gói đăng ký (public)",
+            description = "Ai cũng có thể xem chi tiết một gói đăng ký theo ID.")
+    public ResponseEntity<ResponseDto<SubscriptionPlanResponse>> getPlanById(@PathVariable UUID id) {
+        SubscriptionPlanResponse response = subscriptionPlanService.getPlanById(id);
+        return ResponseEntity.ok(ResponseDto.success(response, "Subscription plan retrieved successfully."));
+    }
+
+    @GetMapping("/api/subscription-plans/code/{planCode}")
+    @Operation(summary = "Xem chi tiết gói đăng ký theo mã (public)",
+            description = "Ai cũng có thể xem chi tiết một gói đăng ký theo planCode.")
+    public ResponseEntity<ResponseDto<SubscriptionPlanResponse>> getPlanByCode(@PathVariable String planCode) {
+        SubscriptionPlanResponse response = subscriptionPlanService.getPlanByCode(planCode);
+        return ResponseEntity.ok(ResponseDto.success(response, "Subscription plan retrieved successfully."));
+    }
+
+    // ==================== Admin APIs (chỉ ADMINISTRATOR) ====================
+
+    @PostMapping("/api/admin/subscription-plans")
+    @PreAuthorize("hasAuthority('ADMINISTRATOR')")
+    @Operation(summary = "Tạo gói đăng ký mới (Admin)")
+    public ResponseEntity<ResponseDto<SubscriptionPlanResponse>> createPlan(
+            @Valid @RequestBody CreateSubscriptionPlanRequest request,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        SubscriptionPlanResponse response = subscriptionPlanService.createPlan(
+                request, principal.getUser().getId()
+        );
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ResponseDto.created(response, "Subscription plan created successfully."));
+    }
+
+    @PutMapping("/api/admin/subscription-plans/{id}")
+    @PreAuthorize("hasAuthority('ADMINISTRATOR')")
+    @Operation(summary = "Cập nhật gói đăng ký (Admin)")
+    public ResponseEntity<ResponseDto<SubscriptionPlanResponse>> updatePlan(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateSubscriptionPlanRequest request
+    ) {
+        SubscriptionPlanResponse response = subscriptionPlanService.updatePlan(id, request);
+        return ResponseEntity.ok(ResponseDto.success(response, "Subscription plan updated successfully."));
+    }
+
+    @PatchMapping("/api/admin/subscription-plans/{id}/toggle-active")
+    @PreAuthorize("hasAuthority('ADMINISTRATOR')")
+    @Operation(summary = "Bật/tắt trạng thái gói đăng ký (Admin)")
     public ResponseEntity<ResponseDto<Void>> toggleActiveStatus(@PathVariable UUID id) {
         subscriptionPlanService.toggleActiveStatus(id);
         return ResponseEntity.ok(ResponseDto.success(null, "Subscription plan active status toggled successfully."));
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/api/admin/subscription-plans/{id}")
+    @PreAuthorize("hasAuthority('ADMINISTRATOR')")
+    @Operation(summary = "Xóa gói đăng ký (Admin)")
     public ResponseEntity<ResponseDto<Void>> deletePlan(@PathVariable UUID id) {
         subscriptionPlanService.deletePlan(id);
         return ResponseEntity.ok(ResponseDto.success(null, "Subscription plan deleted successfully."));

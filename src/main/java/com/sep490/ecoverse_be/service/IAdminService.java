@@ -2,22 +2,23 @@ package com.sep490.ecoverse_be.service;
 
 import com.sep490.ecoverse_be.dto.request.UpdateApprovalRequest;
 import com.sep490.ecoverse_be.dto.response.AdminUserListResponse;
+import com.sep490.ecoverse_be.dto.response.PageResponse;
 import com.sep490.ecoverse_be.dto.response.PartnershipDetailResponse;
 import com.sep490.ecoverse_be.dto.response.SchoolDetailResponse;
 import com.sep490.ecoverse_be.enums.Role;
+import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 import java.util.UUID;
 
 public interface IAdminService {
 
-    List<SchoolDetailResponse> getPendingSchools();
+    PageResponse<SchoolDetailResponse> getPendingSchools(String keyword, Pageable pageable);
 
-    List<PartnershipDetailResponse> getPendingPartnerships();
+    PageResponse<PartnershipDetailResponse> getPendingPartnerships(String keyword, Pageable pageable);
 
-    List<SchoolDetailResponse> getApprovedSchools();
+    PageResponse<SchoolDetailResponse> getApprovedSchools(String keyword, Pageable pageable);
 
-    List<PartnershipDetailResponse> getApprovedPartnerships();
+    PageResponse<PartnershipDetailResponse> getApprovedPartnerships(String keyword, Pageable pageable);
 
     SchoolDetailResponse updateSchoolApproval(UUID id, UpdateApprovalRequest request);
 
@@ -25,7 +26,7 @@ public interface IAdminService {
 
     void updateUserStatus(UUID userId, boolean isActive);
 
-    List<AdminUserListResponse> getAllUsers(Role role, UUID schoolId);
+    PageResponse<AdminUserListResponse> getAllUsers(Role role, UUID schoolId, String keyword, Pageable pageable);
 
     AdminUserListResponse getUserDetail(UUID userId);
 
@@ -33,7 +34,7 @@ public interface IAdminService {
 
     PartnershipDetailResponse getPartnershipById(UUID partnershipId);
 
-    List<SchoolDetailResponse> getAllSchools();
+    PageResponse<SchoolDetailResponse> getAllSchools(String keyword, Pageable pageable);
 
-    List<PartnershipDetailResponse> getAllPartnerships();
+    PageResponse<PartnershipDetailResponse> getAllPartnerships(String keyword, Pageable pageable);
 }
