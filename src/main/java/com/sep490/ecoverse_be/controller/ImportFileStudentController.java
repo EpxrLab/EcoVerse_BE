@@ -10,6 +10,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,7 +20,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -162,7 +164,12 @@ public class ImportFileStudentController {
     @Operation(
             summary = "Lấy danh sách thông tin học sinh",
             description = """
-                    Lấy toàn bộ danh sách học sinh của trường đang đăng nhập.
+                    Lấy danh sách học sinh của trường đang đăng nhập (có phân trang và tìm kiếm).
+
+                    **Query params:**
+                    - `keyword` *(tuỳ chọn)*: tìm kiếm theo tên, mã học sinh, lớp
+                    - `page` *(mặc định: 0)*
+                    - `size` *(mặc định: 10)*
 
                     **Header:**
                     ```
@@ -170,8 +177,12 @@ public class ImportFileStudentController {
                     ```
                     """
     )
-    public ResponseEntity<ResponseDto<List<ListStudentResponse>>> getStudents() {
-        List<ListStudentResponse> studentResponse = schoolService.getAllStudent();
+    public ResponseEntity<ResponseDto<PageResponse<ListStudentResponse>>> getStudents(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        PageResponse<ListStudentResponse> studentResponse = schoolService.getAllStudent(keyword, pageable);
         return ResponseEntity.ok(ResponseDto.success(studentResponse, "Lấy danh sách thành công"));
     }
 
@@ -179,7 +190,12 @@ public class ImportFileStudentController {
     @Operation(
             summary = "Lấy danh sách thông tin phụ huynh",
             description = """
-                    Lấy toàn bộ danh sách phụ huynh của trường đang đăng nhập.
+                    Lấy danh sách phụ huynh của trường đang đăng nhập (có phân trang và tìm kiếm).
+
+                    **Query params:**
+                    - `keyword` *(tuỳ chọn)*: tìm kiếm theo tên, số điện thoại
+                    - `page` *(mặc định: 0)*
+                    - `size` *(mặc định: 10)*
 
                     **Header:**
                     ```
@@ -187,8 +203,12 @@ public class ImportFileStudentController {
                     ```
                     """
     )
-    public ResponseEntity<ResponseDto<List<ListParentResponse>>> getParents() {
-        List<ListParentResponse> parentResponse = schoolService.getAllParent();
+    public ResponseEntity<ResponseDto<PageResponse<ListParentResponse>>> getParents(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        PageResponse<ListParentResponse> parentResponse = schoolService.getAllParent(keyword, pageable);
         return ResponseEntity.ok(ResponseDto.success(parentResponse, "Lấy danh sách thành công"));
     }
 

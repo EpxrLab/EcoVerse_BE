@@ -2,6 +2,7 @@ package com.sep490.ecoverse_be.service.impl;
 
 import com.sep490.ecoverse_be.dto.response.FileResponse;
 import com.sep490.ecoverse_be.dto.response.PageResponse;
+import com.sep490.ecoverse_be.dto.response.StorageResponse;
 import com.sep490.ecoverse_be.entity.FileEntity;
 import com.sep490.ecoverse_be.entity.User;
 import com.sep490.ecoverse_be.exception.FuncErrorException;
@@ -10,6 +11,7 @@ import com.sep490.ecoverse_be.mapper.FileMapper;
 import com.sep490.ecoverse_be.repository.FileRepository;
 import com.sep490.ecoverse_be.repository.UserRepository;
 import com.sep490.ecoverse_be.service.IFileService;
+import com.sep490.ecoverse_be.service.IStorageService;
 import com.sep490.ecoverse_be.util.FileUpLoadUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -18,7 +20,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -27,35 +28,42 @@ public class FileServiceImpl implements IFileService {
 
     private final FileRepository fileRepository;
     private final UserRepository userRepository;
+    private final IStorageService storageService;
     private final S3FileService s3FileService;
     private final FileMapper fileMapper;
 
     @Override
     @Transactional
-    public FileResponse uploadFile(MultipartFile file, UUID userId) {
-        if (file.isEmpty()) {
-            throw new FuncErrorException("File must not be empty.");
-        }
+    public StorageResponse uploadImage(MultipartFile file, UUID userId) {
+        FileUpLoadUtil.assertAllowed(file, FileUpLoadUtil.IMAGE_PATTERN);
+        String fileName = FileUpLoadUtil.getFileName(file.getOriginalFilename());
+        StorageResponse response = storageService.uploadFile(file, fileName);
+        saveFileEntity(file, response, userId);
+        return response;
+    }
 
-        if (file.getSize() > FileUpLoadUtil.MAX_FILE_SIZE) {
-            throw new FuncErrorException("Max file size is 100MB.");
-        }
+    @Override
+    @Transactional
+    public StorageResponse uploadModel(MultipartFile file, UUID userId) {
+        FileUpLoadUtil.assertModelAllowed(file);
+        String fileName = FileUpLoadUtil.getFileName(file.getOriginalFilename());
+        StorageResponse response = storageService.uploadModelFile(file, fileName);
+        saveFileEntity(file, response, userId);
+        return response;
+    }
 
+    private void saveFileEntity(MultipartFile file, StorageResponse response, UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found."));
 
-        Map<String, Object> uploadResult = s3FileService.upload(file);
-
         FileEntity fileEntity = new FileEntity();
         fileEntity.setFileName(file.getOriginalFilename());
-        fileEntity.setFileUrl((String) uploadResult.get("secure_url"));
-        fileEntity.setPublicId((String) uploadResult.get("public_id"));
+        fileEntity.setFileUrl(response.getPublicId());
+        fileEntity.setPublicId(response.getPublicId());
         fileEntity.setFileType(file.getContentType());
         fileEntity.setFileSize(file.getSize());
         fileEntity.setUploadedBy(user);
-
-        FileEntity saved = fileRepository.save(fileEntity);
-        return fileMapper.toResponse(saved);
+        fileRepository.save(fileEntity);
     }
 
     @Override
