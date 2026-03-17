@@ -12,6 +12,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "quizzes", indexes = {
         @Index(name = "idx_quizzes_school_id", columnList = "school_id"),
+        @Index(name = "idx_quizzes_partnership_id", columnList = "partnership_id"),
         @Index(name = "idx_quizzes_difficulty", columnList = "difficulty"),
         @Index(name = "idx_quizzes_quiz_type", columnList = "quiz_type"),
         @Index(name = "idx_quizzes_source", columnList = "source"),
@@ -26,6 +27,10 @@ public class Quiz extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "school_id")
     private School school;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partnership_id")
+    private Partnership partnership;
 
     @Column(nullable = false, length = 255)
     private String title;

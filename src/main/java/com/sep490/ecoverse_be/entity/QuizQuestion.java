@@ -8,11 +8,9 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "quiz_questions",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_quiz_questions_quiz_order", columnNames = {"quiz_id", "question_order"})
-        },
         indexes = {
-                @Index(name = "idx_quiz_questions_quiz_id", columnList = "quiz_id")
+                @Index(name = "idx_quiz_questions_quiz_id", columnList = "quiz_id"),
+                @Index(name = "idx_quiz_questions_is_active", columnList = "is_active")
         }
 )
 @Getter
@@ -33,4 +31,7 @@ public class QuizQuestion extends BaseEntity {
 
     @Column(length = 500)
     private String questionImageUrl;
+
+    @Column(nullable = false)
+    private boolean isActive = true;
 }
