@@ -31,5 +31,7 @@ public interface ISubscriptionService {
                                                            String keyword,
                                                            Pageable pageable);
 
+    SubscriptionResponse activatePendingSubscription(UUID subscriptionId, UUID userId);
+
     SubscriptionResponse cancelSubscription(UUID subscriptionId, String reason, UUID userId);
 }

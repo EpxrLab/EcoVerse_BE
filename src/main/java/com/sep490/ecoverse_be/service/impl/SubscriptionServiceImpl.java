@@ -286,12 +286,38 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
 
     @Override
     @Transactional
+    public SubscriptionResponse activatePendingSubscription(UUID subscriptionId, UUID userId) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Subscription not found."));
+
+        if (subscription.getStatus() != SubscriptionStatus.PENDING_RENEWAL) {
+            throw new FuncErrorException("Only pending renewal subscriptions can be activated.");
+        }
+
+        verifyOwnership(subscription, userId);
+
+        retirePreviousActiveSubscriptionForUpgrade(subscription);
+
+        subscription.setStatus(SubscriptionStatus.ACTIVE);
+        subscription.setStartDate(LocalDateTime.now());
+        subscription.setEndDate(LocalDateTime.now().plusDays(subscription.getPlan().getDurationDays()));
+        subscription.setCancellationReason(null);
+        subscription.setCancelledAt(null);
+
+        subscriptionRepository.save(subscription);
+        log.info("Subscription {} activated manually by user {}", subscription.getSubscriptionCode(), userId);
+
+        return subscriptionMapper.toResponse(subscription);
+    }
+
+    @Override
+    @Transactional
     public SubscriptionResponse cancelSubscription(UUID subscriptionId, String reason, UUID userId) {
         Subscription subscription = subscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription not found."));
 
-        if (subscription.getStatus() != SubscriptionStatus.ACTIVE) {
-            throw new FuncErrorException("Only active subscriptions can be cancelled.");
+        if (subscription.getStatus() != SubscriptionStatus.PENDING_RENEWAL) {
+            throw new FuncErrorException("Only pending renewal subscriptions can be cancelled.");
         }
 
         verifyOwnership(subscription, userId);
@@ -335,6 +361,19 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
 
     private boolean isFreePlan(SubscriptionPlan plan) {
         return plan.getPrice() != null && plan.getPrice().compareTo(BigDecimal.ZERO) == 0;
+    }
+
+    private void retirePreviousActiveSubscriptionForUpgrade(Subscription subscription) {
+        Subscription previousSubscription = subscription.getRenewedFrom();
+        if (previousSubscription == null || previousSubscription.getStatus() != SubscriptionStatus.ACTIVE) {
+            return;
+        }
+
+        previousSubscription.setStatus(SubscriptionStatus.CANCELLED);
+        previousSubscription.setCancellationReason("Upgraded to plan " + subscription.getPlan().getPlanName());
+        previousSubscription.setCancelledAt(LocalDateTime.now());
+        previousSubscription.setEndDate(LocalDateTime.now());
+        subscriptionRepository.save(previousSubscription);
     }
 
     private Payment createFreePaymentRecord(Subscription subscription, SubscriberType subscriberType,

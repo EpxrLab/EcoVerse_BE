@@ -87,7 +87,21 @@ public class SubscriptionController {
     }
 
     /**
-     * Cancel active subscription.
+     * Activate pending renewal subscription.
+     */
+    @PatchMapping("/{id}/activate")
+    @PreAuthorize("hasAnyAuthority('PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
+    public ResponseEntity<ResponseDto<SubscriptionResponse>> activatePendingSubscription(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        SubscriptionResponse response = subscriptionService.activatePendingSubscription(
+                id, principal.getUser().getId());
+        return ResponseEntity.ok(ResponseDto.success(response, "Subscription activated."));
+    }
+
+    /**
+     * Cancel active or pending renewal subscription.
      */
     @PatchMapping("/{id}/cancel")
     @PreAuthorize("hasAnyAuthority('PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")

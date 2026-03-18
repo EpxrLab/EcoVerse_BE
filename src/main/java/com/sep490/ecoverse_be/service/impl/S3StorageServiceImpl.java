@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
@@ -30,7 +31,7 @@ public class S3StorageServiceImpl implements IStorageService {
     private String region;
 
     @Override
-    public StorageResponse uploadFile(final MultipartFile file, final String fileName) {
+    public StorageResponse uploadImageFile(final MultipartFile file, final String fileName) {
         try {
             String key = "ecoverse/user/" + fileName;
 
@@ -49,6 +50,16 @@ public class S3StorageServiceImpl implements IStorageService {
         } catch (IOException e) {
             throw new FuncErrorException("Failed to upload file: " + e.getMessage());
         }
+    }
+
+    @Override
+    public StorageResponse uploadContractFile(final MultipartFile file, final String fileName) {
+        return uploadImageFile(file, fileName);
+    }
+
+    @Override
+    public StorageResponse uploadDocumentFile(final MultipartFile file, final String fileName) {
+        return uploadImageFile(file, fileName);
     }
 
     @Override
@@ -83,6 +94,19 @@ public class S3StorageServiceImpl implements IStorageService {
             if (tempFile != null && tempFile.exists()) {
                 tempFile.delete();
             }
+        }
+    }
+
+    @Override
+    public void deleteFile(String s3Key) {
+        try {
+            DeleteObjectRequest deleteRequest = DeleteObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(s3Key)
+                    .build();
+            s3Client.deleteObject(deleteRequest);
+        } catch (Exception e) {
+            throw new FuncErrorException("Failed to delete file: " + e.getMessage());
         }
     }
 
