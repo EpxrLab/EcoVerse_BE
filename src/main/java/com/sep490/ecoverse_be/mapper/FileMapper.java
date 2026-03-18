@@ -20,6 +20,7 @@ public class FileMapper {
                 file.getFileType(),
                 file.getFileSize(),
                 file.getUploadedBy() != null ? file.getUploadedBy().getEmail() : null,
+                file.getCategory(),
                 file.getCreatedAt()
         );
     }

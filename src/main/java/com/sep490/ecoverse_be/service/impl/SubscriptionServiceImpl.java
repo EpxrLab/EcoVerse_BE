@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -60,6 +61,7 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
 
         // Determine subscriber type from user role
         SubscriberType subscriberType = resolveSubscriberType(user);
+        boolean requestedPlanIsFree = isFreePlan(plan);
 
         if (plan.getSubscriberType() != subscriberType) {
             throw new FuncErrorException("This plan is not available for your account type.");
@@ -68,22 +70,25 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         // Get school or partnership
         School school = null;
         Partnership partnership = null;
+        Optional<Subscription> activeSubscriptionOptional;
 
         if (subscriberType == SubscriberType.SCHOOL) {
             school = schoolRepository.findByUserId(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("School profile not found."));
-            // Check no active subscription exists
-            subscriptionRepository.findBySchoolIdAndStatus(school.getId(), SubscriptionStatus.ACTIVE)
-                    .ifPresent(s -> {
-                        throw new FuncErrorException("You already have an active subscription. Please wait for it to expire or cancel it first.");
-                    });
+            activeSubscriptionOptional = subscriptionRepository.findBySchoolIdAndStatus(school.getId(), SubscriptionStatus.ACTIVE);
         } else {
             partnership = partnershipRepository.findByUserId(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("Partnership profile not found."));
-            subscriptionRepository.findByPartnershipIdAndStatus(partnership.getId(), SubscriptionStatus.ACTIVE)
-                    .ifPresent(s -> {
-                        throw new FuncErrorException("You already have an active subscription. Please wait for it to expire or cancel it first.");
-                    });
+            activeSubscriptionOptional = subscriptionRepository.findByPartnershipIdAndStatus(partnership.getId(), SubscriptionStatus.ACTIVE);
+        }
+
+        Subscription activeSubscription = activeSubscriptionOptional.orElse(null);
+        if (activeSubscription != null) {
+            boolean activePlanIsFree = isFreePlan(activeSubscription.getPlan());
+            boolean isFreeToPaidUpgrade = activePlanIsFree && !requestedPlanIsFree;
+            if (!isFreeToPaidUpgrade) {
+                throw new FuncErrorException("You already have an active subscription. Please wait for it to expire or cancel it first.");
+            }
         }
 
         // Create subscription
@@ -93,6 +98,9 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         subscription.setSchool(school);
         subscription.setPartnership(partnership);
         subscription.setPlan(plan);
+        if (activeSubscription != null) {
+            subscription.setRenewedFrom(activeSubscription);
+        }
         subscription.setStartDate(LocalDateTime.now());
         subscription.setEndDate(LocalDateTime.now().plusDays(plan.getDurationDays()));
 
@@ -323,6 +331,10 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
 
     private String generateSubscriptionCode() {
         return "SUB-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+    }
+
+    private boolean isFreePlan(SubscriptionPlan plan) {
+        return plan.getPrice() != null && plan.getPrice().compareTo(BigDecimal.ZERO) == 0;
     }
 
     private Payment createFreePaymentRecord(Subscription subscription, SubscriberType subscriberType,

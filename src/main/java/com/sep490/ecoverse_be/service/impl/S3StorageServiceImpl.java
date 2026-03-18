@@ -22,10 +22,12 @@ public class S3StorageServiceImpl implements IStorageService {
 
     private final S3Client s3Client;
     private final S3TransferManager s3TransferManager;
-    private final S3PresignedUrlService s3PresignedUrlService;
 
     @Value("${aws.s3.bucket}")
     private String bucketName;
+
+    @Value("${aws.region}")
+    private String region;
 
     @Override
     public StorageResponse uploadFile(final MultipartFile file, final String fileName) {
@@ -42,8 +44,8 @@ public class S3StorageServiceImpl implements IStorageService {
             s3Client.putObject(putRequest,
                     RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
-            String presignedUrl = s3PresignedUrlService.generatePresignedUrl(key);
-            return StorageResponse.builder().publicId(key).url(presignedUrl).build();
+            String url = buildUrl(key);
+            return StorageResponse.builder().publicId(key).url(url).build();
         } catch (IOException e) {
             throw new FuncErrorException("Failed to upload file: " + e.getMessage());
         }
@@ -71,8 +73,8 @@ public class S3StorageServiceImpl implements IStorageService {
                             .build()
             ).completionFuture().join();
 
-            String presignedUrl = s3PresignedUrlService.generatePresignedUrl(key);
-            return StorageResponse.builder().publicId(key).url(presignedUrl).build();
+            String url = buildUrl(key);
+            return StorageResponse.builder().publicId(key).url(url).build();
         } catch (IOException e) {
             throw new FuncErrorException("Failed to process 3D model file: " + e.getMessage());
         } catch (Exception e) {
@@ -82,5 +84,9 @@ public class S3StorageServiceImpl implements IStorageService {
                 tempFile.delete();
             }
         }
+    }
+
+    private String buildUrl(String key) {
+        return String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, key);
     }
 }

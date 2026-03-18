@@ -59,7 +59,6 @@ aws:
   region: ${AWS_REGION:ap-southeast-1}
   s3:
     bucket: ${AWS_S3_BUCKET:}
-    presigned-url-duration-days: ${AWS_S3_PRESIGNED_URL_DURATION_DAYS:7}
 
 payos:
   client-id: ${PAYOS_CLIENT_ID:}

@@ -45,6 +45,7 @@ public class JwtFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         boolean isPublicAPI = checkIsPublicAPI(request.getRequestURI());
         if (isPublicAPI) {
+            tryPopulateAuthentication(request);
             filterChain.doFilter(request, response);
         } else {
             String authHeader = request.getHeader("Authorization");
@@ -78,6 +79,35 @@ public class JwtFilter extends OncePerRequestFilter {
             } catch (Exception e) {
                 handlerExceptionResolver.resolveException(request, response, null, new AuthException(e.getMessage()));
             }
+        }
+    }
+
+    /**
+     * Với public API, nếu request có JWT hợp lệ thì populate SecurityContext.
+     * Nếu không có token hoặc token không hợp lệ → bỏ qua (không throw exception).
+     * Dùng cho endpoint GET /api/files/view/{id} để xác định user nếu có.
+     */
+    private void tryPopulateAuthentication(HttpServletRequest request) {
+        try {
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return;
+            }
+            String token = tokenService.getToken(authHeader);
+            if (token == null || tokenService.isTokenBlacklisted(token)) {
+                return;
+            }
+            User user = tokenService.getUserByToken(token);
+            if (user.getStatus() != AccountStatus.ACTIVE) {
+                return;
+            }
+            UserPrincipal principal = new UserPrincipal(user);
+            UsernamePasswordAuthenticationToken authenticationToken =
+                    new UsernamePasswordAuthenticationToken(principal, token, principal.getAuthorities());
+            authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+        } catch (Exception ignored) {
+            // Public API — authentication is optional
         }
     }
 }
