@@ -28,44 +28,76 @@ public class FileController {
 
     private final IFileService fileService;
 
-    @PostMapping(value = "/upload/cloudinary", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Upload file ảnh lên S3 và lưu thông tin vào DB")
-    public ResponseEntity<ResponseDto<StorageResponse>> uploadImage(
-            @RequestPart("file") MultipartFile file,
-            @AuthenticationPrincipal UserPrincipal principal) {
+    // ===================== UPLOAD ENDPOINTS =====================
 
-        UUID userId = principal.getUser().getId();
-        StorageResponse response = fileService.uploadImage(file, userId);
-        return ResponseEntity.ok(ResponseDto.success(response, "Upload thành công"));
+    @PostMapping(value = "/upload/contract", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload hợp đồng (public, không cần đăng nhập)",
+            description = "Upload file hợp đồng (.pdf, .docx, .doc) khi đăng ký. "
+                    + "Không cần đăng nhập. Tối đa 50MB.")
+    public ResponseEntity<ResponseDto<StorageResponse>> uploadContract(
+            @RequestPart("file") MultipartFile file) {
+        StorageResponse response = fileService.uploadContract(file);
+        return ResponseEntity.ok(ResponseDto.success(response, "Upload hợp đồng thành công"));
     }
 
     @PostMapping(value = "/upload/model", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(
-            summary = "Upload 3D model (.glb, .gltf) lên S3 và lưu thông tin vào DB",
-            description = """
-                    Upload file 3D model dạng `.glb` hoặc `.gltf` lên S3, hỗ trợ file tới **250MB**.
-
-                    - Sử dụng multipart upload nên phù hợp với file lớn.
-                    - File được lưu tại `ecoverse/models/` trên S3.
-                    - Trả về `url` và `publicId` để FE dùng load model trong game.
-
-                    **Header:**
-                    ```
-                    Authorization: Bearer <accessToken>
-                    ```
-                    """
-    )
+    @PreAuthorize("hasAuthority('ADMINISTRATOR')")
+    @Operation(summary = "Upload 3D model (chỉ Admin)",
+            description = "Upload file 3D model (.glb, .gltf). Chỉ Admin. Tối đa 250MB. "
+                    + "File lưu tại `ecoverse/models/` trên S3.")
     public ResponseEntity<ResponseDto<StorageResponse>> uploadModel(
             @RequestPart("file") MultipartFile file,
             @AuthenticationPrincipal UserPrincipal principal) {
-
         UUID userId = principal.getUser().getId();
         StorageResponse response = fileService.uploadModel(file, userId);
         return ResponseEntity.ok(ResponseDto.success(response, "Upload 3D model thành công"));
     }
 
+    @PostMapping(value = "/upload/document", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload tài liệu (cần đăng nhập)",
+            description = "Upload file tài liệu (.pdf, .docx, .doc, .xls, .xlsx, .ppt, .pptx). "
+                    + "Cần đăng nhập. Tối đa 100MB. Chỉ người upload mới xem được.")
+    public ResponseEntity<ResponseDto<StorageResponse>> uploadDocument(
+            @RequestPart("file") MultipartFile file,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        UUID userId = principal.getUser().getId();
+        StorageResponse response = fileService.uploadDocument(file, userId);
+        return ResponseEntity.ok(ResponseDto.success(response, "Upload tài liệu thành công"));
+    }
+
+    @PostMapping(value = "/upload/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload ảnh (cần đăng nhập)",
+            description = "Upload file ảnh (.jpg, .png, .gif, .bmp). "
+                    + "Cần đăng nhập. Tối đa 100MB. Ai cũng xem được.")
+    public ResponseEntity<ResponseDto<StorageResponse>> uploadImage(
+            @RequestPart("file") MultipartFile file,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        UUID userId = principal.getUser().getId();
+        StorageResponse response = fileService.uploadImage(file, userId);
+        return ResponseEntity.ok(ResponseDto.success(response, "Upload ảnh thành công"));
+    }
+
+    // ===================== VIEW ENDPOINT (phân quyền theo category) =====================
+
+    @GetMapping("/view/{id}")
+    @Operation(summary = "Xem/tải file theo ID (phân quyền theo loại file)",
+            description = "IMAGE/MODEL: ai cũng xem được. "
+                    + "CONTRACT: chỉ Admin. "
+                    + "DOCUMENT: chỉ người upload hoặc Admin.")
+    public ResponseEntity<ResponseDto<FileResponse>> viewFile(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        UUID userId = (principal != null) ? principal.getUser().getId() : null;
+        boolean isAdmin = principal != null && principal.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ADMINISTRATOR"));
+        FileResponse response = fileService.viewFile(id, userId, isAdmin);
+        return ResponseEntity.ok(ResponseDto.success(response, "File retrieved successfully."));
+    }
+
+    // ===================== QUẢN LÝ FILE =====================
+
     @GetMapping("/{id}")
-    @Operation(summary = "Lấy thông tin file theo ID")
+    @Operation(summary = "Lấy thông tin file theo ID (cần đăng nhập)")
     public ResponseEntity<ResponseDto<FileResponse>> getFileById(@PathVariable UUID id) {
         FileResponse response = fileService.getFileById(id);
         return ResponseEntity.ok(ResponseDto.success(response, "File retrieved successfully."));
@@ -76,7 +108,6 @@ public class FileController {
     public ResponseEntity<ResponseDto<PageResponse<FileResponse>>> getMyFiles(
             @AuthenticationPrincipal UserPrincipal principal,
             @PageableDefault(size = 10, sort = "createdAt") Pageable pageable) {
-
         UUID userId = principal.getUser().getId();
         PageResponse<FileResponse> response = fileService.getMyFiles(userId, pageable);
         return ResponseEntity.ok(ResponseDto.success(response, "Files retrieved successfully."));
@@ -84,10 +115,9 @@ public class FileController {
 
     @GetMapping("/all")
     @PreAuthorize("hasAuthority('ADMINISTRATOR')")
-    @Operation(summary = "Lấy tất cả file (Admin)")
+    @Operation(summary = "Lấy tất cả file (chỉ Admin)")
     public ResponseEntity<ResponseDto<PageResponse<FileResponse>>> getAllFiles(
             @PageableDefault(size = 10, sort = "createdAt") Pageable pageable) {
-
         PageResponse<FileResponse> response = fileService.getAllFiles(pageable);
         return ResponseEntity.ok(ResponseDto.success(response, "All files retrieved successfully."));
     }
@@ -97,7 +127,6 @@ public class FileController {
     public ResponseEntity<ResponseDto<Void>> deleteFile(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
-
         UUID userId = principal.getUser().getId();
         boolean isAdmin = principal.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ADMINISTRATOR"));

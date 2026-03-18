@@ -1,5 +1,6 @@
 package com.sep490.ecoverse_be.entity;
 
+import com.sep490.ecoverse_be.enums.FileCategory;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -10,7 +11,8 @@ import lombok.Setter;
 @Table(name = "files", indexes = {
         @Index(name = "idx_file_uploaded_by", columnList = "uploaded_by"),
         @Index(name = "idx_file_type", columnList = "file_type"),
-        @Index(name = "idx_file_public_id", columnList = "public_id")
+        @Index(name = "idx_file_public_id", columnList = "public_id"),
+        @Index(name = "idx_file_category", columnList = "file_category")
 })
 @Getter
 @Setter
@@ -34,6 +36,10 @@ public class FileEntity extends BaseEntity {
     private Long fileSize;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "uploaded_by", nullable = false)
+    @JoinColumn(name = "uploaded_by")
     private User uploadedBy;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "file_category", length = 20)
+    private FileCategory category;
 }

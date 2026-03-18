@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -60,6 +61,7 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
 
         // Determine subscriber type from user role
         SubscriberType subscriberType = resolveSubscriberType(user);
+        boolean requestedPlanIsFree = isFreePlan(plan);
 
         if (plan.getSubscriberType() != subscriberType) {
             throw new FuncErrorException("This plan is not available for your account type.");
@@ -68,22 +70,25 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         // Get school or partnership
         School school = null;
         Partnership partnership = null;
+        Optional<Subscription> activeSubscriptionOptional;
 
         if (subscriberType == SubscriberType.SCHOOL) {
             school = schoolRepository.findByUserId(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("School profile not found."));
-            // Check no active subscription exists
-            subscriptionRepository.findBySchoolIdAndStatus(school.getId(), SubscriptionStatus.ACTIVE)
-                    .ifPresent(s -> {
-                        throw new FuncErrorException("You already have an active subscription. Please wait for it to expire or cancel it first.");
-                    });
+            activeSubscriptionOptional = subscriptionRepository.findBySchoolIdAndStatus(school.getId(), SubscriptionStatus.ACTIVE);
         } else {
             partnership = partnershipRepository.findByUserId(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("Partnership profile not found."));
-            subscriptionRepository.findByPartnershipIdAndStatus(partnership.getId(), SubscriptionStatus.ACTIVE)
-                    .ifPresent(s -> {
-                        throw new FuncErrorException("You already have an active subscription. Please wait for it to expire or cancel it first.");
-                    });
+            activeSubscriptionOptional = subscriptionRepository.findByPartnershipIdAndStatus(partnership.getId(), SubscriptionStatus.ACTIVE);
+        }
+
+        Subscription activeSubscription = activeSubscriptionOptional.orElse(null);
+        if (activeSubscription != null) {
+            boolean activePlanIsFree = isFreePlan(activeSubscription.getPlan());
+            boolean isFreeToPaidUpgrade = activePlanIsFree && !requestedPlanIsFree;
+            if (!isFreeToPaidUpgrade) {
+                throw new FuncErrorException("You already have an active subscription. Please wait for it to expire or cancel it first.");
+            }
         }
 
         // Create subscription
@@ -93,6 +98,9 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         subscription.setSchool(school);
         subscription.setPartnership(partnership);
         subscription.setPlan(plan);
+        if (activeSubscription != null) {
+            subscription.setRenewedFrom(activeSubscription);
+        }
         subscription.setStartDate(LocalDateTime.now());
         subscription.setEndDate(LocalDateTime.now().plusDays(plan.getDurationDays()));
 
@@ -278,12 +286,38 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
 
     @Override
     @Transactional
+    public SubscriptionResponse activatePendingSubscription(UUID subscriptionId, UUID userId) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Subscription not found."));
+
+        if (subscription.getStatus() != SubscriptionStatus.PENDING_RENEWAL) {
+            throw new FuncErrorException("Only pending renewal subscriptions can be activated.");
+        }
+
+        verifyOwnership(subscription, userId);
+
+        retirePreviousActiveSubscriptionForUpgrade(subscription);
+
+        subscription.setStatus(SubscriptionStatus.ACTIVE);
+        subscription.setStartDate(LocalDateTime.now());
+        subscription.setEndDate(LocalDateTime.now().plusDays(subscription.getPlan().getDurationDays()));
+        subscription.setCancellationReason(null);
+        subscription.setCancelledAt(null);
+
+        subscriptionRepository.save(subscription);
+        log.info("Subscription {} activated manually by user {}", subscription.getSubscriptionCode(), userId);
+
+        return subscriptionMapper.toResponse(subscription);
+    }
+
+    @Override
+    @Transactional
     public SubscriptionResponse cancelSubscription(UUID subscriptionId, String reason, UUID userId) {
         Subscription subscription = subscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription not found."));
 
-        if (subscription.getStatus() != SubscriptionStatus.ACTIVE) {
-            throw new FuncErrorException("Only active subscriptions can be cancelled.");
+        if (subscription.getStatus() != SubscriptionStatus.PENDING_RENEWAL) {
+            throw new FuncErrorException("Only pending renewal subscriptions can be cancelled.");
         }
 
         verifyOwnership(subscription, userId);
@@ -323,6 +357,23 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
 
     private String generateSubscriptionCode() {
         return "SUB-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+    }
+
+    private boolean isFreePlan(SubscriptionPlan plan) {
+        return plan.getPrice() != null && plan.getPrice().compareTo(BigDecimal.ZERO) == 0;
+    }
+
+    private void retirePreviousActiveSubscriptionForUpgrade(Subscription subscription) {
+        Subscription previousSubscription = subscription.getRenewedFrom();
+        if (previousSubscription == null || previousSubscription.getStatus() != SubscriptionStatus.ACTIVE) {
+            return;
+        }
+
+        previousSubscription.setStatus(SubscriptionStatus.CANCELLED);
+        previousSubscription.setCancellationReason("Upgraded to plan " + subscription.getPlan().getPlanName());
+        previousSubscription.setCancelledAt(LocalDateTime.now());
+        previousSubscription.setEndDate(LocalDateTime.now());
+        subscriptionRepository.save(previousSubscription);
     }
 
     private Payment createFreePaymentRecord(Subscription subscription, SubscriberType subscriberType,

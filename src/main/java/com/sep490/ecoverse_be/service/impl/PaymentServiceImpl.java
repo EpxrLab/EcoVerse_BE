@@ -22,7 +22,6 @@ import vn.payos.model.v2.paymentRequests.PaymentLinkItem;
 import vn.payos.model.webhooks.WebhookData;
 
 import java.time.LocalDateTime;
-import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -139,8 +138,17 @@ public class PaymentServiceImpl implements IPaymentService {
                 payment.setPaidAt(LocalDateTime.now());
                 paymentRepository.save(payment);
 
-                // Activate subscription
+                // Activate subscription and retire previous FREE subscription if this is an upgrade flow.
                 Subscription subscription = payment.getSubscription();
+                Subscription previousSubscription = subscription.getRenewedFrom();
+                if (previousSubscription != null && previousSubscription.getStatus() == SubscriptionStatus.ACTIVE) {
+                    previousSubscription.setStatus(SubscriptionStatus.CANCELLED);
+                    previousSubscription.setCancellationReason("Upgraded to plan " + subscription.getPlan().getPlanName());
+                    previousSubscription.setCancelledAt(LocalDateTime.now());
+                    previousSubscription.setEndDate(LocalDateTime.now());
+                    subscriptionRepository.save(previousSubscription);
+                }
+
                 subscription.setStatus(SubscriptionStatus.ACTIVE);
                 subscription.setStartDate(LocalDateTime.now());
                 subscription.setEndDate(LocalDateTime.now().plusDays(subscription.getPlan().getDurationDays()));

@@ -25,7 +25,9 @@ public final class AppConstants {
             "/api/auth/verify-register/partnership",
             "/api/auth/verify-otp",
             "/api/subscription-plans",
-            "/api/subscription-plans/**"
+            "/api/subscription-plans/**",
+            "/api/files/upload/contract",
+            "/api/files/view/**"
 
     };
 }

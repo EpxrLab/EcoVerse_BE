@@ -11,8 +11,6 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -24,54 +22,17 @@ public class DataInitializer implements CommandLineRunner {
     private final PartnershipRepository partnershipRepository;
     private final ParentRepository parentRepository;
     private final StudentRepository studentRepository;
-    private final SubscriptionPlanRepository subscriptionPlanRepository;
-    private final SubscriptionRepository subscriptionRepository;
-    private final PaymentRepository paymentRepository;
     private final BCryptPasswordEncoder passwordEncoder;
 
     private static final String DEFAULT_PASSWORD = "SP26@sep490";
-    private static final String SCHOOL_FREE_PLAN_CODE = "SCHOOL_FREE";
-    private static final String PARTNERSHIP_FREE_PLAN_CODE = "PARTNERSHIP_FREE";
-    private static final int FREE_PLAN_DURATION_DAYS = 36500; // ~100 years (no expiration)
 
     @Override
     public void run(String... args) {
-        initFreeSubscriptionPlans();
         initAdminAccount();
         initSchoolAccount();
         initPartnershipAccount();
         initParentAccount();
         initStudentAccount();
-    }
-
-    private void initFreeSubscriptionPlans() {
-        if (subscriptionPlanRepository.findByPlanCode(SCHOOL_FREE_PLAN_CODE).isEmpty()) {
-            SubscriptionPlan schoolFreePlan = new SubscriptionPlan();
-            schoolFreePlan.setPlanCode(SCHOOL_FREE_PLAN_CODE);
-            schoolFreePlan.setPlanName("Gói Miễn Phí - Trường Học");
-            schoolFreePlan.setSubscriberType(SubscriberType.SCHOOL);
-            schoolFreePlan.setDescription("Gói miễn phí mặc định cho trường học, không giới hạn thời gian sử dụng.");
-            schoolFreePlan.setDurationDays(FREE_PLAN_DURATION_DAYS);
-            schoolFreePlan.setPrice(BigDecimal.ZERO);
-            schoolFreePlan.setActive(true);
-            schoolFreePlan.setDisplayOrder(0);
-            subscriptionPlanRepository.save(schoolFreePlan);
-            log.info("School FREE subscription plan created: {}", SCHOOL_FREE_PLAN_CODE);
-        }
-
-        if (subscriptionPlanRepository.findByPlanCode(PARTNERSHIP_FREE_PLAN_CODE).isEmpty()) {
-            SubscriptionPlan partnershipFreePlan = new SubscriptionPlan();
-            partnershipFreePlan.setPlanCode(PARTNERSHIP_FREE_PLAN_CODE);
-            partnershipFreePlan.setPlanName("Gói Miễn Phí - Đối Tác");
-            partnershipFreePlan.setSubscriberType(SubscriberType.PARTNERSHIP);
-            partnershipFreePlan.setDescription("Gói miễn phí mặc định cho đối tác, không giới hạn thời gian sử dụng.");
-            partnershipFreePlan.setDurationDays(FREE_PLAN_DURATION_DAYS);
-            partnershipFreePlan.setPrice(BigDecimal.ZERO);
-            partnershipFreePlan.setActive(true);
-            partnershipFreePlan.setDisplayOrder(0);
-            subscriptionPlanRepository.save(partnershipFreePlan);
-            log.info("Partnership FREE subscription plan created: {}", PARTNERSHIP_FREE_PLAN_CODE);
-        }
     }
 
     private void initAdminAccount() {
@@ -124,8 +85,6 @@ public class DataInitializer implements CommandLineRunner {
         school.setApprovalStatus(ApprovalStatus.APPROVED);
         schoolRepository.save(school);
 
-        assignFreeSubscription(SCHOOL_FREE_PLAN_CODE, SubscriberType.SCHOOL, school, null, schoolUser);
-
         log.info("School account created: {}", schoolEmail);
     }
 
@@ -157,8 +116,6 @@ public class DataInitializer implements CommandLineRunner {
         partnership.setGeographicScopeProvince("Ha Noi");
         partnership.setApprovalStatus(ApprovalStatus.APPROVED);
         partnershipRepository.save(partnership);
-
-        assignFreeSubscription(PARTNERSHIP_FREE_PLAN_CODE, SubscriberType.PARTNERSHIP, null, partnership, partnerUser);
 
         log.info("Partnership account created: {}", partnerEmail);
     }
@@ -234,44 +191,5 @@ public class DataInitializer implements CommandLineRunner {
         studentRepository.save(student);
 
         log.info("Student account created: {}", studentEmail);
-    }
-
-    private void assignFreeSubscription(String planCode, SubscriberType subscriberType,
-                                         School school, Partnership partnership, User user) {
-        SubscriptionPlan plan = subscriptionPlanRepository.findByPlanCode(planCode).orElse(null);
-        if (plan == null) {
-            log.warn("FREE plan {} not found, cannot assign subscription.", planCode);
-            return;
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-
-        Subscription subscription = new Subscription();
-        subscription.setSubscriptionCode("SUB-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
-        subscription.setSubscriberType(subscriberType);
-        subscription.setSchool(school);
-        subscription.setPartnership(partnership);
-        subscription.setPlan(plan);
-        subscription.setStatus(SubscriptionStatus.ACTIVE);
-        subscription.setStartDate(now);
-        subscription.setEndDate(now.plusDays(plan.getDurationDays()));
-        subscriptionRepository.save(subscription);
-
-        Payment payment = new Payment();
-        payment.setPaymentCode("PAY-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
-        payment.setSubscriberType(subscriberType);
-        payment.setSchool(school);
-        payment.setPartnership(partnership);
-        payment.setSubscription(subscription);
-        payment.setAmount(BigDecimal.ZERO);
-        payment.setCurrency("VND");
-        payment.setPaymentMethod(PaymentMethod.OTHER);
-        payment.setStatus(PaymentStatus.COMPLETED);
-        payment.setPaidAt(now);
-        payment.setPayerName(user.getEmail());
-        payment.setPayerEmail(user.getEmail());
-        payment.setCreatedBy(user);
-        payment.setNotes("Free plan - no payment required");
-        paymentRepository.save(payment);
     }
 }

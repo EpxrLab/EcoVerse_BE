@@ -10,16 +10,15 @@ import java.util.regex.Pattern;
 
 public class FileUpLoadUtil {
     public static final long MAX_FILE_SIZE = 100 * 1024 * 1024;
-
-    // Giới hạn riêng cho 3D model (250MB)
     public static final long MAX_MODEL_SIZE = 250L * 1024 * 1024;
+    public static final long MAX_CONTRACT_SIZE = 50L * 1024 * 1024;
+    public static final long MAX_DOCUMENT_SIZE = 100L * 1024 * 1024;
 
     public static final String IMAGE_PATTERN = "(.+\\.(?i)(jpg|png|gif|bmp))$";
-
-    // Pattern dành riêng cho 3D model .glb
     public static final String MODEL_PATTERN = "(.+\\.(?i)(glb|gltf))$";
-
     public static final String VIDEO_PATTERN = "(.+\\.(?i)(mp4|mov|avi|mkv))$";
+    public static final String CONTRACT_PATTERN = "(.+\\.(?i)(pdf|docx|doc))$";
+    public static final String DOCUMENT_PATTERN = "(.+\\.(?i)(pdf|docx|doc|xls|xlsx|ppt|pptx))$";
 
     public static final String DATE_FORMAT = "yyyyMMddHHmmss";
 
@@ -40,7 +39,6 @@ public class FileUpLoadUtil {
         }
     }
 
-    // Validate riêng cho 3D model, cho phép tới 250MB
     public static void assertModelAllowed(MultipartFile file) {
         final long size = file.getSize();
         if (size > MAX_MODEL_SIZE) {
@@ -48,6 +46,26 @@ public class FileUpLoadUtil {
         }
         if (!isAllowedExtension(file.getOriginalFilename(), MODEL_PATTERN)) {
             throw new FuncErrorException("Chỉ hỗ trợ định dạng 3D model: .glb, .gltf");
+        }
+    }
+
+    public static void assertContractAllowed(MultipartFile file) {
+        final long size = file.getSize();
+        if (size > MAX_CONTRACT_SIZE) {
+            throw new FuncErrorException("Kích thước file hợp đồng tối đa là 50MB");
+        }
+        if (!isAllowedExtension(file.getOriginalFilename(), CONTRACT_PATTERN)) {
+            throw new FuncErrorException("Chỉ hỗ trợ định dạng hợp đồng: .pdf, .docx, .doc");
+        }
+    }
+
+    public static void assertDocumentAllowed(MultipartFile file) {
+        final long size = file.getSize();
+        if (size > MAX_DOCUMENT_SIZE) {
+            throw new FuncErrorException("Kích thước file tài liệu tối đa là 100MB");
+        }
+        if (!isAllowedExtension(file.getOriginalFilename(), DOCUMENT_PATTERN)) {
+            throw new FuncErrorException("Chỉ hỗ trợ định dạng tài liệu: .pdf, .docx, .doc, .xls, .xlsx, .ppt, .pptx");
         }
     }
 

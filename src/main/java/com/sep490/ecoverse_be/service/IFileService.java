@@ -14,6 +14,12 @@ public interface IFileService {
 
     StorageResponse uploadModel(MultipartFile file, UUID userId);
 
+    StorageResponse uploadContract(MultipartFile file);
+
+    StorageResponse uploadDocument(MultipartFile file, UUID userId);
+
+    FileResponse viewFile(UUID fileId, UUID userId, boolean isAdmin);
+
     FileResponse getFileById(UUID fileId);
 
     PageResponse<FileResponse> getMyFiles(UUID userId, Pageable pageable);
