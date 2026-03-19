@@ -22,14 +22,14 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/subscription-plans")
+@RequestMapping("/api/subscription-plans")
 @RequiredArgsConstructor
-@PreAuthorize("hasAuthority('ADMINISTRATOR')")
 public class SubscriptionPlanController {
 
     private final ISubscriptionPlanService subscriptionPlanService;
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ADMINISTRATOR')")
     public ResponseEntity<ResponseDto<SubscriptionPlanResponse>> createPlan(
             @Valid @RequestBody CreateSubscriptionPlanRequest request,
             @AuthenticationPrincipal UserPrincipal principal
@@ -43,6 +43,7 @@ public class SubscriptionPlanController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMINISTRATOR')")
     public ResponseEntity<ResponseDto<SubscriptionPlanResponse>> updatePlan(
             @PathVariable UUID id,
             @Valid @RequestBody UpdateSubscriptionPlanRequest request
@@ -79,12 +80,14 @@ public class SubscriptionPlanController {
     }
 
     @PatchMapping("/{id}/toggle-active")
+    @PreAuthorize("hasAuthority('ADMINISTRATOR')")
     public ResponseEntity<ResponseDto<Void>> toggleActiveStatus(@PathVariable UUID id) {
         subscriptionPlanService.toggleActiveStatus(id);
         return ResponseEntity.ok(ResponseDto.success(null, "Subscription plan active status toggled successfully."));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMINISTRATOR')")
     public ResponseEntity<ResponseDto<Void>> deletePlan(@PathVariable UUID id) {
         subscriptionPlanService.deletePlan(id);
         return ResponseEntity.ok(ResponseDto.success(null, "Subscription plan deleted successfully."));
