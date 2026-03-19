@@ -17,8 +17,8 @@ public class FileUpLoadUtil {
     public static final String IMAGE_PATTERN = "(.+\\.(?i)(jpg|png|gif|bmp))$";
     public static final String MODEL_PATTERN = "(.+\\.(?i)(glb|gltf))$";
     public static final String VIDEO_PATTERN = "(.+\\.(?i)(mp4|mov|avi|mkv))$";
-    public static final String CONTRACT_PATTERN = "(.+\\.(?i)(pdf|docx|doc))$";
-    public static final String DOCUMENT_PATTERN = "(.+\\.(?i)(pdf|docx|doc|xls|xlsx|ppt|pptx))$";
+    public static final String CONTRACT_PATTERN = "(.+\\.(?i)(pdf|docx|doc|jpg|png))$";
+    public static final String DOCUMENT_PATTERN = "(.+\\.(?i)(pdf|docx|doc|xls|xlsx|ppt|pptx|csv))$";
 
     public static final String DATE_FORMAT = "yyyyMMddHHmmss";
 
