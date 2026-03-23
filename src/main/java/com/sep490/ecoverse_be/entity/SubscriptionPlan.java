@@ -13,14 +13,15 @@ import java.math.BigDecimal;
 import java.util.Map;
 
 @Entity
-@Table(name = "subscription_plans", indexes = {
-        @Index(name = "idx_sub_plan_code", columnList = "plan_code"),
-        @Index(name = "idx_sub_plan_subscriber_type", columnList = "subscriber_type"),
-        @Index(name = "idx_sub_plan_is_active", columnList = "is_active"),
-        @Index(name = "idx_sub_plan_price", columnList = "price"),
-        @Index(name = "idx_sub_plan_display_order", columnList = "display_order"),
-        @Index(name = "idx_sub_plan_type_active", columnList = "subscriber_type, is_active")
-})
+@Table(name = "subscription_plans",
+        indexes = {
+                @Index(name = "idx_sub_plan_code", columnList = "plan_code"),
+                @Index(name = "idx_sub_plan_subscriber_type", columnList = "subscriber_type"),
+                @Index(name = "idx_sub_plan_is_active", columnList = "is_active"),
+                @Index(name = "idx_sub_plan_price", columnList = "price"),
+                @Index(name = "idx_sub_plan_display_order", columnList = "display_order"),
+                @Index(name = "idx_sub_plan_type_active", columnList = "subscriber_type, is_active")
+        })
 @Getter
 @Setter
 @AllArgsConstructor
@@ -60,6 +61,23 @@ public class SubscriptionPlan extends BaseEntity {
 
     @Column(name = "max_schools_per_campaign")
     private Integer maxSchoolsPerCampaign;
+
+    /**
+     * Maximum number of AI quiz generations (confirmed/charged usages) allowed
+     * per subscription period.
+     *
+     * NULL = unlimited (e.g. Enterprise plan).
+     * 0    = feature disabled for this plan.
+     * N    = exactly N confirmed AI quiz generations per period.
+     *
+     * Counted by:
+     *   SELECT COUNT(*) FROM ai_generation_logs
+     *   WHERE (school_id = ? OR partnership_id = ?)
+     *     AND is_usage_charged = true
+     *     AND usage_charged_at BETWEEN subscription.start_date AND subscription.end_date
+     */
+    @Column(name = "max_ai_quiz_generations")
+    private Integer maxAiQuizGenerations;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")

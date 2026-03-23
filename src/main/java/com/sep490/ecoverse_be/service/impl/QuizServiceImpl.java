@@ -122,7 +122,7 @@ public class QuizServiceImpl implements IQuizService {
                 .difficulty(quiz.getDifficulty())
                 .quizType(quiz.getQuizType())
                 .source(quiz.getSource())
-                .pointsReward(quiz.getPointsReward())
+                .pointsReward(quiz.getCoinsOnPass())
                 .timePerQuestion(quiz.getTimePerQuestion())
                 .passScorePercentage(quiz.getPassScorePercentage())
                 .isPublished(quiz.isPublished())
@@ -141,7 +141,7 @@ public class QuizServiceImpl implements IQuizService {
                 .difficulty(quiz.getDifficulty())
                 .quizType(quiz.getQuizType())
                 .source(quiz.getSource())
-                .pointsReward(quiz.getPointsReward())
+                .pointsReward(quiz.getCoinsOnPass())
                 .timePerQuestion(quiz.getTimePerQuestion())
                 .passScorePercentage(quiz.getPassScorePercentage())
                 .isPublished(quiz.isPublished())
@@ -163,7 +163,7 @@ public class QuizServiceImpl implements IQuizService {
         quiz.setDifficulty(difficulty);
         quiz.setQuizType(quizType);
         quiz.setSource(QuizSource.MANUAL);
-        quiz.setPointsReward(pointsReward != null ? pointsReward : 10);
+        quiz.setCoinsOnPass(pointsReward != null ? pointsReward : 10);
         quiz.setTimePerQuestion(timePerQuestion);
         quiz.setPassScorePercentage(passScorePercentage != null ? passScorePercentage : 80);
         quiz.setPublished(false);
@@ -268,7 +268,7 @@ public class QuizServiceImpl implements IQuizService {
         if (request.getDescription() != null) quiz.setDescription(request.getDescription());
         if (request.getDifficulty() != null) quiz.setDifficulty(request.getDifficulty());
         if (request.getQuizType() != null) quiz.setQuizType(request.getQuizType());
-        if (request.getPointsReward() != null) quiz.setPointsReward(request.getPointsReward());
+        if (request.getPointsReward() != null) quiz.setCoinsOnPass(request.getPointsReward());
         if (request.getTimePerQuestion() != null) quiz.setTimePerQuestion(request.getTimePerQuestion());
         if (request.getPassScorePercentage() != null) quiz.setPassScorePercentage(request.getPassScorePercentage());
 
