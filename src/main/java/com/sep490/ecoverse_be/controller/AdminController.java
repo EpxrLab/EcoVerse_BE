@@ -189,7 +189,7 @@ public class AdminController {
             @RequestBody UpdateApprovalRequest request) {
         try {
             return ResponseEntity.ok(
-                    ResponseDto.success(adminService.updateSchoolApproval(id, request), "Duyệt trường học thành công"));
+                    ResponseDto.success(adminService.updateSchoolApproval(id, request), "Duyệt hoặc từ chối trường học thành công"));
         } catch (NotFoundException e) {
             return ResponseEntity.status(404).body(ResponseDto.notFound(e.getMessage()));
         } catch (BadRequestException e) {
