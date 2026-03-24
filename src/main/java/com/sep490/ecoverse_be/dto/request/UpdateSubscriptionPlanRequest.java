@@ -33,6 +33,9 @@ public record UpdateSubscriptionPlanRequest(
         @Min(value = 1, message = "Max schools per campaign must be at least 1")
         Integer maxSchoolsPerCampaign,
 
+        @Min(value = 0, message = "Max AI quiz generations must be >= 0")
+        Integer maxAiQuizGenerationsPerPeriod,
+
         Map<String, Object> features,
 
         @Min(value = 0, message = "Grace period days must be >= 0")

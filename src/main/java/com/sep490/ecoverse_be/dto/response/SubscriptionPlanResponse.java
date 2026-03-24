@@ -20,6 +20,7 @@ public record SubscriptionPlanResponse(
         Integer maxCampaignsPerMonth,
         Integer maxRoundsPerCampaign,
         Integer maxSchoolsPerCampaign,
+        Integer maxAiQuizGenerationsPerPeriod,
         Map<String, Object> features,
         int gracePeriodDays,
         boolean isActive,

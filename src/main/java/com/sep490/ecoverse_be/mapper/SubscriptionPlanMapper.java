@@ -28,6 +28,7 @@ public class SubscriptionPlanMapper {
                 plan.getMaxCampaignsPerMonth(),
                 plan.getMaxRoundsPerCampaign(),
                 plan.getMaxSchoolsPerCampaign(),
+                plan.getMaxAiQuizGenerations(),
                 plan.getFeatures(),
                 plan.getGracePeriodDays(),
                 plan.isActive(),
@@ -49,6 +50,7 @@ public class SubscriptionPlanMapper {
         if (request.displayOrder() == null) {
             plan.setDisplayOrder(0);
         }
+        plan.setMaxAiQuizGenerations(request.maxAiQuizGenerationsPerPeriod());
         plan.setActive(true);
         return plan;
     }
@@ -80,6 +82,9 @@ public class SubscriptionPlanMapper {
         }
         if (request.maxSchoolsPerCampaign() != null) {
             plan.setMaxSchoolsPerCampaign(request.maxSchoolsPerCampaign());
+        }
+        if (request.maxAiQuizGenerationsPerPeriod() != null) {
+            plan.setMaxAiQuizGenerations(request.maxAiQuizGenerationsPerPeriod());
         }
         if (request.features() != null) {
             plan.setFeatures(request.features());

@@ -11,6 +11,8 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -23,16 +25,84 @@ public class DataInitializer implements CommandLineRunner {
     private final ParentRepository parentRepository;
     private final StudentRepository studentRepository;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
+    private final SubscriptionRepository subscriptionRepository;
+    private final PaymentRepository paymentRepository;
 
     private static final String DEFAULT_PASSWORD = "SP26@sep490";
+    private static final String SCHOOL_FREE_PLAN_CODE = "SCHOOL_FREE";
+    private static final String PARTNERSHIP_FREE_PLAN_CODE = "PARTNERSHIP_FREE";
 
     @Override
     public void run(String... args) {
+        initFreeSubscriptionPlans();
         initAdminAccount();
         initSchoolAccount();
         initPartnershipAccount();
         initParentAccount();
         initStudentAccount();
+    }
+
+    private void initFreeSubscriptionPlans() {
+        initFreePlan(
+                SCHOOL_FREE_PLAN_CODE,
+                "School Free Plan",
+                SubscriberType.SCHOOL,
+                "Goi mien phi mac dinh cho School",
+                1000,
+                1,
+                1,
+                null,
+                0
+        );
+
+        initFreePlan(
+                PARTNERSHIP_FREE_PLAN_CODE,
+                "Partnership Free Plan",
+                SubscriberType.PARTNERSHIP,
+                "Goi mien phi mac dinh cho Partnership",
+                null,
+                1,
+                1,
+                1,
+                0
+        );
+    }
+
+    private void initFreePlan(
+            String planCode,
+            String planName,
+            SubscriberType subscriberType,
+            String description,
+            Integer maxStudents,
+            Integer maxCampaignsPerMonth,
+            Integer maxRoundsPerCampaign,
+            Integer maxSchoolsPerCampaign,
+            Integer maxAiQuizGenerations
+    ) {
+        if (subscriptionPlanRepository.existsByPlanCode(planCode)) {
+            return;
+        }
+
+        SubscriptionPlan plan = new SubscriptionPlan();
+        plan.setPlanCode(planCode);
+        plan.setPlanName(planName);
+        plan.setSubscriberType(subscriberType);
+        plan.setDescription(description);
+        plan.setDurationDays(3650);
+        plan.setPrice(BigDecimal.ZERO);
+        plan.setCurrency("VND");
+        plan.setMaxStudents(maxStudents);
+        plan.setMaxCampaignsPerMonth(maxCampaignsPerMonth);
+        plan.setMaxRoundsPerCampaign(maxRoundsPerCampaign);
+        plan.setMaxSchoolsPerCampaign(maxSchoolsPerCampaign);
+        plan.setMaxAiQuizGenerations(maxAiQuizGenerations);
+        plan.setGracePeriodDays(30);
+        plan.setActive(true);
+        plan.setDisplayOrder(0);
+        subscriptionPlanRepository.save(plan);
+
+        log.info("Initialized free subscription plan: {}", planCode);
     }
 
     private void initAdminAccount() {
@@ -85,6 +155,7 @@ public class DataInitializer implements CommandLineRunner {
         school.setApprovalStatus(ApprovalStatus.APPROVED);
         schoolRepository.save(school);
 
+        assignFreeSubscriptionToSchoolIfMissing(school, schoolUser);
         log.info("School account created: {}", schoolEmail);
     }
 
@@ -117,6 +188,7 @@ public class DataInitializer implements CommandLineRunner {
         partnership.setApprovalStatus(ApprovalStatus.APPROVED);
         partnershipRepository.save(partnership);
 
+        assignFreeSubscriptionToPartnershipIfMissing(partnership, partnerUser);
         log.info("Partnership account created: {}", partnerEmail);
     }
 
@@ -191,5 +263,77 @@ public class DataInitializer implements CommandLineRunner {
         studentRepository.save(student);
 
         log.info("Student account created: {}", studentEmail);
+    }
+
+    private void assignFreeSubscriptionToSchoolIfMissing(School school, User schoolUser) {
+        if (subscriptionRepository.findBySchoolIdAndStatus(school.getId(), SubscriptionStatus.ACTIVE).isPresent()) {
+            return;
+        }
+
+        SubscriptionPlan freePlan = subscriptionPlanRepository.findByPlanCode(SCHOOL_FREE_PLAN_CODE)
+                .orElseThrow(() -> new IllegalStateException("Missing free plan: " + SCHOOL_FREE_PLAN_CODE));
+
+        createFreeSubscriptionAndPayment(
+                SubscriberType.SCHOOL,
+                school,
+                null,
+                schoolUser,
+                freePlan
+        );
+    }
+
+    private void assignFreeSubscriptionToPartnershipIfMissing(Partnership partnership, User partnerUser) {
+        if (subscriptionRepository.findByPartnershipIdAndStatus(partnership.getId(), SubscriptionStatus.ACTIVE).isPresent()) {
+            return;
+        }
+
+        SubscriptionPlan freePlan = subscriptionPlanRepository.findByPlanCode(PARTNERSHIP_FREE_PLAN_CODE)
+                .orElseThrow(() -> new IllegalStateException("Missing free plan: " + PARTNERSHIP_FREE_PLAN_CODE));
+
+        createFreeSubscriptionAndPayment(
+                SubscriberType.PARTNERSHIP,
+                null,
+                partnership,
+                partnerUser,
+                freePlan
+        );
+    }
+
+    private void createFreeSubscriptionAndPayment(
+            SubscriberType subscriberType,
+            School school,
+            Partnership partnership,
+            User user,
+            SubscriptionPlan plan
+    ) {
+        LocalDateTime now = LocalDateTime.now();
+
+        Subscription subscription = new Subscription();
+        subscription.setSubscriptionCode("SUB-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        subscription.setSubscriberType(subscriberType);
+        subscription.setSchool(school);
+        subscription.setPartnership(partnership);
+        subscription.setPlan(plan);
+        subscription.setStatus(SubscriptionStatus.ACTIVE);
+        subscription.setStartDate(now);
+        subscription.setEndDate(now.plusDays(plan.getDurationDays()));
+        subscriptionRepository.save(subscription);
+
+        Payment payment = new Payment();
+        payment.setPaymentCode("PAY-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        payment.setSubscriberType(subscriberType);
+        payment.setSchool(school);
+        payment.setPartnership(partnership);
+        payment.setSubscription(subscription);
+        payment.setAmount(BigDecimal.ZERO);
+        payment.setCurrency("VND");
+        payment.setPaymentMethod(PaymentMethod.OTHER);
+        payment.setStatus(PaymentStatus.COMPLETED);
+        payment.setPaidAt(now);
+        payment.setPayerName(user.getEmail());
+        payment.setPayerEmail(user.getEmail());
+        payment.setCreatedBy(user);
+        payment.setNotes("Free plan - auto-assigned on initialization");
+        paymentRepository.save(payment);
     }
 }

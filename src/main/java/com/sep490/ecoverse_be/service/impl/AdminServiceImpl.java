@@ -1,7 +1,15 @@
 package com.sep490.ecoverse_be.service.impl;
 
 import com.sep490.ecoverse_be.dto.request.UpdateApprovalRequest;
+import com.sep490.ecoverse_be.dto.request.AdminGameTypeUpsertRequest;
+import com.sep490.ecoverse_be.dto.request.AdminWasteItemUpsertRequest;
+import com.sep490.ecoverse_be.dto.request.AdminWasteSubCategoryUpsertRequest;
+import com.sep490.ecoverse_be.dto.request.MapGameTypeWasteCategoriesRequest;
+import com.sep490.ecoverse_be.dto.response.AdminCampaignAnalyticsResponse;
+import com.sep490.ecoverse_be.dto.response.AdminGameTypeResponse;
 import com.sep490.ecoverse_be.dto.response.AdminUserListResponse;
+import com.sep490.ecoverse_be.dto.response.AdminWasteItemResponse;
+import com.sep490.ecoverse_be.dto.response.AdminWasteSubCategoryResponse;
 import com.sep490.ecoverse_be.dto.response.PageResponse;
 import com.sep490.ecoverse_be.dto.response.ParentAdminDetail;
 import com.sep490.ecoverse_be.dto.response.PartnershipDetailResponse;
@@ -10,31 +18,46 @@ import com.sep490.ecoverse_be.dto.response.StudentAdminDetail;
 import com.sep490.ecoverse_be.entity.Parent;
 import com.sep490.ecoverse_be.entity.Partnership;
 import com.sep490.ecoverse_be.entity.Payment;
+import com.sep490.ecoverse_be.entity.Campaign;
+import com.sep490.ecoverse_be.entity.GameType;
 import com.sep490.ecoverse_be.entity.School;
 import com.sep490.ecoverse_be.entity.Student;
 import com.sep490.ecoverse_be.entity.StudentParentLink;
 import com.sep490.ecoverse_be.entity.Subscription;
 import com.sep490.ecoverse_be.entity.SubscriptionPlan;
 import com.sep490.ecoverse_be.entity.User;
+import com.sep490.ecoverse_be.entity.WasteItem;
+import com.sep490.ecoverse_be.entity.WasteSubCategory;
 import com.sep490.ecoverse_be.enums.AccountStatus;
 import com.sep490.ecoverse_be.enums.ApprovalStatus;
 import com.sep490.ecoverse_be.enums.PaymentMethod;
 import com.sep490.ecoverse_be.enums.PaymentStatus;
+import com.sep490.ecoverse_be.enums.CampaignType;
+import com.sep490.ecoverse_be.enums.ParticipationStatus;
+import com.sep490.ecoverse_be.enums.PartnershipCampaignStatus;
 import com.sep490.ecoverse_be.enums.Role;
+import com.sep490.ecoverse_be.enums.SchoolCampaignStatus;
 import com.sep490.ecoverse_be.enums.SubscriberType;
 import com.sep490.ecoverse_be.enums.SubscriptionStatus;
+import com.sep490.ecoverse_be.enums.WasteCategory;
 import com.sep490.ecoverse_be.exception.BadRequestException;
 import com.sep490.ecoverse_be.exception.NotFoundException;
 import com.sep490.ecoverse_be.model.UserPrincipal;
 import com.sep490.ecoverse_be.repository.ParentRepository;
 import com.sep490.ecoverse_be.repository.PartnershipRepository;
 import com.sep490.ecoverse_be.repository.PaymentRepository;
+import com.sep490.ecoverse_be.repository.CampaignParticipantRepository;
+import com.sep490.ecoverse_be.repository.CampaignRepository;
+import com.sep490.ecoverse_be.repository.CampaignSchoolParticipateRepository;
+import com.sep490.ecoverse_be.repository.GameTypeRepository;
 import com.sep490.ecoverse_be.repository.SchoolRepository;
 import com.sep490.ecoverse_be.repository.StudentParentLinkRepository;
 import com.sep490.ecoverse_be.repository.StudentRepository;
 import com.sep490.ecoverse_be.repository.SubscriptionPlanRepository;
 import com.sep490.ecoverse_be.repository.SubscriptionRepository;
 import com.sep490.ecoverse_be.repository.UserRepository;
+import com.sep490.ecoverse_be.repository.WasteItemRepository;
+import com.sep490.ecoverse_be.repository.WasteSubCategoryRepository;
 import com.sep490.ecoverse_be.service.IAdminService;
 import com.sep490.ecoverse_be.service.IEmailService;
 import jakarta.persistence.criteria.Predicate;
@@ -91,6 +114,24 @@ public class AdminServiceImpl implements IAdminService {
     @Autowired
     private PaymentRepository paymentRepository;
 
+    @Autowired
+    private GameTypeRepository gameTypeRepository;
+
+    @Autowired
+    private WasteSubCategoryRepository wasteSubCategoryRepository;
+
+    @Autowired
+    private WasteItemRepository wasteItemRepository;
+
+    @Autowired
+    private CampaignRepository campaignRepository;
+
+    @Autowired
+    private CampaignParticipantRepository campaignParticipantRepository;
+
+    @Autowired
+    private CampaignSchoolParticipateRepository campaignSchoolParticipateRepository;
+
     private User getCurrentAdmin() {
         UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext()
                 .getAuthentication().getPrincipal();
@@ -137,6 +178,248 @@ public class AdminServiceImpl implements IAdminService {
         Specification<Partnership> spec = buildPartnershipSpec(null, keyword);
         Page<Partnership> page = partnershipRepository.findAll(spec, pageable);
         return PageResponse.from(page, this::mapToPartnershipDetailResponse);
+    }
+
+    @Override
+    @Transactional
+    public AdminGameTypeResponse createGameType(AdminGameTypeUpsertRequest request) {
+        if (gameTypeRepository.existsByTypeCode(request.getTypeCode())) {
+            throw new BadRequestException("Game type code đã tồn tại");
+        }
+        if (gameTypeRepository.existsByNameIgnoreCase(request.getName())) {
+            throw new BadRequestException("Tên game type đã tồn tại");
+        }
+
+        GameType gameType = new GameType();
+        gameType.setTypeCode(request.getTypeCode());
+        gameType.setName(request.getName());
+        gameType.setShortDescription(request.getShortDescription());
+        gameType.setFullDescription(request.getFullDescription());
+        gameType.setHowToPlay(request.getHowToPlay());
+        gameType.setThumbnailUrl(request.getThumbnailUrl());
+        gameType.setIconUrl(request.getIconUrl());
+        gameType.setPreviewVideoUrl(request.getPreviewVideoUrl());
+        gameType.setFeatures(request.getFeatures() != null ? request.getFeatures() : new LinkedHashMap<>());
+        gameType.setSupportsCoin(request.getSupportsCoin() == null || request.getSupportsCoin());
+        gameType.setMaxLevels(request.getMaxLevels() != null ? request.getMaxLevels() : 1);
+        gameType.setDisplayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0);
+        gameType.setCreatedBy(getCurrentAdmin());
+        gameType.setUpdatedBy(getCurrentAdmin());
+        gameType = gameTypeRepository.save(gameType);
+        return mapGameType(gameType);
+    }
+
+    @Override
+    @Transactional
+    public AdminGameTypeResponse updateGameType(UUID id, AdminGameTypeUpsertRequest request) {
+        GameType gameType = gameTypeRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy game type"));
+
+        if (!gameType.getTypeCode().equals(request.getTypeCode()) && gameTypeRepository.existsByTypeCode(request.getTypeCode())) {
+            throw new BadRequestException("Game type code đã tồn tại");
+        }
+        if (!gameType.getName().equalsIgnoreCase(request.getName()) && gameTypeRepository.existsByNameIgnoreCase(request.getName())) {
+            throw new BadRequestException("Tên game type đã tồn tại");
+        }
+
+        gameType.setTypeCode(request.getTypeCode());
+        gameType.setName(request.getName());
+        gameType.setShortDescription(request.getShortDescription());
+        gameType.setFullDescription(request.getFullDescription());
+        gameType.setHowToPlay(request.getHowToPlay());
+        gameType.setThumbnailUrl(request.getThumbnailUrl());
+        gameType.setIconUrl(request.getIconUrl());
+        gameType.setPreviewVideoUrl(request.getPreviewVideoUrl());
+        if (request.getFeatures() != null) {
+            gameType.setFeatures(request.getFeatures());
+        }
+        if (request.getSupportsCoin() != null) {
+            gameType.setSupportsCoin(request.getSupportsCoin());
+        }
+        if (request.getMaxLevels() != null) {
+            gameType.setMaxLevels(request.getMaxLevels());
+        }
+        if (request.getDisplayOrder() != null) {
+            gameType.setDisplayOrder(request.getDisplayOrder());
+        }
+        gameType.setUpdatedBy(getCurrentAdmin());
+        return mapGameType(gameTypeRepository.save(gameType));
+    }
+
+    @Override
+    @Transactional
+    public void deleteGameType(UUID id) {
+        GameType gameType = gameTypeRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy game type"));
+        gameType.setActive(false);
+        gameType.setUpdatedBy(getCurrentAdmin());
+        gameTypeRepository.save(gameType);
+    }
+
+    @Override
+    public List<AdminGameTypeResponse> getGameTypes() {
+        return gameTypeRepository.findAll().stream().map(this::mapGameType).toList();
+    }
+
+    @Override
+    public AdminGameTypeResponse getGameTypeById(UUID id) {
+        GameType gameType = gameTypeRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy game type"));
+        return mapGameType(gameType);
+    }
+
+    @Override
+    @Transactional
+    public AdminGameTypeResponse mapGameTypeWasteCategories(UUID id, MapGameTypeWasteCategoriesRequest request) {
+        GameType gameType = gameTypeRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy game type"));
+        List<WasteSubCategory> mapped = wasteSubCategoryRepository.findByCategoryInAndIsActiveTrue(request.getWasteCategories());
+        gameType.setSupportedSubCategories(mapped);
+        gameType.setUpdatedBy(getCurrentAdmin());
+        return mapGameType(gameTypeRepository.save(gameType));
+    }
+
+    @Override
+    @Transactional
+    public AdminWasteSubCategoryResponse createWasteSubCategory(AdminWasteSubCategoryUpsertRequest request) {
+        if (wasteSubCategoryRepository.existsByCategoryAndSubCategoryCode(request.getCategory(), request.getSubCategoryCode())) {
+            throw new BadRequestException("Sub category code đã tồn tại trong category");
+        }
+        WasteSubCategory subCategory = new WasteSubCategory();
+        subCategory.setCategory(request.getCategory());
+        subCategory.setSubCategoryCode(request.getSubCategoryCode());
+        subCategory.setDisplayName(request.getDisplayName());
+        subCategory.setDescription(request.getDescription());
+        subCategory.setIconUrl(request.getIconUrl());
+        subCategory.setDisplayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0);
+        subCategory.setActive(request.getIsActive() == null || request.getIsActive());
+        subCategory.setCreatedBy(getCurrentAdmin());
+        return mapWasteSubCategory(wasteSubCategoryRepository.save(subCategory));
+    }
+
+    @Override
+    @Transactional
+    public AdminWasteSubCategoryResponse updateWasteSubCategory(UUID id, AdminWasteSubCategoryUpsertRequest request) {
+        WasteSubCategory subCategory = wasteSubCategoryRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy waste sub-category"));
+        if (wasteSubCategoryRepository.existsByCategoryAndSubCategoryCodeAndIdNot(request.getCategory(), request.getSubCategoryCode(), id)) {
+            throw new BadRequestException("Sub category code đã tồn tại trong category");
+        }
+        subCategory.setCategory(request.getCategory());
+        subCategory.setSubCategoryCode(request.getSubCategoryCode());
+        subCategory.setDisplayName(request.getDisplayName());
+        subCategory.setDescription(request.getDescription());
+        subCategory.setIconUrl(request.getIconUrl());
+        if (request.getDisplayOrder() != null) {
+            subCategory.setDisplayOrder(request.getDisplayOrder());
+        }
+        if (request.getIsActive() != null) {
+            subCategory.setActive(request.getIsActive());
+        }
+        return mapWasteSubCategory(wasteSubCategoryRepository.save(subCategory));
+    }
+
+    @Override
+    @Transactional
+    public void deleteWasteSubCategory(UUID id) {
+        WasteSubCategory subCategory = wasteSubCategoryRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy waste sub-category"));
+        subCategory.setActive(false);
+        wasteSubCategoryRepository.save(subCategory);
+    }
+
+    @Override
+    @Transactional
+    public AdminWasteItemResponse createWasteItem(AdminWasteItemUpsertRequest request) {
+        WasteSubCategory subCategory = wasteSubCategoryRepository.findById(request.getSubCategoryId())
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy waste sub-category"));
+        if (wasteItemRepository.existsByItemNameIgnoreCaseAndSubCategoryId(request.getItemName(), request.getSubCategoryId())) {
+            throw new BadRequestException("Waste item đã tồn tại trong sub-category");
+        }
+        WasteItem wasteItem = new WasteItem();
+        wasteItem.setItemName(request.getItemName());
+        wasteItem.setSubCategory(subCategory);
+        wasteItem.setCategory(subCategory.getCategory());
+        wasteItem.setDescription(request.getDescription());
+        wasteItem.setFunFact(request.getFunFact());
+        wasteItem.setImageUrl(request.getImageUrl());
+        wasteItem.setDecompositionTime(request.getDecompositionTime());
+        wasteItem.setRecyclingTips(request.getRecyclingTips());
+        wasteItem.setActive(request.getIsActive() == null || request.getIsActive());
+        wasteItem.setCreatedBy(getCurrentAdmin());
+        return mapWasteItem(wasteItemRepository.save(wasteItem));
+    }
+
+    @Override
+    @Transactional
+    public AdminWasteItemResponse updateWasteItem(UUID id, AdminWasteItemUpsertRequest request) {
+        WasteItem wasteItem = wasteItemRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy waste item"));
+        WasteSubCategory subCategory = wasteSubCategoryRepository.findById(request.getSubCategoryId())
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy waste sub-category"));
+        if (wasteItemRepository.existsByItemNameIgnoreCaseAndSubCategoryIdAndIdNot(request.getItemName(), request.getSubCategoryId(), id)) {
+            throw new BadRequestException("Waste item đã tồn tại trong sub-category");
+        }
+        wasteItem.setItemName(request.getItemName());
+        wasteItem.setSubCategory(subCategory);
+        wasteItem.setCategory(subCategory.getCategory());
+        wasteItem.setDescription(request.getDescription());
+        wasteItem.setFunFact(request.getFunFact());
+        wasteItem.setImageUrl(request.getImageUrl());
+        wasteItem.setDecompositionTime(request.getDecompositionTime());
+        wasteItem.setRecyclingTips(request.getRecyclingTips());
+        if (request.getIsActive() != null) {
+            wasteItem.setActive(request.getIsActive());
+        }
+        return mapWasteItem(wasteItemRepository.save(wasteItem));
+    }
+
+    @Override
+    @Transactional
+    public void deleteWasteItem(UUID id) {
+        WasteItem wasteItem = wasteItemRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy waste item"));
+        wasteItem.setActive(false);
+        wasteItemRepository.save(wasteItem);
+    }
+
+    @Override
+    public List<AdminWasteItemResponse> getWasteItems() {
+        return wasteItemRepository.findAll().stream().map(this::mapWasteItem).toList();
+    }
+
+    @Override
+    public AdminWasteItemResponse getWasteItemById(UUID id) {
+        WasteItem wasteItem = wasteItemRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy waste item"));
+        return mapWasteItem(wasteItem);
+    }
+
+    @Override
+    public AdminCampaignAnalyticsResponse getCampaignAnalytics() {
+        Map<String, Long> schoolStatus = new LinkedHashMap<>();
+        for (SchoolCampaignStatus status : SchoolCampaignStatus.values()) {
+            schoolStatus.put(status.name(), campaignRepository.countBySchoolStatus(status));
+        }
+
+        Map<String, Long> partnershipStatus = new LinkedHashMap<>();
+        for (PartnershipCampaignStatus status : PartnershipCampaignStatus.values()) {
+            partnershipStatus.put(status.name(), campaignRepository.countByPartnershipStatus(status));
+        }
+
+        return AdminCampaignAnalyticsResponse.builder()
+                .totalCampaigns(campaignRepository.count())
+                .totalSchoolCampaigns(
+                        campaignRepository.countByCampaignType(CampaignType.SCHOOL_INTERNAL)
+                                + campaignRepository.countByCampaignType(CampaignType.INTER_SCHOOL)
+                )
+                .totalPartnershipCampaigns(campaignRepository.countByCampaignType(CampaignType.PARTNERSHIP_EVENT))
+                .totalParticipants(campaignParticipantRepository.countByIsActiveTrue())
+                .totalSchoolInvitations(campaignSchoolParticipateRepository.count())
+                .approvedSchoolInvitations(campaignSchoolParticipateRepository.countByStatus(ParticipationStatus.APPROVED))
+                .schoolCampaignStatusCounts(schoolStatus)
+                .partnershipCampaignStatusCounts(partnershipStatus)
+                .build();
     }
 
     @Override
@@ -563,6 +846,69 @@ public class AdminServiceImpl implements IAdminService {
                 .isActive(user.getIsActive())
                 .createdAt(user.getCreatedAt())
                 .detail(parentDetail)
+                .build();
+    }
+
+    private AdminGameTypeResponse mapGameType(GameType gameType) {
+        List<WasteCategory> categories = gameType.getSupportedSubCategories() == null
+                ? List.of()
+                : gameType.getSupportedSubCategories().stream()
+                .map(WasteSubCategory::getCategory)
+                .distinct()
+                .toList();
+
+        List<UUID> subCategoryIds = gameType.getSupportedSubCategories() == null
+                ? List.of()
+                : gameType.getSupportedSubCategories().stream().map(WasteSubCategory::getId).toList();
+
+        return AdminGameTypeResponse.builder()
+                .id(gameType.getId())
+                .typeCode(gameType.getTypeCode())
+                .name(gameType.getName())
+                .shortDescription(gameType.getShortDescription())
+                .fullDescription(gameType.getFullDescription())
+                .howToPlay(gameType.getHowToPlay())
+                .thumbnailUrl(gameType.getThumbnailUrl())
+                .iconUrl(gameType.getIconUrl())
+                .previewVideoUrl(gameType.getPreviewVideoUrl())
+                .features(gameType.getFeatures())
+                .supportsCoin(gameType.isSupportsCoin())
+                .maxLevels(gameType.getMaxLevels())
+                .isActive(gameType.isActive())
+                .displayOrder(gameType.getDisplayOrder())
+                .mappedWasteCategories(categories)
+                .supportedSubCategoryIds(subCategoryIds)
+                .build();
+    }
+
+    private AdminWasteSubCategoryResponse mapWasteSubCategory(WasteSubCategory subCategory) {
+        return AdminWasteSubCategoryResponse.builder()
+                .id(subCategory.getId())
+                .category(subCategory.getCategory())
+                .subCategoryCode(subCategory.getSubCategoryCode())
+                .displayName(subCategory.getDisplayName())
+                .description(subCategory.getDescription())
+                .iconUrl(subCategory.getIconUrl())
+                .displayOrder(subCategory.getDisplayOrder())
+                .isActive(subCategory.isActive())
+                .build();
+    }
+
+    private AdminWasteItemResponse mapWasteItem(WasteItem wasteItem) {
+        WasteSubCategory subCategory = wasteItem.getSubCategory();
+        return AdminWasteItemResponse.builder()
+                .id(wasteItem.getId())
+                .itemName(wasteItem.getItemName())
+                .category(wasteItem.getCategory())
+                .subCategoryId(subCategory != null ? subCategory.getId() : null)
+                .subCategoryCode(subCategory != null ? subCategory.getSubCategoryCode() : null)
+                .subCategoryDisplayName(subCategory != null ? subCategory.getDisplayName() : null)
+                .description(wasteItem.getDescription())
+                .funFact(wasteItem.getFunFact())
+                .imageUrl(wasteItem.getImageUrl())
+                .decompositionTime(wasteItem.getDecompositionTime())
+                .recyclingTips(wasteItem.getRecyclingTips())
+                .isActive(wasteItem.isActive())
                 .build();
     }
 
