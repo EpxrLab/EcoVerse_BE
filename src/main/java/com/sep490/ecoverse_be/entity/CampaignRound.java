@@ -58,4 +58,8 @@ public class CampaignRound extends BaseEntity {
 
     @Column(name = "is_final_round")
     private Boolean isFinalRound = false;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "quiz_id")
+    private Quiz quiz;
 }

@@ -4,6 +4,7 @@ public enum SchoolCampaignStatus {
     DRAFT,
     SCHEDULED,
     INVITING,
+    EXTENDED,
     ON_GOING,
     COMPLETED,
     CANCELLED

@@ -1,25 +1,40 @@
 package com.sep490.ecoverse_be.controller;
 
+import com.sep490.ecoverse_be.dto.request.AdminGameTypeUpsertRequest;
+import com.sep490.ecoverse_be.dto.request.AdminWasteItemUpsertRequest;
+import com.sep490.ecoverse_be.dto.request.AdminWasteSubCategoryUpsertRequest;
+import com.sep490.ecoverse_be.dto.request.CreateSubscriptionPlanRequest;
+import com.sep490.ecoverse_be.dto.request.MapGameTypeWasteCategoriesRequest;
 import com.sep490.ecoverse_be.dto.request.UpdateApprovalRequest;
+import com.sep490.ecoverse_be.dto.request.UpdateSubscriptionPlanRequest;
 import com.sep490.ecoverse_be.dto.response.AdminUserListResponse;
+import com.sep490.ecoverse_be.dto.response.AdminCampaignAnalyticsResponse;
+import com.sep490.ecoverse_be.dto.response.AdminGameTypeResponse;
+import com.sep490.ecoverse_be.dto.response.AdminWasteItemResponse;
+import com.sep490.ecoverse_be.dto.response.AdminWasteSubCategoryResponse;
 import com.sep490.ecoverse_be.dto.response.PageResponse;
 import com.sep490.ecoverse_be.dto.response.PartnershipDetailResponse;
 import com.sep490.ecoverse_be.dto.response.ResponseDto;
 import com.sep490.ecoverse_be.dto.response.SchoolDetailResponse;
+import com.sep490.ecoverse_be.dto.response.SubscriptionPlanResponse;
 import com.sep490.ecoverse_be.enums.Role;
 import com.sep490.ecoverse_be.exception.BadRequestException;
 import com.sep490.ecoverse_be.exception.NotFoundException;
 import com.sep490.ecoverse_be.service.IAdminService;
+import com.sep490.ecoverse_be.service.ISubscriptionPlanService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -30,6 +45,9 @@ public class AdminController {
 
     @Autowired
     private IAdminService adminService;
+
+    @Autowired
+    private ISubscriptionPlanService subscriptionPlanService;
 
     @GetMapping("/schools/pending")
     @Operation(
@@ -348,5 +366,112 @@ public class AdminController {
             @RequestBody boolean isActive) {
         adminService.updateUserStatus(userId, isActive);
         return ResponseEntity.ok(ResponseDto.success(null, "Thành công"));
+    }
+
+    @PostMapping("/game-types")
+    public ResponseEntity<ResponseDto<AdminGameTypeResponse>> createGameType(
+            @Valid @RequestBody AdminGameTypeUpsertRequest request) {
+        return ResponseEntity.status(201)
+                .body(ResponseDto.created(adminService.createGameType(request), "Tạo game type thành công"));
+    }
+
+    @PutMapping("/game-types/{id}")
+    public ResponseEntity<ResponseDto<AdminGameTypeResponse>> updateGameType(
+            @PathVariable UUID id,
+            @Valid @RequestBody AdminGameTypeUpsertRequest request) {
+        return ResponseEntity.ok(ResponseDto.success(adminService.updateGameType(id, request), "Cập nhật game type thành công"));
+    }
+
+    @DeleteMapping("/game-types/{id}")
+    public ResponseEntity<ResponseDto<Void>> deleteGameType(@PathVariable UUID id) {
+        adminService.deleteGameType(id);
+        return ResponseEntity.ok(ResponseDto.success(null, "Xóa game type thành công"));
+    }
+
+    @GetMapping("/game-types")
+    public ResponseEntity<ResponseDto<List<AdminGameTypeResponse>>> getGameTypes() {
+        return ResponseEntity.ok(ResponseDto.success(adminService.getGameTypes(), "Lấy danh sách game type thành công"));
+    }
+
+    @GetMapping("/game-types/{id}")
+    public ResponseEntity<ResponseDto<AdminGameTypeResponse>> getGameType(@PathVariable UUID id) {
+        return ResponseEntity.ok(ResponseDto.success(adminService.getGameTypeById(id), "Lấy chi tiết game type thành công"));
+    }
+
+    @PutMapping("/game-types/{id}/waste-categories")
+    public ResponseEntity<ResponseDto<AdminGameTypeResponse>> mapWasteCategories(
+            @PathVariable UUID id,
+            @Valid @RequestBody MapGameTypeWasteCategoriesRequest request) {
+        return ResponseEntity.ok(ResponseDto.success(adminService.mapGameTypeWasteCategories(id, request), "Map waste categories thành công"));
+    }
+
+    @PostMapping("/waste-sub-categories")
+    public ResponseEntity<ResponseDto<AdminWasteSubCategoryResponse>> createWasteSubCategory(
+            @Valid @RequestBody AdminWasteSubCategoryUpsertRequest request) {
+        return ResponseEntity.status(201)
+                .body(ResponseDto.created(adminService.createWasteSubCategory(request), "Tạo waste sub-category thành công"));
+    }
+
+    @PutMapping("/waste-sub-categories/{id}")
+    public ResponseEntity<ResponseDto<AdminWasteSubCategoryResponse>> updateWasteSubCategory(
+            @PathVariable UUID id,
+            @Valid @RequestBody AdminWasteSubCategoryUpsertRequest request) {
+        return ResponseEntity.ok(ResponseDto.success(adminService.updateWasteSubCategory(id, request), "Cập nhật waste sub-category thành công"));
+    }
+
+    @DeleteMapping("/waste-sub-categories/{id}")
+    public ResponseEntity<ResponseDto<Void>> deleteWasteSubCategory(@PathVariable UUID id) {
+        adminService.deleteWasteSubCategory(id);
+        return ResponseEntity.ok(ResponseDto.success(null, "Xóa waste sub-category thành công"));
+    }
+
+    @PostMapping("/waste-items")
+    public ResponseEntity<ResponseDto<AdminWasteItemResponse>> createWasteItem(
+            @Valid @RequestBody AdminWasteItemUpsertRequest request) {
+        return ResponseEntity.status(201)
+                .body(ResponseDto.created(adminService.createWasteItem(request), "Tạo waste item thành công"));
+    }
+
+    @PutMapping("/waste-items/{id}")
+    public ResponseEntity<ResponseDto<AdminWasteItemResponse>> updateWasteItem(
+            @PathVariable UUID id,
+            @Valid @RequestBody AdminWasteItemUpsertRequest request) {
+        return ResponseEntity.ok(ResponseDto.success(adminService.updateWasteItem(id, request), "Cập nhật waste item thành công"));
+    }
+
+    @DeleteMapping("/waste-items/{id}")
+    public ResponseEntity<ResponseDto<Void>> deleteWasteItem(@PathVariable UUID id) {
+        adminService.deleteWasteItem(id);
+        return ResponseEntity.ok(ResponseDto.success(null, "Xóa waste item thành công"));
+    }
+
+    @GetMapping("/waste-items")
+    public ResponseEntity<ResponseDto<List<AdminWasteItemResponse>>> getWasteItems() {
+        return ResponseEntity.ok(ResponseDto.success(adminService.getWasteItems(), "Lấy danh sách waste item thành công"));
+    }
+
+    @GetMapping("/waste-items/{id}")
+    public ResponseEntity<ResponseDto<AdminWasteItemResponse>> getWasteItem(@PathVariable UUID id) {
+        return ResponseEntity.ok(ResponseDto.success(adminService.getWasteItemById(id), "Lấy chi tiết waste item thành công"));
+    }
+
+    @PostMapping("/subscription-plans")
+    public ResponseEntity<ResponseDto<SubscriptionPlanResponse>> createSubscriptionPlan(
+            @Valid @RequestBody CreateSubscriptionPlanRequest request,
+            @AuthenticationPrincipal com.sep490.ecoverse_be.model.UserPrincipal principal) {
+        SubscriptionPlanResponse response = subscriptionPlanService.createPlan(request, principal.getUser().getId());
+        return ResponseEntity.status(201).body(ResponseDto.created(response, "Tạo subscription plan thành công"));
+    }
+
+    @PutMapping("/subscription-plans/{id}")
+    public ResponseEntity<ResponseDto<SubscriptionPlanResponse>> updateSubscriptionPlan(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateSubscriptionPlanRequest request) {
+        return ResponseEntity.ok(ResponseDto.success(subscriptionPlanService.updatePlan(id, request), "Cập nhật subscription plan thành công"));
+    }
+
+    @GetMapping("/campaign-analytics")
+    public ResponseEntity<ResponseDto<AdminCampaignAnalyticsResponse>> getCampaignAnalytics() {
+        return ResponseEntity.ok(ResponseDto.success(adminService.getCampaignAnalytics(), "Lấy campaign analytics thành công"));
     }
 }
