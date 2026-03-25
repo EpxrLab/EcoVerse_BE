@@ -58,8 +58,8 @@ public class QuizController {
                     Upload file Excel (.xlsx) để tạo hàng loạt quiz câu hỏi và đáp án.
                     
                     **Cấu trúc file Excel** (header row bắt buộc):
-                    | quiz_title | description | difficulty | quiz_type | question_order | question_text |
-                    | answer_A | answer_B | answer_C | answer_D | correct_answer | points_reward |
+                    | quiz_title | description | difficulty | target_grade | quiz_type | question_order | question_text |
+                    | answer_A | answer_B | answer_C | answer_D | correct_answer | coins_on_pass |
                     | time_per_question | pass_score_percentage |
                     
                     - Nhiều dòng có cùng `quiz_title` sẽ được nhóm lại thành **một quiz**.

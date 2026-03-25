@@ -12,7 +12,7 @@ import lombok.*;
 @NoArgsConstructor
 public class UpdateQuizRequest {
 
-    @Size(max = 255, message = "Tieu de quiz toi da 255 ky tu")
+    @Size(max = 255, message = "Tiêu đề quiz tối đa 255 ký tự")
     private String title;
 
     private String description;
@@ -21,13 +21,17 @@ public class UpdateQuizRequest {
 
     private QuizType quizType;
 
-    @Min(value = 1, message = "Diem thuong phai >= 1")
+    @Min(value = 1, message = "Khối lớp phải >= 1")
+    @Max(value = 5, message = "Khối lớp phải <= 5")
+    private Integer targetGrade;
+
+    @Min(value = 1, message = "Điểm thưởng phải >= 1")
     private Integer pointsReward;
 
-    @Min(value = 5, message = "Thoi gian moi cau phai >= 5 giay")
+    @Min(value = 5, message = "Thời gian mỗi câu phải >= 5 giây")
     private Integer timePerQuestion;
 
-    @Min(value = 1, message = "Ti le dat phai >= 1%")
-    @Max(value = 100, message = "Ti le dat phai <= 100%")
+    @Min(value = 1, message = "Tỉ lệ đạt phải >= 1%")
+    @Max(value = 100, message = "Tỉ lệ đạt phải <= 100%")
     private Integer passScorePercentage;
 }

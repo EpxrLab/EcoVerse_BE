@@ -27,12 +27,18 @@ public class CreateQuizRequest {
     @NotNull(message = "Loại quiz không được rỗng")
     private QuizType quizType;
 
+    @Min(value = 1, message = "Khối lớp phải >= 1")
+    @Max(value = 5, message = "Khối lớp phải <= 5")
+    private Integer targetGrade;
+
+    @Builder.Default
     @Min(value = 1, message = "Điểm thưởng phải >= 1")
     private Integer pointsReward = 10;
 
     @Min(value = 5, message = "Thời gian mỗi câu phải >= 5 giây")
     private Integer timePerQuestion;
 
+    @Builder.Default
     @Min(value = 1, message = "Tỉ lệ đạt phải >= 1%")
     @Max(value = 100, message = "Tỉ lệ đạt phải <= 100%")
     private Integer passScorePercentage = 70;

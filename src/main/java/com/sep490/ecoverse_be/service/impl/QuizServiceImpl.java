@@ -3,6 +3,7 @@ package com.sep490.ecoverse_be.service.impl;
 import com.sep490.ecoverse_be.dto.request.*;
 import com.sep490.ecoverse_be.dto.response.*;
 import com.sep490.ecoverse_be.entity.*;
+import com.sep490.ecoverse_be.enums.QuizCreated;
 import com.sep490.ecoverse_be.enums.QuizDifficulty;
 import com.sep490.ecoverse_be.enums.QuizSource;
 import com.sep490.ecoverse_be.enums.QuizType;
@@ -36,10 +37,10 @@ import java.util.stream.Collectors;
 public class QuizServiceImpl implements IQuizService {
 
     private static final String[] EXCEL_HEADERS = {
-            "quiz_title", "description", "difficulty", "quiz_type",
+            "quiz_title", "description", "difficulty", "target_grade", "quiz_type",
             "question_order", "question_text",
             "answer_A", "answer_B", "answer_C", "answer_D",
-            "correct_answer", "points_reward", "time_per_question", "pass_score_percentage"
+            "correct_answer", "coins_on_pass", "time_per_question", "pass_score_percentage"
     };
 
     @Autowired
@@ -67,18 +68,28 @@ public class QuizServiceImpl implements IQuizService {
 
     private School resolveSchool(UUID userId) {
         return schoolRepository.findByUserId(userId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin trường học"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin trường học"));
     }
 
     private Partnership resolvePartnership(UUID userId) {
         return partnershipRepository.findByUserId(userId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin tổ chức đối tác"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin tổ chức đối tác"));
     }
 
-
-    private Quiz assertOwnership(UUID quizId, UUID userId) {
-        return quizRepository.findByIdAndCreatedByIdAndIsActiveTrue(quizId, userId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz"));
+    /**
+     * Kiểm tra quyền sở hữu quiz dựa trên school hoặc partnership của user hiện tại.
+     * PARTNERSHIP_SCHOOL -> dùng school_id, còn lại -> dùng partnership_id.
+     */
+    private Quiz assertOwnership(UUID quizId, User user) {
+        if (user.getRole() == Role.PARTNERSHIP_SCHOOL) {
+            School school = resolveSchool(user.getId());
+            return quizRepository.findByIdAndSchoolIdAndIsActiveTrue(quizId, school.getId())
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz"));
+        } else {
+            Partnership partnership = resolvePartnership(user.getId());
+            return quizRepository.findByIdAndPartnershipIdAndIsActiveTrue(quizId, partnership.getId())
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz"));
+        }
     }
 
 
@@ -122,7 +133,9 @@ public class QuizServiceImpl implements IQuizService {
                 .difficulty(quiz.getDifficulty())
                 .quizType(quiz.getQuizType())
                 .source(quiz.getSource())
-                .pointsReward(quiz.getCoinsOnPass())
+                .createdBy(quiz.getCreatedBy())
+                .targetGrade(quiz.getTargetGrade())
+                .coinsOnPass(quiz.getCoinsOnPass())
                 .timePerQuestion(quiz.getTimePerQuestion())
                 .passScorePercentage(quiz.getPassScorePercentage())
                 .isPublished(quiz.isPublished())
@@ -141,7 +154,9 @@ public class QuizServiceImpl implements IQuizService {
                 .difficulty(quiz.getDifficulty())
                 .quizType(quiz.getQuizType())
                 .source(quiz.getSource())
-                .pointsReward(quiz.getCoinsOnPass())
+                .createdBy(quiz.getCreatedBy())
+                .targetGrade(quiz.getTargetGrade())
+                .coinsOnPass(quiz.getCoinsOnPass())
                 .timePerQuestion(quiz.getTimePerQuestion())
                 .passScorePercentage(quiz.getPassScorePercentage())
                 .isPublished(quiz.isPublished())
@@ -152,23 +167,27 @@ public class QuizServiceImpl implements IQuizService {
                 .build();
     }
 
-
+    /**
+     * Build và lưu một Quiz mới.
+     * quizCreated: USER cho tạo thủ công, IMPORT cho import Excel, AI cho AI generate.
+     */
     private Quiz buildAndSaveQuiz(String title, String description, QuizDifficulty difficulty,
-                                   QuizType quizType, Integer pointsReward, Integer timePerQuestion,
-                                   Integer passScorePercentage, User createdBy,
-                                   School school, Partnership partnership) {
+                                   QuizType quizType, Integer targetGrade, Integer pointsReward,
+                                   Integer timePerQuestion, Integer passScorePercentage,
+                                   QuizCreated quizCreated, School school, Partnership partnership) {
         Quiz quiz = new Quiz();
         quiz.setTitle(title);
         quiz.setDescription(description);
         quiz.setDifficulty(difficulty);
         quiz.setQuizType(quizType);
         quiz.setSource(QuizSource.MANUAL);
+        quiz.setTargetGrade(targetGrade);
         quiz.setCoinsOnPass(pointsReward != null ? pointsReward : 10);
         quiz.setTimePerQuestion(timePerQuestion);
         quiz.setPassScorePercentage(passScorePercentage != null ? passScorePercentage : 80);
         quiz.setPublished(false);
         quiz.setActive(true);
-        quiz.setCreatedBy(createdBy);
+        quiz.setCreatedBy(quizCreated);
         quiz.setSchool(school);
         quiz.setPartnership(partnership);
         return quizRepository.save(quiz);
@@ -205,7 +224,7 @@ public class QuizServiceImpl implements IQuizService {
             boolean hasCorrect = q.getAnswers().stream().anyMatch(QuizAnswerRequest::isCorrect);
             if (!hasCorrect) {
                 throw new BadRequestException(
-                        "Câu hỏi thứ tự " + q.getQuestionOrder() + " phải có ít nhất 1 đáp án đúng");
+                        "Câu hỏi thứ tự " + q.getQuestionOrder() + " phải có ít nhất 1 đáp án đúng");
             }
         }
     }
@@ -228,8 +247,9 @@ public class QuizServiceImpl implements IQuizService {
         Quiz quiz = buildAndSaveQuiz(
                 request.getTitle(), request.getDescription(),
                 request.getDifficulty(), request.getQuizType(),
-                request.getPointsReward(), request.getTimePerQuestion(),
-                request.getPassScorePercentage(), currentUser, school, partnership
+                request.getTargetGrade(), request.getPointsReward(),
+                request.getTimePerQuestion(), request.getPassScorePercentage(),
+                QuizCreated.USER, school, partnership
         );
 
         saveQuestionsAndAnswers(quiz, request.getQuestions());
@@ -240,7 +260,15 @@ public class QuizServiceImpl implements IQuizService {
     @Override
     public List<QuizSummaryResponse> getMyQuizzes() {
         User currentUser = getCurrentUser();
-        List<Quiz> quizzes = quizRepository.findByCreatedByIdAndIsActiveTrueOrderByCreatedAtDesc(currentUser.getId());
+        List<Quiz> quizzes;
+
+        if (currentUser.getRole() == Role.PARTNERSHIP_SCHOOL) {
+            School school = resolveSchool(currentUser.getId());
+            quizzes = quizRepository.findBySchoolIdAndIsActiveTrueOrderByCreatedAtDesc(school.getId());
+        } else {
+            Partnership partnership = resolvePartnership(currentUser.getId());
+            quizzes = quizRepository.findByPartnershipIdAndIsActiveTrueOrderByCreatedAtDesc(partnership.getId());
+        }
 
         return quizzes.stream()
                 .map(q -> mapToSummary(q, quizQuestionRepository.countByQuizIdAndIsActiveTrue(q.getId())))
@@ -250,7 +278,7 @@ public class QuizServiceImpl implements IQuizService {
     @Override
     public QuizResponse getQuizById(UUID quizId) {
         User currentUser = getCurrentUser();
-        Quiz quiz = assertOwnership(quizId, currentUser.getId());
+        Quiz quiz = assertOwnership(quizId, currentUser);
         return mapToQuizResponse(quiz);
     }
 
@@ -258,16 +286,17 @@ public class QuizServiceImpl implements IQuizService {
     @Transactional
     public QuizResponse updateQuiz(UUID quizId, UpdateQuizRequest request) {
         User currentUser = getCurrentUser();
-        Quiz quiz = assertOwnership(quizId, currentUser.getId());
+        Quiz quiz = assertOwnership(quizId, currentUser);
 
         if (quiz.isPublished()) {
-            throw new BadRequestException("Không thể sửa quiz đã được publish. Vui lòng unpublish trước.");
+            throw new BadRequestException("Không thể sửa quiz đã được publish. Vui lòng unpublish trước.");
         }
 
         if (request.getTitle() != null) quiz.setTitle(request.getTitle());
         if (request.getDescription() != null) quiz.setDescription(request.getDescription());
         if (request.getDifficulty() != null) quiz.setDifficulty(request.getDifficulty());
         if (request.getQuizType() != null) quiz.setQuizType(request.getQuizType());
+        if (request.getTargetGrade() != null) quiz.setTargetGrade(request.getTargetGrade());
         if (request.getPointsReward() != null) quiz.setCoinsOnPass(request.getPointsReward());
         if (request.getTimePerQuestion() != null) quiz.setTimePerQuestion(request.getTimePerQuestion());
         if (request.getPassScorePercentage() != null) quiz.setPassScorePercentage(request.getPassScorePercentage());
@@ -280,7 +309,7 @@ public class QuizServiceImpl implements IQuizService {
     @Transactional
     public void deleteQuiz(UUID quizId) {
         User currentUser = getCurrentUser();
-        Quiz quiz = assertOwnership(quizId, currentUser.getId());
+        Quiz quiz = assertOwnership(quizId, currentUser);
 
         quiz.setActive(false);
         quiz.setPublished(false);
@@ -298,13 +327,14 @@ public class QuizServiceImpl implements IQuizService {
     @Transactional
     public QuizResponse togglePublish(UUID quizId) {
         User currentUser = getCurrentUser();
-        Quiz quiz = assertOwnership(quizId, currentUser.getId());
+        Quiz quiz = assertOwnership(quizId, currentUser);
 
         if (!quiz.isPublished()) {
             int questionCount = quizQuestionRepository.countByQuizIdAndIsActiveTrue(quiz.getId());
             if (questionCount == 0) {
-                throw new BadRequestException("Quiz phải có ít nhất 1 câu hỏi mới được publish");
+                throw new BadRequestException("Quiz phải có ít nhất 1 câu hỏi mới được publish");
             }
+            quiz.setQuestionCount(questionCount);
         }
 
         quiz.setPublished(!quiz.isPublished());
@@ -316,10 +346,10 @@ public class QuizServiceImpl implements IQuizService {
     @Transactional
     public QuizResponse addQuestions(UUID quizId, List<QuizQuestionRequest> questions) {
         User currentUser = getCurrentUser();
-        Quiz quiz = assertOwnership(quizId, currentUser.getId());
+        Quiz quiz = assertOwnership(quizId, currentUser);
 
         if (quiz.isPublished()) {
-            throw new BadRequestException("Không thể thêm câu hỏi vào quiz đã được publish. Vui lòng unpublish trước.");
+            throw new BadRequestException("Không thể thêm câu hỏi vào quiz đã được publish. Vui lòng unpublish trước.");
         }
 
         Set<Integer> existingOrders = quizQuestionRepository
@@ -331,7 +361,7 @@ public class QuizServiceImpl implements IQuizService {
         for (QuizQuestionRequest q : questions) {
             if (existingOrders.contains(q.getQuestionOrder())) {
                 throw new BadRequestException(
-                        "Thứ tự câu hỏi " + q.getQuestionOrder() + " đã tồn tại trong quiz này");
+                        "Thứ tự câu hỏi " + q.getQuestionOrder() + " đã tồn tại trong quiz này");
             }
         }
 
@@ -343,20 +373,20 @@ public class QuizServiceImpl implements IQuizService {
     @Transactional
     public QuizResponse updateQuestion(UUID quizId, UUID questionId, QuizQuestionRequest request) {
         User currentUser = getCurrentUser();
-        assertOwnership(quizId, currentUser.getId());
+        assertOwnership(quizId, currentUser);
 
         QuizQuestion question = quizQuestionRepository.findByIdAndQuizIdAndIsActiveTrue(questionId, quizId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy câu hỏi trong quiz này"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy câu hỏi trong quiz này"));
 
         boolean orderChanged = question.getQuestionOrder() != request.getQuestionOrder();
         if (orderChanged && quizQuestionRepository.existsByQuizIdAndQuestionOrderAndIsActiveTrue(quizId, request.getQuestionOrder())) {
             throw new BadRequestException(
-                    "Thứ tự câu hỏi " + request.getQuestionOrder() + " đã được sử dụng bởi câu hỏi khác");
+                    "Thứ tự câu hỏi " + request.getQuestionOrder() + " đã được sử dụng bởi câu hỏi khác");
         }
 
         boolean hasCorrect = request.getAnswers().stream().anyMatch(QuizAnswerRequest::isCorrect);
         if (!hasCorrect) {
-            throw new BadRequestException("Câu hỏi phải có ít nhất 1 đáp án đúng");
+            throw new BadRequestException("Câu hỏi phải có ít nhất 1 đáp án đúng");
         }
 
         question.setQuestionOrder(request.getQuestionOrder());
@@ -380,10 +410,10 @@ public class QuizServiceImpl implements IQuizService {
     @Transactional
     public void deleteQuestion(UUID quizId, UUID questionId) {
         User currentUser = getCurrentUser();
-        assertOwnership(quizId, currentUser.getId());
+        assertOwnership(quizId, currentUser);
 
         QuizQuestion question = quizQuestionRepository.findByIdAndQuizIdAndIsActiveTrue(questionId, quizId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy câu hỏi trong quiz này"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy câu hỏi trong quiz này"));
 
         quizAnswerRepository.deleteAllByQuestionId(question.getId());
         quizQuestionRepository.delete(question);
@@ -426,10 +456,11 @@ public class QuizServiceImpl implements IQuizService {
                         firstRow.getDescription(),
                         QuizDifficulty.valueOf(firstRow.getDifficulty().toUpperCase()),
                         QuizType.valueOf(firstRow.getQuizType().toUpperCase()),
-                        parseIntOrDefault(firstRow.getPointsReward(), 10),
+                        parseIntOrNull(firstRow.getTargetGrade()),
+                        parseIntOrDefault(firstRow.getCoinsOnPass(), 10),
                         parseIntOrNull(firstRow.getTimePerQuestion()),
                         parseIntOrDefault(firstRow.getPassScorePercentage(), 80),
-                        currentUser, school, partnership
+                        QuizCreated.IMPORT, school, partnership
                 );
 
                 for (QuizExcelRowDto row : quizRows) {
@@ -446,7 +477,7 @@ public class QuizServiceImpl implements IQuizService {
             } catch (Exception e) {
                 errors.add(ExcelUtil.buildError(
                         quizRows.get(0).getRowNumber(), "general",
-                        "Lỗi tạo quiz '" + quizTitle + "': " + e.getMessage()));
+                        "Lỗi tạo quiz '" + quizTitle + "': " + e.getMessage()));
             }
         }
 
@@ -466,10 +497,10 @@ public class QuizServiceImpl implements IQuizService {
 
         try (InputStream is = file.getInputStream(); Workbook workbook = new XSSFWorkbook(is)) {
             Sheet sheet = workbook.getSheetAt(0);
-            if (sheet == null) throw new BadRequestException("File Excel không có sheet nào");
+            if (sheet == null) throw new BadRequestException("File Excel không có sheet nào");
 
             Row headerRow = sheet.getRow(0);
-            if (headerRow == null) throw new BadRequestException("File Excel không có header row");
+            if (headerRow == null) throw new BadRequestException("File Excel không có header row");
 
             ExcelUtil.validateHeaders(headerRow, EXCEL_HEADERS);
 
@@ -482,27 +513,28 @@ public class QuizServiceImpl implements IQuizService {
                         .quizTitle(ExcelUtil.getCellStringValue(row.getCell(0)))
                         .description(ExcelUtil.getCellStringValue(row.getCell(1)))
                         .difficulty(ExcelUtil.getCellStringValue(row.getCell(2)))
-                        .quizType(ExcelUtil.getCellStringValue(row.getCell(3)))
-                        .questionOrder(ExcelUtil.getCellStringValue(row.getCell(4)))
-                        .questionText(ExcelUtil.getCellStringValue(row.getCell(5)))
-                        .answerA(ExcelUtil.getCellStringValue(row.getCell(6)))
-                        .answerB(ExcelUtil.getCellStringValue(row.getCell(7)))
-                        .answerC(ExcelUtil.getCellStringValue(row.getCell(8)))
-                        .answerD(ExcelUtil.getCellStringValue(row.getCell(9)))
-                        .correctAnswer(ExcelUtil.getCellStringValue(row.getCell(10)))
-                        .pointsReward(ExcelUtil.getCellStringValue(row.getCell(11)))
-                        .timePerQuestion(ExcelUtil.getCellStringValue(row.getCell(12)))
-                        .passScorePercentage(ExcelUtil.getCellStringValue(row.getCell(13)))
+                        .targetGrade(ExcelUtil.getCellStringValue(row.getCell(3)))
+                        .quizType(ExcelUtil.getCellStringValue(row.getCell(4)))
+                        .questionOrder(ExcelUtil.getCellStringValue(row.getCell(5)))
+                        .questionText(ExcelUtil.getCellStringValue(row.getCell(6)))
+                        .answerA(ExcelUtil.getCellStringValue(row.getCell(7)))
+                        .answerB(ExcelUtil.getCellStringValue(row.getCell(8)))
+                        .answerC(ExcelUtil.getCellStringValue(row.getCell(9)))
+                        .answerD(ExcelUtil.getCellStringValue(row.getCell(10)))
+                        .correctAnswer(ExcelUtil.getCellStringValue(row.getCell(11)))
+                        .coinsOnPass(ExcelUtil.getCellStringValue(row.getCell(12)))
+                        .timePerQuestion(ExcelUtil.getCellStringValue(row.getCell(13)))
+                        .passScorePercentage(ExcelUtil.getCellStringValue(row.getCell(14)))
                         .build();
                 rows.add(dto);
             }
         } catch (BadRequestException e) {
             throw e;
         } catch (Exception e) {
-            throw new BadRequestException("Lỗi đọc file Excel: " + e.getMessage());
+            throw new BadRequestException("Lỗi đọc file Excel: " + e.getMessage());
         }
 
-        if (rows.isEmpty()) throw new BadRequestException("File Excel không có dữ liệu");
+        if (rows.isEmpty()) throw new BadRequestException("File Excel không có dữ liệu");
         return rows;
     }
 
@@ -527,6 +559,16 @@ public class QuizServiceImpl implements IQuizService {
         if (!isValidEnum(QuizDifficulty.class, firstRowDto.getDifficulty())) {
             errors.add(ExcelUtil.buildError(firstRow, "difficulty",
                     "Độ khó không hợp lệ: " + firstRowDto.getDifficulty() + ". Phải là EASY, MEDIUM hoặc HARD"));
+        }
+        if (!ExcelUtil.isBlank(firstRowDto.getTargetGrade())) {
+            try {
+                int grade = Integer.parseInt(firstRowDto.getTargetGrade().trim());
+                if (grade < 1 || grade > 12) {
+                    errors.add(ExcelUtil.buildError(firstRow, "target_grade", "Khối lớp phải từ 1 đến 12"));
+                }
+            } catch (NumberFormatException e) {
+                errors.add(ExcelUtil.buildError(firstRow, "target_grade", "Khối lớp phải là số nguyên"));
+            }
         }
         if (!isValidEnum(QuizType.class, firstRowDto.getQuizType())) {
             errors.add(ExcelUtil.buildError(firstRow, "quiz_type",

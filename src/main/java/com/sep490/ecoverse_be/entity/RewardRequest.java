@@ -58,6 +58,8 @@ public class RewardRequest extends BaseEntity {
 
     private LocalDateTime approvedAt;
 
+    private LocalDateTime rejectedAt;
+
     private LocalDateTime deliveredAt;
 
     private LocalDateTime confirmedAt;
