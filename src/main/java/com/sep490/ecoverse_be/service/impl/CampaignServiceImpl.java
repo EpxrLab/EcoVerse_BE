@@ -585,8 +585,16 @@ public class CampaignServiceImpl implements ICampaignService {
         User user = getCurrentUser();
         CampaignRound round = campaignRoundRepository.findById(roundId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy round"));
-        Quiz quiz = quizRepository.findByIdAndCreatedByIdAndIsActiveTrue(request.getQuizId(), user.getId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz thuộc quyền sở hữu"));
+        Quiz quiz;
+        if (user.getRole() == Role.PARTNERSHIP_SCHOOL) {
+            School school = getCurrentSchool();
+            quiz = quizRepository.findByIdAndSchoolIdAndIsActiveTrue(request.getQuizId(), school.getId())
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz thuộc quyền sở hữu"));
+        } else {
+            Partnership partnership = getCurrentPartnership();
+            quiz = quizRepository.findByIdAndPartnershipIdAndIsActiveTrue(request.getQuizId(), partnership.getId())
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz thuộc quyền sở hữu"));
+        }
         round.setQuiz(quiz);
         campaignRoundRepository.save(round);
     }

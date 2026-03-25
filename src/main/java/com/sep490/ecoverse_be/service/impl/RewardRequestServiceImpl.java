@@ -78,6 +78,7 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
                 .notes(r.getNotes())
                 .approvedBy(r.getApprovedBy() != null ? r.getApprovedBy().getId() : null)
                 .approvedAt(r.getApprovedAt())
+                .rejectedAt(r.getRejectedAt())
                 .deliveredAt(r.getDeliveredAt())
                 .confirmedAt(r.getConfirmedAt())
                 .cancelledAt(r.getCancelledAt())
@@ -88,7 +89,7 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
 
     private void deductCoins(Student student, BigDecimal amount, UUID referenceId, String description, User creator) {
         if (student.getTotalCoins().compareTo(amount) < 0) {
-            throw new BadRequestException("Số dư coin không đủ. Cần " + amount + ", hiện có " + student.getTotalCoins());
+            throw new BadRequestException("Số dư coin không đủ. Cần " + amount + ", hiện có " + student.getTotalCoins());
         }
 
         BigDecimal before = student.getTotalCoins();
@@ -135,7 +136,7 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
 
         int current = reward.getStockQuantity() != null ? reward.getStockQuantity() : 0;
         if (current < quantity) {
-            throw new BadRequestException("Quà '" + reward.getRewardName() + "' đã hết hàng (còn lại: " + current + ")");
+            throw new BadRequestException("Quà '" + reward.getRewardName() + "' đã hết hàng (còn lại: " + current + ")");
         }
         reward.setStockQuantity(current - quantity);
         rewardRepository.save(reward);
@@ -159,28 +160,28 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
 
         if (currentUser.getRole() == Role.STUDENT) {
             student = studentRepository.findByUserId(currentUser.getId())
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy học sinh"));
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy học sinh"));
         } else {
             requestingParent = parentRepository.findByUserId(currentUser.getId())
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy phụ huynh"));
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy phụ huynh"));
 
             if (dto.getStudentId() == null) {
-                throw new BadRequestException("Phụ huynh phải chỉ định studentId của con");
+                throw new BadRequestException("Phụ huynh phải chỉ định studentId của con");
             }
 
             Student targetStudent = studentRepository.findById(dto.getStudentId())
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy học sinh"));
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy học sinh"));
 
             boolean isLinked = studentParentLinkRepository
                     .existsByStudentIdAndParentId(targetStudent.getId(), requestingParent.getId());
             if (!isLinked) {
-                throw new BadRequestException("Học sinh này không phải con bạn");
+                throw new BadRequestException("Học sinh này không phải con bạn");
             }
             student = targetStudent;
         }
 
         Reward reward = rewardRepository.findByIdAndSchoolIdAndIsActiveTrue(dto.getRewardId(), student.getSchool().getId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy quà"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy quà"));
 
         reserveStock(reward, dto.getQuantity());
 
@@ -201,7 +202,7 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
         saved = rewardRequestRepository.save(saved);
 
         deductCoins(student, totalCost, saved.getId(),
-                "Đổi quà: " + reward.getRewardName() + " (x" + dto.getQuantity() + ") - " + saved.getRequestCode(), currentUser);
+                "Đổi quà: " + reward.getRewardName() + " (x" + dto.getQuantity() + ") - " + saved.getRequestCode(), currentUser);
 
         return mapToResponse(saved);
     }
@@ -212,13 +213,12 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
 
         if (currentUser.getRole() == Role.STUDENT) {
             Student student = studentRepository.findByUserId(currentUser.getId())
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy học sinh"));
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy học sinh"));
             return rewardRequestRepository.findByStudentIdOrderByCreatedAtDesc(student.getId())
                     .stream().map(this::mapToResponse).collect(Collectors.toList());
         } else {
-            // PARENT - tra ve request cua tat ca con
             Parent parent = parentRepository.findByUserId(currentUser.getId())
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy phụ huynh"));
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy phụ huynh"));
 
             return studentParentLinkRepository.findByParentId(parent.getId()).stream()
                     .flatMap(link -> rewardRequestRepository
@@ -236,32 +236,32 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
 
         if (currentUser.getRole() == Role.STUDENT) {
             Student student = studentRepository.findByUserId(currentUser.getId())
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy học sinh"));
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy học sinh"));
             request = rewardRequestRepository.findByIdAndStudentId(requestId, student.getId())
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu đổi quà"));
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu đổi quà"));
         } else {
             Parent parent = parentRepository.findByUserId(currentUser.getId())
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy phụ huynh"));
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy phụ huynh"));
             request = studentParentLinkRepository.findByParentId(parent.getId()).stream()
                     .flatMap(link -> rewardRequestRepository
                             .findByIdAndStudentId(requestId, link.getStudent().getId()).stream())
                     .findFirst()
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu đổi quà"));
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu đổi quà"));
         }
 
         if (request.getStatus() != RewardRequestStatus.PENDING) {
             throw new BadRequestException(
-                    "CHỉ có thể hủy khi status là PENDING. Status hiện tại: " + request.getStatus());
+                    "Chỉ có thể hủy khi status là PENDING. Status hiện tại: " + request.getStatus());
         }
 
         request.setStatus(RewardRequestStatus.CANCELLED);
         request.setCancelledAt(LocalDateTime.now());
-        request.setUpdatedAt(LocalDateTime.now());
         request.setCancelledReason(dto.getReason());
+        request.setUpdatedAt(LocalDateTime.now());
         rewardRequestRepository.save(request);
 
         refundCoins(request.getStudent(), request.getTotalCoins(), request.getId(),
-                "Hoàn coin hủy đổi quà: " + request.getReward().getRewardName() + " - " + request.getRequestCode(), currentUser);
+                "Hoàn coin hủy đổi quà: " + request.getReward().getRewardName() + " - " + request.getRequestCode(), currentUser);
 
         releaseStock(request.getReward(), request.getQuantity());
 
@@ -273,7 +273,7 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
     public List<RewardRequestResponse> getSchoolRequests(RewardRequestStatus status) {
         User currentUser = getCurrentUser();
         School school = schoolRepository.findByUserId(currentUser.getId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thây trường học"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
 
         List<RewardRequest> requests = status != null
                 ? rewardRequestRepository.findBySchoolIdAndStatusOrderByCreatedAtDesc(school.getId(), status)
@@ -288,31 +288,33 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
     public RewardRequestResponse approveOrRejectRequest(UUID requestId, RejectRewardRequestDto dto) {
         User currentUser = getCurrentUser();
         School school = schoolRepository.findByUserId(currentUser.getId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
 
         RewardRequest request = rewardRequestRepository.findByIdAndSchoolId(requestId, school.getId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu đổi quà"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu đổi quà"));
 
         if (request.getStatus() != RewardRequestStatus.PENDING) {
             throw new BadRequestException(
-                    "Chỉ có thể duyệt khi status là PENDING. Status hiện tại: " + request.getStatus());
+                    "Chỉ có thể duyệt khi status là PENDING. Status hiện tại: " + request.getStatus());
         }
 
-        if(dto.isApproved()){
+        if (dto.isApproved()) {
             request.setStatus(RewardRequestStatus.APPROVED);
-        }else{
+            request.setApprovedAt(LocalDateTime.now());
+            request.setUpdatedAt(LocalDateTime.now());
+        } else {
             request.setStatus(RewardRequestStatus.REJECTED);
             request.setRejectedReason(dto.getReason());
+            request.setRejectedAt(LocalDateTime.now());
+            request.setUpdatedAt(LocalDateTime.now());
 
             refundCoins(request.getStudent(), request.getTotalCoins(), request.getId(),
-                    "Hoàn coin do bị từ chối đổi quà: " + request.getReward().getRewardName() + " - " + request.getRequestCode(), currentUser);
+                    "Hoàn coin do bị từ chối đổi quà: " + request.getReward().getRewardName() + " - " + request.getRequestCode(), currentUser);
 
             releaseStock(request.getReward(), request.getQuantity());
         }
 
         request.setApprovedBy(currentUser);
-        request.setApprovedAt(LocalDateTime.now());
-        request.setUpdatedAt(LocalDateTime.now());
         rewardRequestRepository.save(request);
 
         return mapToResponse(request);
@@ -323,14 +325,14 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
     public RewardRequestResponse markDelivered(UUID requestId) {
         User currentUser = getCurrentUser();
         School school = schoolRepository.findByUserId(currentUser.getId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
 
         RewardRequest request = rewardRequestRepository.findByIdAndSchoolId(requestId, school.getId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu đổi quà"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu đổi quà"));
 
         if (request.getStatus() != RewardRequestStatus.APPROVED) {
             throw new BadRequestException(
-                    "Chỉ có thể xác nhận giao khi status là APPROVED. Status hiện tại: " + request.getStatus());
+                    "Chỉ có thể xác nhận giao khi status là APPROVED. Status hiện tại: " + request.getStatus());
         }
 
         request.setStatus(RewardRequestStatus.DELIVERED);
@@ -346,17 +348,17 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
     public RewardRequestResponse confirmReceived(UUID requestId) {
         User currentUser = getCurrentUser();
         Parent parent = parentRepository.findByUserId(currentUser.getId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy phụ huynh"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy phụ huynh"));
 
         RewardRequest request = studentParentLinkRepository.findByParentId(parent.getId()).stream()
                 .flatMap(link -> rewardRequestRepository
                         .findByIdAndStudentId(requestId, link.getStudent().getId()).stream())
                 .findFirst()
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu đổi quà"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu đổi quà"));
 
         if (request.getStatus() != RewardRequestStatus.DELIVERED) {
             throw new BadRequestException(
-                    "Chỉ có thể xác nhận quà khi status là DELIVERED. Status hiện tại: " + request.getStatus());
+                    "Chỉ có thể xác nhận quà khi status là DELIVERED. Status hiện tại: " + request.getStatus());
         }
 
         request.setStatus(RewardRequestStatus.CONFIRMED);

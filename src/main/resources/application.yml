@@ -10,7 +10,7 @@ spring:
 #    username: ${POSTGRES_USERNAME:postgres}
 #    password: ${POSTGRES_PASSWORD:postgres}
     url: ${POSTGRES_URL:jdbc:postgresql://localhost:5433/eco_verse_db}
-    username: ${POSTGRES_USERNAME:root}
+    username: ${POSTGRES_USERNAME:postgres}
     password: ${POSTGRES_PASSWORD:StrongP@ssword123}
     driver-class-name: org.postgresql.Driver
   jpa:

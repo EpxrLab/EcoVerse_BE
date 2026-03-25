@@ -65,6 +65,8 @@ public interface IAdminService {
 
     void deleteWasteSubCategory(UUID id);
 
+    List<AdminWasteSubCategoryResponse> getWasteSubCategories();
+
     AdminWasteItemResponse createWasteItem(AdminWasteItemUpsertRequest request);
 
     AdminWasteItemResponse updateWasteItem(UUID id, AdminWasteItemUpsertRequest request);

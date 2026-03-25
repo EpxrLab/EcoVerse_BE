@@ -10,4 +10,5 @@ import lombok.*;
 public class StorageResponse {
     private String publicId;
     private String url;
+    private String presignedUrl;
 }
