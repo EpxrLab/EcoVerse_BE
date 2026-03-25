@@ -1,5 +1,6 @@
 package com.sep490.ecoverse_be.entity;
 
+import com.sep490.ecoverse_be.enums.QuizCreated;
 import com.sep490.ecoverse_be.enums.QuizDifficulty;
 import com.sep490.ecoverse_be.enums.QuizSource;
 import com.sep490.ecoverse_be.enums.QuizType;
@@ -130,9 +131,9 @@ public class Quiz extends BaseEntity {
     @Column(nullable = false)
     private boolean isActive = true;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by")
-    private User createdBy;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private QuizCreated createdBy;
 
     // ── Inverse ───────────────────────────────────────────────────────────────
 

@@ -115,7 +115,7 @@ public class DataInitializer implements CommandLineRunner {
 
         User admin = new User();
         admin.setEmail(adminEmail);
-        admin.setUsername("admin_system");
+        admin.setUsername(null);
         admin.setPasswordHash(passwordEncoder.encode(DEFAULT_PASSWORD));
         admin.setRole(Role.ADMINISTRATOR);
         admin.setStatus(AccountStatus.ACTIVE);
@@ -135,7 +135,7 @@ public class DataInitializer implements CommandLineRunner {
 
         User schoolUser = new User();
         schoolUser.setEmail(schoolEmail);
-        schoolUser.setUsername("school_system");
+        schoolUser.setUsername(null);
         schoolUser.setPasswordHash(passwordEncoder.encode(DEFAULT_PASSWORD));
         schoolUser.setRole(Role.PARTNERSHIP_SCHOOL);
         schoolUser.setStatus(AccountStatus.ACTIVE);
@@ -169,7 +169,7 @@ public class DataInitializer implements CommandLineRunner {
 
         User partnerUser = new User();
         partnerUser.setEmail(partnerEmail);
-        partnerUser.setUsername("partnership_system");
+        partnerUser.setUsername(null);
         partnerUser.setPasswordHash(passwordEncoder.encode(DEFAULT_PASSWORD));
         partnerUser.setRole(Role.THIRD_PARTY_PARTNERSHIP);
         partnerUser.setStatus(AccountStatus.ACTIVE);
@@ -194,6 +194,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private void initParentAccount() {
         String parentEmail = "parent@ecoverse.com";
+        String parentUsername = "0901922117";
 
         if (userRepository.existsByEmail(parentEmail)) {
             log.info("Parent account already exists, skipping initialization.");
@@ -202,7 +203,7 @@ public class DataInitializer implements CommandLineRunner {
 
         User parentUser = new User();
         parentUser.setEmail(parentEmail);
-        parentUser.setUsername("parent_system");
+        parentUser.setUsername(parentUsername);
         parentUser.setPasswordHash(passwordEncoder.encode(DEFAULT_PASSWORD));
         parentUser.setRole(Role.PARENT);
         parentUser.setStatus(AccountStatus.ACTIVE);
@@ -220,9 +221,9 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void initStudentAccount() {
-        String studentEmail = "student@ecoverse.com";
+        String userName = "LVD";
 
-        if (userRepository.existsByEmail(studentEmail)) {
+        if (userRepository.existsByUsername(userName)) {
             log.info("Student account already exists, skipping initialization.");
             return;
         }
@@ -241,8 +242,7 @@ public class DataInitializer implements CommandLineRunner {
         }
 
         User studentUser = new User();
-        studentUser.setEmail(studentEmail);
-        studentUser.setUsername("student_system");
+        studentUser.setUsername(userName);
         studentUser.setPasswordHash(passwordEncoder.encode(DEFAULT_PASSWORD));
         studentUser.setRole(Role.STUDENT);
         studentUser.setStatus(AccountStatus.ACTIVE);
@@ -252,17 +252,17 @@ public class DataInitializer implements CommandLineRunner {
         Student student = new Student();
         student.setUser(studentUser);
         student.setSchool(school);
-        student.setStudentCode("SV000001");
+        student.setStudentCode(userName);
         student.setFullName("Le Van D");
         student.setDateOfBirth(LocalDate.of(2005, 1, 15));
         student.setGender(Gender.MALE);
-        student.setGradeLevel("10");
-        student.setClassName("10A1");
+        student.setGradeLevel("5");
+        student.setClassName("5A1");
         student.setTotalCoins(BigDecimal.ZERO);
         student.setIsFirstLogin(false);
         studentRepository.save(student);
 
-        log.info("Student account created: {}", studentEmail);
+        log.info("Student account created: {}", userName);
     }
 
     private void assignFreeSubscriptionToSchoolIfMissing(School school, User schoolUser) {

@@ -13,6 +13,7 @@ public class QuizExcelRowDto {
     private String quizTitle;
     private String description;
     private String difficulty;
+    private String targetGrade;
     private String quizType;
     private String questionOrder;
     private String questionText;
@@ -21,7 +22,7 @@ public class QuizExcelRowDto {
     private String answerC;
     private String answerD;
     private String correctAnswer;
-    private String pointsReward;
+    private String coinsOnPass;
     private String timePerQuestion;
     private String passScorePercentage;
 }
