@@ -38,6 +38,7 @@ public class RewardRequestResponse {
 
     private UUID approvedBy;
     private LocalDateTime approvedAt;
+    private LocalDateTime rejectedAt;
     private LocalDateTime deliveredAt;
     private LocalDateTime confirmedAt;
     private LocalDateTime cancelledAt;

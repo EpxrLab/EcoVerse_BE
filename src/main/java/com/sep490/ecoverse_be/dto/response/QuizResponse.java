@@ -1,5 +1,6 @@
 package com.sep490.ecoverse_be.dto.response;
 
+import com.sep490.ecoverse_be.enums.QuizCreated;
 import com.sep490.ecoverse_be.enums.QuizDifficulty;
 import com.sep490.ecoverse_be.enums.QuizSource;
 import com.sep490.ecoverse_be.enums.QuizType;
@@ -22,7 +23,9 @@ public class QuizResponse {
     private QuizDifficulty difficulty;
     private QuizType quizType;
     private QuizSource source;
-    private Integer pointsReward;
+    private QuizCreated createdBy;
+    private Integer targetGrade;
+    private Integer coinsOnPass;
     private Integer timePerQuestion;
     private Integer passScorePercentage;
     private boolean isPublished;

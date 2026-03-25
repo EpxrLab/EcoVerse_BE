@@ -425,6 +425,11 @@ public class AdminController {
         return ResponseEntity.ok(ResponseDto.success(null, "Xóa waste sub-category thành công"));
     }
 
+    @GetMapping("/waste-sub-categories")
+    public ResponseEntity<ResponseDto<List<AdminWasteSubCategoryResponse>>> getWasteSubCategories() {
+        return ResponseEntity.ok(ResponseDto.success(adminService.getWasteSubCategories(), "Lấy danh sách waste sub-category thành công"));
+    }
+
     @PostMapping("/waste-items")
     public ResponseEntity<ResponseDto<AdminWasteItemResponse>> createWasteItem(
             @Valid @RequestBody AdminWasteItemUpsertRequest request) {

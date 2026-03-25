@@ -9,7 +9,13 @@ import java.util.UUID;
 
 public interface QuizRepository extends JpaRepository<Quiz, UUID> {
 
-    List<Quiz> findByCreatedByIdAndIsActiveTrueOrderByCreatedAtDesc(UUID createdById);
+    // School-owned quizzes
+    List<Quiz> findBySchoolIdAndIsActiveTrueOrderByCreatedAtDesc(UUID schoolId);
 
-    Optional<Quiz> findByIdAndCreatedByIdAndIsActiveTrue(UUID id, UUID createdById);
+    Optional<Quiz> findByIdAndSchoolIdAndIsActiveTrue(UUID id, UUID schoolId);
+
+    // Partnership-owned quizzes
+    List<Quiz> findByPartnershipIdAndIsActiveTrueOrderByCreatedAtDesc(UUID partnershipId);
+
+    Optional<Quiz> findByIdAndPartnershipIdAndIsActiveTrue(UUID id, UUID partnershipId);
 }
