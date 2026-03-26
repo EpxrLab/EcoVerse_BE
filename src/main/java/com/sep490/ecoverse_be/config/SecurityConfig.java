@@ -66,7 +66,9 @@ public class SecurityConfig {
         config.setAllowedOriginPatterns(List.of(
                 "http://localhost:5173",
                 "http://localhost:8081",
-                "https://ecoverse-system.io.vn"
+                "https://api.ecoverse-system.io.vn",
+                "https://ecoverse-system.io.vn",
+                "https://www.ecoverse-system.io.vn"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
