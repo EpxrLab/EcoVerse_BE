@@ -65,7 +65,9 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOriginPatterns(List.of(
                 "http://localhost:5173",
+                "http://localhost:8081",
                 "https://api.ecoverse-system.io.vn",
+                "https://www.api.ecoverse-system.io.vn",
                 "https://ecoverse-system.io.vn",
                 "https://www.ecoverse-system.io.vn"
         ));
