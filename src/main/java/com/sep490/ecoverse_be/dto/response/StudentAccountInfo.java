@@ -4,6 +4,7 @@ import com.sep490.ecoverse_be.enums.AccountStatus;
 import com.sep490.ecoverse_be.enums.Gender;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -24,5 +25,6 @@ public class StudentAccountInfo {
     private LocalDate dob;
     private Gender gender;
     private Boolean active;
+    private BigDecimal totalCoin;
     private AccountStatus accountStatus;
 }
