@@ -212,8 +212,7 @@ public class AdminServiceImpl implements IAdminService {
     @Override
     @Transactional
     public AdminGameTypeResponse updateGameType(UUID id, AdminGameTypeUpsertRequest request) {
-        GameType gameType = gameTypeRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy game type"));
+        GameType gameType = getActiveGameTypeOrThrow(id);
 
         if (!gameType.getTypeCode().equals(request.getTypeCode()) && gameTypeRepository.existsByTypeCode(request.getTypeCode())) {
             throw new BadRequestException("Game type code đã tồn tại");
@@ -249,8 +248,7 @@ public class AdminServiceImpl implements IAdminService {
     @Override
     @Transactional
     public void deleteGameType(UUID id) {
-        GameType gameType = gameTypeRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy game type"));
+        GameType gameType = getActiveGameTypeOrThrow(id);
         gameType.setActive(false);
         gameType.setUpdatedBy(getCurrentAdmin());
         gameTypeRepository.save(gameType);
@@ -258,21 +256,19 @@ public class AdminServiceImpl implements IAdminService {
 
     @Override
     public List<AdminGameTypeResponse> getGameTypes() {
-        return gameTypeRepository.findAll().stream().map(this::mapGameType).toList();
+        return gameTypeRepository.findByIsActiveTrue().stream().map(this::mapGameType).toList();
     }
 
     @Override
     public AdminGameTypeResponse getGameTypeById(UUID id) {
-        GameType gameType = gameTypeRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy game type"));
+        GameType gameType = getActiveGameTypeOrThrow(id);
         return mapGameType(gameType);
     }
 
     @Override
     @Transactional
     public AdminGameTypeResponse mapGameTypeWasteCategories(UUID id, MapGameTypeWasteCategoriesRequest request) {
-        GameType gameType = gameTypeRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy game type"));
+        GameType gameType = getActiveGameTypeOrThrow(id);
         List<WasteSubCategory> mapped = wasteSubCategoryRepository.findByCategoryInAndIsActiveTrue(request.getWasteCategories());
         gameType.setSupportedSubCategories(mapped);
         gameType.setUpdatedBy(getCurrentAdmin());
@@ -300,8 +296,7 @@ public class AdminServiceImpl implements IAdminService {
     @Override
     @Transactional
     public AdminWasteSubCategoryResponse updateWasteSubCategory(UUID id, AdminWasteSubCategoryUpsertRequest request) {
-        WasteSubCategory subCategory = wasteSubCategoryRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy waste sub-category"));
+        WasteSubCategory subCategory = getActiveWasteSubCategoryOrThrow(id);
         if (wasteSubCategoryRepository.existsByCategoryAndSubCategoryCodeAndIdNot(request.getCategory(), request.getSubCategoryCode(), id)) {
             throw new BadRequestException("Sub category code đã tồn tại trong category");
         }
@@ -322,17 +317,20 @@ public class AdminServiceImpl implements IAdminService {
     @Override
     @Transactional
     public void deleteWasteSubCategory(UUID id) {
-        WasteSubCategory subCategory = wasteSubCategoryRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy waste sub-category"));
+        WasteSubCategory subCategory = getActiveWasteSubCategoryOrThrow(id);
         subCategory.setActive(false);
         wasteSubCategoryRepository.save(subCategory);
     }
 
     @Override
+    public List<AdminWasteSubCategoryResponse> getWasteSubCategories() {
+        return wasteSubCategoryRepository.findByIsActiveTrue().stream().map(this::mapWasteSubCategory).toList();
+    }
+
+    @Override
     @Transactional
     public AdminWasteItemResponse createWasteItem(AdminWasteItemUpsertRequest request) {
-        WasteSubCategory subCategory = wasteSubCategoryRepository.findById(request.getSubCategoryId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy waste sub-category"));
+        WasteSubCategory subCategory = getActiveWasteSubCategoryOrThrow(request.getSubCategoryId());
         if (wasteItemRepository.existsByItemNameIgnoreCaseAndSubCategoryId(request.getItemName(), request.getSubCategoryId())) {
             throw new BadRequestException("Waste item đã tồn tại trong sub-category");
         }
@@ -353,10 +351,8 @@ public class AdminServiceImpl implements IAdminService {
     @Override
     @Transactional
     public AdminWasteItemResponse updateWasteItem(UUID id, AdminWasteItemUpsertRequest request) {
-        WasteItem wasteItem = wasteItemRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy waste item"));
-        WasteSubCategory subCategory = wasteSubCategoryRepository.findById(request.getSubCategoryId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy waste sub-category"));
+        WasteItem wasteItem = getActiveWasteItemOrThrow(id);
+        WasteSubCategory subCategory = getActiveWasteSubCategoryOrThrow(request.getSubCategoryId());
         if (wasteItemRepository.existsByItemNameIgnoreCaseAndSubCategoryIdAndIdNot(request.getItemName(), request.getSubCategoryId(), id)) {
             throw new BadRequestException("Waste item đã tồn tại trong sub-category");
         }
@@ -377,21 +373,19 @@ public class AdminServiceImpl implements IAdminService {
     @Override
     @Transactional
     public void deleteWasteItem(UUID id) {
-        WasteItem wasteItem = wasteItemRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy waste item"));
+        WasteItem wasteItem = getActiveWasteItemOrThrow(id);
         wasteItem.setActive(false);
         wasteItemRepository.save(wasteItem);
     }
 
     @Override
     public List<AdminWasteItemResponse> getWasteItems() {
-        return wasteItemRepository.findAll().stream().map(this::mapWasteItem).toList();
+        return wasteItemRepository.findByIsActiveTrue().stream().map(this::mapWasteItem).toList();
     }
 
     @Override
     public AdminWasteItemResponse getWasteItemById(UUID id) {
-        WasteItem wasteItem = wasteItemRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy waste item"));
+        WasteItem wasteItem = getActiveWasteItemOrThrow(id);
         return mapWasteItem(wasteItem);
     }
 
@@ -910,6 +904,21 @@ public class AdminServiceImpl implements IAdminService {
                 .recyclingTips(wasteItem.getRecyclingTips())
                 .isActive(wasteItem.isActive())
                 .build();
+    }
+
+    private GameType getActiveGameTypeOrThrow(UUID id) {
+        return gameTypeRepository.findByIdAndIsActiveTrue(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy game type"));
+    }
+
+    private WasteSubCategory getActiveWasteSubCategoryOrThrow(UUID id) {
+        return wasteSubCategoryRepository.findByIdAndIsActiveTrue(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy waste sub-category"));
+    }
+
+    private WasteItem getActiveWasteItemOrThrow(UUID id) {
+        return wasteItemRepository.findByIdAndIsActiveTrue(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy waste item"));
     }
 
     private void assignFreeSubscription(String planCode, SubscriberType subscriberType,

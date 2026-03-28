@@ -31,6 +31,7 @@ public class FileServiceImpl implements IFileService {
     private final UserRepository userRepository;
     private final IStorageService storageService;
     private final FileMapper fileMapper;
+    private final S3PresignedUrlService s3PresignedUrlService;
 
     @Override
     @Transactional
@@ -38,6 +39,7 @@ public class FileServiceImpl implements IFileService {
         FileUpLoadUtil.assertAllowed(file, FileUpLoadUtil.IMAGE_PATTERN);
         String fileName = FileUpLoadUtil.getFileName(file.getOriginalFilename());
         StorageResponse response = storageService.uploadImageFile(file, fileName);
+        enrichPresignedUrl(response);
         saveFileEntity(file, response, userId, FileCategory.IMAGE);
         return response;
     }
@@ -48,6 +50,7 @@ public class FileServiceImpl implements IFileService {
         FileUpLoadUtil.assertModelAllowed(file);
         String fileName = FileUpLoadUtil.getFileName(file.getOriginalFilename());
         StorageResponse response = storageService.uploadModelFile(file, fileName);
+        enrichPresignedUrl(response);
         saveFileEntity(file, response, userId, FileCategory.MODEL);
         return response;
     }
@@ -58,6 +61,7 @@ public class FileServiceImpl implements IFileService {
         FileUpLoadUtil.assertContractAllowed(file);
         String fileName = FileUpLoadUtil.getFileName(file.getOriginalFilename());
         StorageResponse response = storageService.uploadContractFile(file, fileName);
+        enrichPresignedUrl(response);
         saveFileEntity(file, response, null, FileCategory.CONTRACT);
         return response;
     }
@@ -68,8 +72,13 @@ public class FileServiceImpl implements IFileService {
         FileUpLoadUtil.assertDocumentAllowed(file);
         String fileName = FileUpLoadUtil.getFileName(file.getOriginalFilename());
         StorageResponse response = storageService.uploadDocumentFile(file, fileName);
+        enrichPresignedUrl(response);
         saveFileEntity(file, response, userId, FileCategory.DOCUMENT);
         return response;
+    }
+
+    private void enrichPresignedUrl(StorageResponse response) {
+        response.setPresignedUrl(s3PresignedUrlService.generatePresignedUrl(response.getPublicId()));
     }
 
     private void saveFileEntity(MultipartFile file, StorageResponse response,
