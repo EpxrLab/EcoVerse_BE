@@ -42,7 +42,7 @@ public class CampaignParticipant extends BaseEntity {
     private LocalDateTime enrollmentDate;
 
     @Enumerated(EnumType.STRING)
-    private ParticipationStatus parentApprovalStatus = ParticipationStatus.PENDING_PARENT_APPROVAL;
+        private ParticipationStatus parentApprovalStatus = ParticipationStatus.PENDING_PARENT_APPROVAL;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_approved_by")

@@ -13,6 +13,7 @@ public interface ICampaignService {
     CampaignDetailResponse updateSchoolCampaign(UUID campaignId, SchoolCampaignUpsertRequest request);
     CampaignDetailResponse activateSchoolCampaign(UUID campaignId);
     CampaignDetailResponse setSchoolCampaignDraft(UUID campaignId);
+    void inviteStudentsToSchoolCampaign(UUID campaignId, AssignStudentsRequest request);
     CampaignDetailResponse extendInviting(UUID campaignId, ExtendInvitingRequest request);
     CampaignDetailResponse cancelSchoolCampaign(UUID campaignId);
 

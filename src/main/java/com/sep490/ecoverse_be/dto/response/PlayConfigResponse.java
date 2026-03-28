@@ -14,8 +14,8 @@ public record PlayConfigResponse(
         String gameTypeName,
         QuizDifficulty resolvedDifficulty,
         Integer coinPerSession,
-        UUID quizId,
+        // Danh sach quiz IDs cua round (co the co nhieu quiz)
+        List<UUID> quizIds,
         List<UUID> selectedSubCategoryIds
 ) {
 }
-
