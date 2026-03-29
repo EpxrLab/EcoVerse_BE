@@ -22,4 +22,3 @@ public record CampaignRoundInfoResponse(
         Map<String, List<UUID>> presetSubCategoryConfig
 ) {
 }
-

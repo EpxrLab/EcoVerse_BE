@@ -21,4 +21,3 @@ public record PlayConfigResponse(
         Map<String, List<UUID>> presetSubCategoryConfig
 ) {
 }
-

@@ -57,6 +57,8 @@ public class CampaignServiceImpl implements ICampaignService {
     private WasteSubCategoryRepository wasteSubCategoryRepository;
     @Autowired
     private DefaultCoinConfigRepository defaultCoinConfigRepository;
+    @Autowired
+    private CampaignRoundQuizRepository campaignRoundQuizRepository;
 
     private User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -290,13 +292,28 @@ public class CampaignServiceImpl implements ICampaignService {
     @Override
     @Transactional
     public CampaignDetailResponse activateSchoolCampaign(UUID campaignId) {
-        Campaign campaign = getSchoolCampaignOwned(campaignId, getCurrentSchool().getId());
+        School school = getCurrentSchool();
+        Campaign campaign = getSchoolCampaignOwned(campaignId, school.getId());
         if (campaign.getSchoolStatus() != SchoolCampaignStatus.DRAFT) {
             throw new BadRequestException("Chỉ được kích hoạt campaign ở trạng thái DRAFT");
         }
         ensureHasAtLeastOneGameAndQuiz(campaign);
         campaign.setSchoolStatus(SchoolCampaignStatus.SCHEDULED);
         campaignRepository.save(campaign);
+
+        // Tự động tạo bản ghi tham gia cho chính trường tạo campaign (school tự mời mình)
+        boolean alreadyParticipating = campaignSchoolParticipateRepository
+                .findByCampaignIdAndSchoolId(campaignId, school.getId()).isPresent();
+        if (!alreadyParticipating) {
+            CampaignSchoolParticipate selfParticipate = new CampaignSchoolParticipate();
+            selfParticipate.setCampaign(campaign);
+            selfParticipate.setSchool(school);
+            selfParticipate.setStatus(ParticipationStatus.APPROVED);
+            selfParticipate.setInvitationSentAt(LocalDateTime.now());
+            selfParticipate.setParticipationConfirmedAt(LocalDateTime.now());
+            campaignSchoolParticipateRepository.save(selfParticipate);
+        }
+
         return mapCampaignDetail(campaign);
     }
 
@@ -358,6 +375,47 @@ public class CampaignServiceImpl implements ICampaignService {
         campaign.setSchoolStatus(SchoolCampaignStatus.CANCELLED);
         campaignRepository.save(campaign);
         return mapCampaignDetail(campaign);
+    }
+
+    @Override
+    @Transactional
+    public void inviteStudentsToSchoolCampaign(UUID campaignId, AssignStudentsRequest request) {
+        School school = getCurrentSchool();
+        Campaign campaign = getSchoolCampaignOwned(campaignId, school.getId());
+
+        // Cho phép chọn học sinh ở trạng thái DRAFT hoặc SCHEDULED (trước khi scheduler chuyển sang INVITING)
+        if (campaign.getSchoolStatus() != SchoolCampaignStatus.DRAFT
+                && campaign.getSchoolStatus() != SchoolCampaignStatus.SCHEDULED) {
+            throw new BadRequestException("Chỉ được mời học sinh khi campaign đang ở trạng thái DRAFT hoặc SCHEDULED");
+        }
+
+        List<Student> students = studentRepository.findAllById(request.getStudentIds());
+        int added = 0;
+        for (Student student : students) {
+            if (!student.getSchool().getId().equals(school.getId())) {
+                continue;
+            }
+            if (campaignParticipantRepository.existsByCampaignIdAndStudentId(campaignId, student.getId())) {
+                continue;
+            }
+            CampaignParticipant participant = new CampaignParticipant();
+            participant.setCampaign(campaign);
+            participant.setStudent(student);
+            participant.setSchool(school);
+            participant.setEnrollmentDate(LocalDateTime.now());
+            participant.setParentApprovalStatus(ParticipationStatus.PENDING_PARENT_APPROVAL);
+            campaignParticipantRepository.save(participant);
+            added++;
+        }
+
+        // Cập nhật studentsEnrolled trên CampaignSchoolParticipate nếu đã tồn tại
+        // Dùng final variable để dùng được trong lambda
+        final int totalAdded = added;
+        campaignSchoolParticipateRepository.findByCampaignIdAndSchoolId(campaignId, school.getId())
+                .ifPresent(sp -> {
+                    sp.setStudentsEnrolled(sp.getStudentsEnrolled() + totalAdded);
+                    campaignSchoolParticipateRepository.save(sp);
+                });
     }
 
     @Override
@@ -720,6 +778,16 @@ public class CampaignServiceImpl implements ICampaignService {
         round.setSelectedQuizzes(selectedQuizzes);
         round.setQuiz(selectedQuizzes.get(0));
         campaignRoundRepository.save(round);
+        // Tao moi hoac cap nhat CampaignRoundQuiz thay vi dung round.setQuiz()
+//        CampaignRoundQuiz roundQuiz = campaignRoundQuizRepository
+//                .findByCampaignRoundIdAndQuizId(roundId, quiz.getId())
+//                .orElse(new CampaignRoundQuiz());
+//        roundQuiz.setCampaignRound(round);
+//        roundQuiz.setQuiz(quiz);
+//        roundQuiz.setMaxAttempts(request.getMaxAttempts() != null ? request.getMaxAttempts() : 3);
+//        roundQuiz.setDisplayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 1);
+//        roundQuiz.setRequired(request.getIsRequired() != null ? request.getIsRequired() : true);
+//        campaignRoundQuizRepository.save(roundQuiz);
     }
 
     private boolean campaignMatchStudentStatus(Campaign campaign, CampaignParticipant participant, StudentCampaignStatusFilter status) {
@@ -887,7 +955,9 @@ public class CampaignServiceImpl implements ICampaignService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy lời mời tham gia campaign"));
 
         Campaign campaign = participant.getCampaign();
-        if (!"INVITING".equals(statusOf(campaign)) || !"EXTENDED".equals(statusOf(campaign))) {
+        // Dùng && thay vì || để kiểm tra đúng: chỉ reject khi status KHÔNG phải INVITING VÀ KHÔNG phải EXTENDED/JOINING
+        String campaignStatus = statusOf(campaign);
+        if (!"INVITING".equals(campaignStatus) && !"EXTENDED".equals(campaignStatus) && !"JOINING".equals(campaignStatus)) {
             throw new BadRequestException("Chỉ xử lý duyệt khi campaign đang INVITING hoặc EXTENDED");
         }
         if (participant.getParentApprovalStatus() != ParticipationStatus.PENDING_PARENT_APPROVAL) {

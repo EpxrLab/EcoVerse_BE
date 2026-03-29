@@ -33,7 +33,7 @@ public class CreateQuizRequest {
 
     @Builder.Default
     @Min(value = 1, message = "Điểm thưởng phải >= 1")
-    private Integer pointsReward = 10;
+    private Integer coinOnPass = 10;
 
     @Min(value = 5, message = "Thời gian mỗi câu phải >= 5 giây")
     private Integer timePerQuestion;
