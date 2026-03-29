@@ -14,8 +14,12 @@ public interface QuizRepository extends JpaRepository<Quiz, UUID> {
 
     Optional<Quiz> findByIdAndSchoolIdAndIsActiveTrue(UUID id, UUID schoolId);
 
+    List<Quiz> findByIdInAndSchoolIdAndIsActiveTrue(List<UUID> ids, UUID schoolId);
+
     // Partnership-owned quizzes
     List<Quiz> findByPartnershipIdAndIsActiveTrueOrderByCreatedAtDesc(UUID partnershipId);
 
     Optional<Quiz> findByIdAndPartnershipIdAndIsActiveTrue(UUID id, UUID partnershipId);
+
+    List<Quiz> findByIdInAndPartnershipIdAndIsActiveTrue(List<UUID> ids, UUID partnershipId);
 }

@@ -6,8 +6,12 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Entity
 @Table(name = "round_game_configs",
@@ -39,26 +43,27 @@ public class RoundGameConfig extends BaseEntity {
     @JoinColumn(name = "game_type_id", nullable = false)
     private GameType gameType;
 
-    // ── Step 2b: Allowed sub-categories ───────────────────────────────────────
+    // ── Step 2b: Selected presets ──────────────────────────────────────────────
 
     /**
-     * Sub-categories School/Partnership has selected to appear in game sessions.
-     *
-     * Constraints enforced at service layer:
-     *   - Must be a non-empty subset of gameType.supportedSubCategories.
-     *   - School/Partnership CANNOT add sub-categories not in the game type's
-     *     supported set; they can only restrict the list further.
-     *   - If empty at save time, the system defaults to all supportedSubCategories.
-     *
-     * Join table: round_game_config_sub_categories (round_game_config_id, sub_category_id)
+     * Presets selected by School/Partnership for this round.
+     * Must be one or more presets belonging to the selected game type.
      */
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
-            name = "round_game_config_sub_categories",
+            name = "round_game_config_presets",
             joinColumns = @JoinColumn(name = "round_game_config_id"),
-            inverseJoinColumns = @JoinColumn(name = "sub_category_id")
+            inverseJoinColumns = @JoinColumn(name = "preset_id")
     )
-    private List<WasteSubCategory> allowedSubCategories;
+    private List<GameLevelPreset> selectedPresets;
+
+    /**
+     * Per-preset selectable sub-category IDs constrained by preset.wasteCategories.
+     * Key = presetId (string), value = selected sub-category IDs.
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "preset_sub_category_config", columnDefinition = "jsonb")
+    private Map<String, List<UUID>> presetSubCategoryConfig;
 
     // ── Step 3: Difficulty (optional override) ─────────────────────────────────
 
@@ -82,8 +87,8 @@ public class RoundGameConfig extends BaseEntity {
     private QuizDifficulty resolvedDifficulty;
 
     /**
-     * Level-1 GameLevelPreset for (gameType, resolvedDifficulty). Frozen at SCHEDULED.
-     * Students start here; the system increments current_level automatically.
+     * Resolved preset for (gameType, resolvedDifficulty). Frozen at SCHEDULED.
+     * Runtime uses preset.items ordered by levelNumber for level progression.
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "resolved_preset_id")

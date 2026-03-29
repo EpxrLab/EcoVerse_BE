@@ -9,6 +9,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "campaign_rounds",
@@ -62,4 +63,12 @@ public class CampaignRound extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "quiz_id")
     private Quiz quiz;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "campaign_round_quizzes",
+            joinColumns = @JoinColumn(name = "campaign_round_id"),
+            inverseJoinColumns = @JoinColumn(name = "quiz_id")
+    )
+    private List<Quiz> selectedQuizzes;
 }
