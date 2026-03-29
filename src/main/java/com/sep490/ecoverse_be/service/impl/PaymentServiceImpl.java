@@ -6,13 +6,14 @@ import com.sep490.ecoverse_be.enums.*;
 import com.sep490.ecoverse_be.exception.FuncErrorException;
 import com.sep490.ecoverse_be.exception.ResourceNotFoundException;
 import com.sep490.ecoverse_be.mapper.PaymentMapper;
+import com.sep490.ecoverse_be.event.NotificationEvent;
 import com.sep490.ecoverse_be.repository.PaymentRepository;
 import com.sep490.ecoverse_be.repository.SubscriptionRepository;
-import com.sep490.ecoverse_be.service.INotificationService;
 import com.sep490.ecoverse_be.service.IPaymentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.payos.PayOS;
@@ -32,7 +33,8 @@ public class PaymentServiceImpl implements IPaymentService {
     private final PayOS payOS;
     private final PaymentRepository paymentRepository;
     private final SubscriptionRepository subscriptionRepository;
-    private final INotificationService notificationService;
+    // Dùng ApplicationEventPublisher thay vi INotificationService trực tiếp -> event-driven
+    private final ApplicationEventPublisher eventPublisher;
     private final PaymentMapper paymentMapper;
 
     @Value("${payos.return-url}")
@@ -154,20 +156,20 @@ public class PaymentServiceImpl implements IPaymentService {
                 subscription.setEndDate(LocalDateTime.now().plusDays(subscription.getPlan().getDurationDays()));
                 subscriptionRepository.save(subscription);
 
-                // Send notification
+                // Publish event để NotificationService xử lý bất đồng bộ qua listener
                 User recipient = getSubscriptionOwner(subscription);
                 if (recipient != null) {
-                    notificationService.sendNotification(
-                            recipient,
-                            NotificationType.SYSTEM_ANNOUNCEMENT,
-                            "Subscription Activated",
-                            "Your subscription to " + subscription.getPlan().getPlanName()
+                    eventPublisher.publishEvent(NotificationEvent.builder()
+                            .recipientUserId(recipient.getId())
+                            .type(NotificationType.SYSTEM_ANNOUNCEMENT)
+                            .title("Subscription Activated")
+                            .message("Your subscription to " + subscription.getPlan().getPlanName()
                                     + " has been activated successfully. Valid until "
-                                    + subscription.getEndDate().toLocalDate(),
-                            "subscription",
-                            subscription.getId(),
-                            null
-                    );
+                                    + subscription.getEndDate().toLocalDate())
+                            .referenceType("subscription")
+                            .referenceId(subscription.getId())
+                            .sendEmail(true)
+                            .build());
                 }
 
                 log.info("Subscription {} activated after payment {}", subscription.getSubscriptionCode(), payment.getPaymentCode());

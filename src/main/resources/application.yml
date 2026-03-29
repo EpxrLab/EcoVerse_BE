@@ -30,10 +30,12 @@ spring:
       max-file-size: 250MB
       max-request-size: 250MB
   mail:
-    host: ${MAIL_HOST:smtp.gmail.com}
+    host: ${MAIL_HOST:smtp.sendgrid.net}
     port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:}
+    username: ${MAIL_USERNAME:apikey}
     password: ${MAIL_PASSWORD:}
+    # FROM address riêng biệt với username (SendGrid username luôn là literal "apikey")
+    from: ${MAIL_FROM:noreply@ecoverse-system.io.vn}
     properties:
       mail:
         smtp:

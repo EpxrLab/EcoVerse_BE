@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -27,18 +28,19 @@ public class CampaignRoundController {
         return ResponseEntity.ok(ResponseDto.success(null, "Cập nhật game config thành công"));
     }
 
-    @PostMapping("/{id}/quizzes/bind-existing")
-    public ResponseEntity<ResponseDto<Void>> bindQuiz(@PathVariable UUID id,
-                                                      @Valid @RequestBody BindRoundQuizRequest request) {
-        campaignService.bindExistingQuiz(id, request);
-        return ResponseEntity.ok(ResponseDto.success(null, "Gắn quiz cho round thành công"));
+    // Gắn nhiều quiz vào round cùng lúc (POST để set mới, PUT để ghi đè toàn bộ)
+    @PostMapping("/{id}/quizzes/bind")
+    public ResponseEntity<ResponseDto<Void>> bindQuizzes(@PathVariable UUID id,
+                                                         @Valid @RequestBody List<BindRoundQuizRequest> requests) {
+        campaignService.bindQuizzesToRound(id, requests);
+        return ResponseEntity.ok(ResponseDto.success(null, "Gắn danh sách quiz cho round thành công"));
     }
 
-    @PutMapping("/{id}/quizzes/bind-existing")
-    public ResponseEntity<ResponseDto<Void>> rebindQuiz(@PathVariable UUID id,
-                                                        @Valid @RequestBody BindRoundQuizRequest request) {
-        campaignService.bindExistingQuiz(id, request);
-        return ResponseEntity.ok(ResponseDto.success(null, "Cập nhật quiz cho round thành công"));
+    @PutMapping("/{id}/quizzes/bind")
+    public ResponseEntity<ResponseDto<Void>> rebindQuizzes(@PathVariable UUID id,
+                                                           @Valid @RequestBody List<BindRoundQuizRequest> requests) {
+        campaignService.bindQuizzesToRound(id, requests);
+        return ResponseEntity.ok(ResponseDto.success(null, "Cập nhật danh sách quiz cho round thành công"));
     }
 }
 

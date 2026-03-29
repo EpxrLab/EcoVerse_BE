@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -29,5 +31,8 @@ public class SchoolCampaignUpsertRequest {
     private Integer topRankingCount;
 
     private String bannerImageUrl;
+
+    // Danh sách học sinh được mời tham gia ngay khi tạo campaign (optional)
+    private List<UUID> studentIds;
 }
 
