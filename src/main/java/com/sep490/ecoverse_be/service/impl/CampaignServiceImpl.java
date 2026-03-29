@@ -738,56 +738,37 @@ public class CampaignServiceImpl implements ICampaignService {
 
     @Override
     @Transactional
-    public void bindExistingQuiz(UUID roundId, BindRoundQuizRequest request) {
+    public void bindQuizzesToRound(UUID roundId, List<BindRoundQuizRequest> requests) {
         User user = getCurrentUser();
         CampaignRound round = campaignRoundRepository.findById(roundId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy round"));
 
-        Set<UUID> requestedQuizIds = new LinkedHashSet<>();
-        if (request.getQuizIds() != null) {
-            requestedQuizIds.addAll(request.getQuizIds());
-        }
-        if (request.getQuizId() != null) {
-            requestedQuizIds.add(request.getQuizId());
-        }
-        if (requestedQuizIds.isEmpty()) {
-            throw new BadRequestException("Cần cung cấp ít nhất 1 quiz");
-        }
+        boolean isSchool = user.getRole() == Role.PARTNERSHIP_SCHOOL;
+        School school = isSchool ? getCurrentSchool() : null;
+        Partnership partnership = isSchool ? null : getCurrentPartnership();
 
-        List<Quiz> selectedQuizzes;
-        Map<UUID, Integer> quizOrder = new HashMap<>();
-        int order = 0;
-        for (UUID quizId : requestedQuizIds) {
-            quizOrder.putIfAbsent(quizId, order++);
-        }
-        if (user.getRole() == Role.PARTNERSHIP_SCHOOL) {
-            School school = getCurrentSchool();
-            selectedQuizzes = quizRepository.findByIdInAndSchoolIdAndIsActiveTrue(new ArrayList<>(requestedQuizIds), school.getId());
-        } else {
-            Partnership partnership = getCurrentPartnership();
-            selectedQuizzes = quizRepository.findByIdInAndPartnershipIdAndIsActiveTrue(new ArrayList<>(requestedQuizIds), partnership.getId());
-        }
+        for (int i = 0; i < requests.size(); i++) {
+            BindRoundQuizRequest request = requests.get(i);
 
-        if (selectedQuizzes.size() != requestedQuizIds.size()) {
-            throw new NotFoundException("Không tìm thấy quiz thuộc quyền sở hữu");
-        }
-        selectedQuizzes = selectedQuizzes.stream()
-                .sorted(Comparator.comparingInt(quiz -> quizOrder.getOrDefault(quiz.getId(), Integer.MAX_VALUE)))
-                .toList();
+            Quiz quiz;
+            if (isSchool) {
+                quiz = quizRepository.findByIdAndSchoolIdAndIsActiveTrue(request.getQuizId(), school.getId())
+                        .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz " + request.getQuizId() + " thuộc quyền sở hữu"));
+            } else {
+                quiz = quizRepository.findByIdAndPartnershipIdAndIsActiveTrue(request.getQuizId(), partnership.getId())
+                        .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz " + request.getQuizId() + " thuộc quyền sở hữu"));
+            }
 
-        round.setSelectedQuizzes(selectedQuizzes);
-        round.setQuiz(selectedQuizzes.get(0));
-        campaignRoundRepository.save(round);
-        // Tao moi hoac cap nhat CampaignRoundQuiz thay vi dung round.setQuiz()
-//        CampaignRoundQuiz roundQuiz = campaignRoundQuizRepository
-//                .findByCampaignRoundIdAndQuizId(roundId, quiz.getId())
-//                .orElse(new CampaignRoundQuiz());
-//        roundQuiz.setCampaignRound(round);
-//        roundQuiz.setQuiz(quiz);
-//        roundQuiz.setMaxAttempts(request.getMaxAttempts() != null ? request.getMaxAttempts() : 3);
-//        roundQuiz.setDisplayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 1);
-//        roundQuiz.setRequired(request.getIsRequired() != null ? request.getIsRequired() : true);
-//        campaignRoundQuizRepository.save(roundQuiz);
+            CampaignRoundQuiz roundQuiz = campaignRoundQuizRepository
+                    .findByCampaignRoundIdAndQuizId(roundId, quiz.getId())
+                    .orElse(new CampaignRoundQuiz());
+            roundQuiz.setCampaignRound(round);
+            roundQuiz.setQuiz(quiz);
+            roundQuiz.setMaxAttempts(request.getMaxAttempts() != null ? request.getMaxAttempts() : 3);
+            roundQuiz.setDisplayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : i + 1);
+            roundQuiz.setRequired(request.getIsRequired() != null ? request.getIsRequired() : true);
+            campaignRoundQuizRepository.save(roundQuiz);
+        }
     }
 
     private boolean campaignMatchStudentStatus(Campaign campaign, CampaignParticipant participant, StudentCampaignStatusFilter status) {
