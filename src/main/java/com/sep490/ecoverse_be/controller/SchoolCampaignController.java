@@ -54,6 +54,13 @@ public class SchoolCampaignController {
         return ResponseEntity.ok(ResponseDto.success(campaignService.setSchoolCampaignDraft(id), "Chuyển campaign về DRAFT thành công"));
     }
 
+    @PostMapping("/campaigns/{id}/invite-students")
+    public ResponseEntity<ResponseDto<Void>> inviteStudents(@PathVariable UUID id,
+                                                            @Valid @RequestBody AssignStudentsRequest request) {
+        campaignService.inviteStudentsToSchoolCampaign(id, request);
+        return ResponseEntity.ok(ResponseDto.success(null, "Mời học sinh tham gia campaign thành công"));
+    }
+
     @PutMapping("/campaigns/{id}/extend-inviting")
     public ResponseEntity<ResponseDto<CampaignDetailResponse>> extendInviting(@PathVariable UUID id,
                                                                                @Valid @RequestBody ExtendInvitingRequest request) {

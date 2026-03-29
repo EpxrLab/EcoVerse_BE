@@ -15,11 +15,12 @@ import java.util.UUID;
 @Table(name = "quiz_attempts",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_qa_participant_quiz_attempt",
-                        columnNames = {"campaign_participant_id", "quiz_id", "attempt_number"})
+                        name = "uk_qa_participant_round_quiz_attempt",
+                        columnNames = {"campaign_participant_id", "campaign_round_id", "quiz_id", "attempt_number"})
         },
         indexes = {
                 @Index(name = "idx_quiz_attempts_campaign_participant_id", columnList = "campaign_participant_id"),
+                @Index(name = "idx_quiz_attempts_campaign_round_id", columnList = "campaign_round_id"),
                 @Index(name = "idx_quiz_attempts_quiz_id", columnList = "quiz_id"),
                 @Index(name = "idx_quiz_attempts_is_completed", columnList = "is_completed"),
                 @Index(name = "idx_quiz_attempts_score_percentage", columnList = "score_percentage")
@@ -37,6 +38,10 @@ public class QuizAttempt {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "campaign_participant_id", nullable = false)
     private CampaignParticipant campaignParticipant;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "campaign_round_id", nullable = false)
+    private CampaignRound campaignRound;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "quiz_id", nullable = false)
