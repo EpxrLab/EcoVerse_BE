@@ -2,11 +2,12 @@ package com.sep490.ecoverse_be.service;
 
 import com.sep490.ecoverse_be.dto.request.UpdateApprovalRequest;
 import com.sep490.ecoverse_be.dto.request.AdminGameTypeUpsertRequest;
+import com.sep490.ecoverse_be.dto.request.AdminGameLevelPresetUpsertRequest;
 import com.sep490.ecoverse_be.dto.request.AdminWasteItemUpsertRequest;
 import com.sep490.ecoverse_be.dto.request.AdminWasteSubCategoryUpsertRequest;
-import com.sep490.ecoverse_be.dto.request.MapGameTypeWasteCategoriesRequest;
 import com.sep490.ecoverse_be.dto.response.AdminUserListResponse;
 import com.sep490.ecoverse_be.dto.response.AdminCampaignAnalyticsResponse;
+import com.sep490.ecoverse_be.dto.response.AdminGameLevelPresetResponse;
 import com.sep490.ecoverse_be.dto.response.AdminGameTypeResponse;
 import com.sep490.ecoverse_be.dto.response.AdminWasteItemResponse;
 import com.sep490.ecoverse_be.dto.response.AdminWasteSubCategoryResponse;
@@ -57,7 +58,15 @@ public interface IAdminService {
 
     AdminGameTypeResponse getGameTypeById(UUID id);
 
-    AdminGameTypeResponse mapGameTypeWasteCategories(UUID id, MapGameTypeWasteCategoriesRequest request);
+    AdminGameLevelPresetResponse createGameLevelPreset(UUID gameTypeId, AdminGameLevelPresetUpsertRequest request);
+
+    AdminGameLevelPresetResponse updateGameLevelPreset(UUID gameTypeId, UUID presetId, AdminGameLevelPresetUpsertRequest request);
+
+    void deleteGameLevelPreset(UUID gameTypeId, UUID presetId);
+
+    List<AdminGameLevelPresetResponse> getGameLevelPresets(UUID gameTypeId);
+
+    AdminGameLevelPresetResponse getGameLevelPresetById(UUID gameTypeId, UUID presetId);
 
     AdminWasteSubCategoryResponse createWasteSubCategory(AdminWasteSubCategoryUpsertRequest request);
 

@@ -51,20 +51,6 @@ public class GameType extends BaseEntity {
     private String previewVideoUrl;
 
     /**
-     * Admin defines which WasteSubCategories are available for this game type.
-     * School/Partnership can then choose a subset of these when configuring a round.
-     *
-     * Join table: game_type_sub_categories (game_type_id, sub_category_id)
-     */
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "game_type_sub_categories",
-            joinColumns = @JoinColumn(name = "game_type_id"),
-            inverseJoinColumns = @JoinColumn(name = "sub_category_id")
-    )
-    private List<WasteSubCategory> supportedSubCategories;
-
-    /**
      * Feature flags specific to this game type.
      * e.g. { "hasStreakBonus": true, "showHintButton": false }
      */
@@ -81,7 +67,7 @@ public class GameType extends BaseEntity {
     private boolean supportsCoin = true;
 
     /**
-     * Maximum level_number across all GameLevelPresets for this game type.
+     * Maximum level_number across all GameLevelPresetItems for this game type.
      */
     @Column(name = "max_levels", nullable = false)
     private int maxLevels;

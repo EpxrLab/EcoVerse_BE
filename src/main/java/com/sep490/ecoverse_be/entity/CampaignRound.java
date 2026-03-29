@@ -60,6 +60,15 @@ public class CampaignRound extends BaseEntity {
     @Column(name = "is_final_round")
     private Boolean isFinalRound = false;
 
-    @OneToMany(mappedBy = "campaignRound", fetch = FetchType.LAZY)
-    private List<CampaignRoundQuiz> roundQuizzes;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "quiz_id")
+    private Quiz quiz;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "campaign_round_quizzes",
+            joinColumns = @JoinColumn(name = "campaign_round_id"),
+            inverseJoinColumns = @JoinColumn(name = "quiz_id")
+    )
+    private List<Quiz> selectedQuizzes;
 }

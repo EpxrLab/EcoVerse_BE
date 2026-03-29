@@ -4,6 +4,7 @@ import com.sep490.ecoverse_be.enums.QuizDifficulty;
 import lombok.Builder;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Builder
@@ -14,8 +15,9 @@ public record PlayConfigResponse(
         String gameTypeName,
         QuizDifficulty resolvedDifficulty,
         Integer coinPerSession,
-        // Danh sach quiz IDs cua round (co the co nhieu quiz)
+        UUID quizId,
         List<UUID> quizIds,
-        List<UUID> selectedSubCategoryIds
+        List<UUID> selectedPresetIds,
+        Map<String, List<UUID>> presetSubCategoryConfig
 ) {
 }

@@ -1,22 +1,22 @@
 package com.sep490.ecoverse_be.entity;
 
 import com.sep490.ecoverse_be.enums.QuizDifficulty;
+import com.sep490.ecoverse_be.enums.WasteCategory;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
-import java.util.Map;
+import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "game_level_presets",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_glp_game_type_difficulty_level",
-                        columnNames = {"game_type_id", "difficulty", "level_number"})
+                        name = "uk_glp_game_type_difficulty",
+                        columnNames = {"game_type_id", "difficulty"})
         },
         indexes = {
                 @Index(name = "idx_glp_game_type_id", columnList = "game_type_id"),
@@ -46,46 +46,23 @@ public class GameLevelPreset extends BaseEntity {
     private QuizDifficulty difficulty;
 
     /**
-     * Level number within this difficulty band. Starts at 1.
-     * Students begin at level 1 and the system auto-increments during gameplay;
-     * School/Partnership never configures this directly.
+     * Top-level waste categories that can appear in this preset.
+     * Admin configures this at preset level instead of game-type level.
      */
-    @Column(name = "level_number", nullable = false)
-    private int levelNumber;
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(
+            name = "game_level_preset_waste_categories",
+            joinColumns = @JoinColumn(name = "preset_id")
+    )
+    @Enumerated(EnumType.STRING)
+    @Column(name = "waste_category", nullable = false)
+    private Set<WasteCategory> wasteCategories;
 
     /**
-     * Number of waste items presented per session at this level.
+     * Ordered level configs within this preset.
+     * Each item represents one playable level for the selected difficulty.
      */
-    @Column(name = "item_count", nullable = false)
-    private int itemCount;
-
-    /**
-     * Time limit in seconds for this level. 0 = no limit.
-     */
-    @Column(name = "time_limit_seconds", nullable = false)
-    private int timeLimitSeconds;
-
-    /**
-     * Score awarded per correctly classified item.
-     * Used for leaderboard ranking in both School and Partnership campaigns.
-     */
-    @Column(name = "score_per_correct", nullable = false)
-    private int scorePerCorrect = 10;
-
-    /**
-     * Number of lives. NULL = unlimited.
-     */
-    @Column(name = "lives")
-    private Integer lives;
-
-    /**
-     * Game-type-specific extra configuration stored as JSON.
-     * Examples:
-     *   WASTE_SORTING  → { "categories": ["RECYCLABLE","ORGANIC"], "showHint": false }
-     *   SPEED_CLASSIFY → { "spawnIntervalMs": 1500, "penaltyOnMiss": true }
-     * Managed by Admin; never modified by School/Partnership.
-     */
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "config_json", columnDefinition = "jsonb")
-    private Map<String, Object> configJson;
+    @OneToMany(mappedBy = "preset", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("levelNumber ASC")
+    private List<GameLevelPresetItem> items;
 }

@@ -5,6 +5,7 @@ import lombok.Builder;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Builder
@@ -15,7 +16,9 @@ public record CampaignRoundInfoResponse(
         RoundStatus status,
         LocalDateTime startTime,
         LocalDateTime endTime,
-        // Danh sach quiz IDs cua round (co the co nhieu quiz)
-        List<UUID> quizIds
+        UUID quizId,
+        List<UUID> quizIds,
+        List<UUID> selectedPresetIds,
+        Map<String, List<UUID>> presetSubCategoryConfig
 ) {
 }

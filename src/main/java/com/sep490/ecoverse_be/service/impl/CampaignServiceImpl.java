@@ -17,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class CampaignServiceImpl implements ICampaignService {
@@ -52,6 +51,8 @@ public class CampaignServiceImpl implements ICampaignService {
     private SchoolLeaderboardRepository schoolLeaderboardRepository;
     @Autowired
     private GameTypeRepository gameTypeRepository;
+    @Autowired
+    private GameLevelPresetRepository gameLevelPresetRepository;
     @Autowired
     private WasteSubCategoryRepository wasteSubCategoryRepository;
     @Autowired
@@ -125,19 +126,33 @@ public class CampaignServiceImpl implements ICampaignService {
     private CampaignDetailResponse mapCampaignDetail(Campaign campaign) {
         List<CampaignRoundInfoResponse> rounds = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId())
                 .stream()
-                .map(r -> CampaignRoundInfoResponse.builder()
-                        .id(r.getId())
-                        .roundNumber(r.getRoundNumber())
-                        .roundName(r.getRoundName())
-                        .status(r.getStatus())
-                        .startTime(r.getStartTime())
-                        .endTime(r.getEndTime())
-                        .quizIds(campaignRoundQuizRepository
-                                .findByCampaignRoundIdOrderByDisplayOrderAsc(r.getId())
-                                .stream()
-                                .map(rq -> rq.getQuiz().getId())
-                                .toList())
-                        .build())
+                .map(r -> {
+                    Optional<RoundGameConfig> configOpt = roundGameConfigRepository.findFirstByCampaignRoundIdOrderByDisplayOrderAsc(r.getId());
+                    List<UUID> selectedPresetIds = configOpt
+                            .map(cfg -> cfg.getSelectedPresets() == null
+                                    ? List.<UUID>of()
+                                    : cfg.getSelectedPresets().stream().map(BaseEntity::getId).toList())
+                            .orElse(List.of());
+                    Map<String, List<UUID>> presetSubCategoryConfig = configOpt
+                            .map(cfg -> cfg.getPresetSubCategoryConfig() == null ? Map.<String, List<UUID>>of() : cfg.getPresetSubCategoryConfig())
+                            .orElse(Map.of());
+                    List<UUID> quizIds = r.getSelectedQuizzes() == null
+                            ? List.of()
+                            : r.getSelectedQuizzes().stream().map(BaseEntity::getId).toList();
+
+                    return CampaignRoundInfoResponse.builder()
+                            .id(r.getId())
+                            .roundNumber(r.getRoundNumber())
+                            .roundName(r.getRoundName())
+                            .status(r.getStatus())
+                            .startTime(r.getStartTime())
+                            .endTime(r.getEndTime())
+                            .quizId(r.getQuiz() != null ? r.getQuiz().getId() : null)
+                            .quizIds(quizIds)
+                            .selectedPresetIds(selectedPresetIds)
+                            .presetSubCategoryConfig(presetSubCategoryConfig)
+                            .build();
+                })
                 .toList();
 
         return CampaignDetailResponse.builder()
@@ -170,6 +185,35 @@ public class CampaignServiceImpl implements ICampaignService {
                 .build();
     }
 
+    private void ensureHasAtLeastOneGameAndQuiz(Campaign campaign) {
+        List<CampaignRound> rounds = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId());
+        boolean hasAtLeastOneQuiz = rounds.stream().anyMatch(round -> round.getQuiz() != null
+                || (round.getSelectedQuizzes() != null && !round.getSelectedQuizzes().isEmpty()));
+        boolean hasAtLeastOneGame = rounds.stream().anyMatch(round -> roundGameConfigRepository
+                .findFirstByCampaignRoundIdOrderByDisplayOrderAsc(round.getId())
+                .map(cfg -> cfg.getSelectedPresets() != null && !cfg.getSelectedPresets().isEmpty())
+                .orElse(false));
+
+        if (!hasAtLeastOneGame || !hasAtLeastOneQuiz) {
+            throw new BadRequestException("Campaign cần add ít nhất 1 game preset và 1 quiz trước khi chuyển khỏi DRAFT");
+        }
+    }
+
+    private Map<UUID, List<UUID>> normalizePresetSubCategoryConfigs(UpdateRoundGameConfigRequest request) {
+        Map<UUID, List<UUID>> normalized = new LinkedHashMap<>();
+        for (RoundPresetSubCategoryConfigRequest cfg : request.getPresetSubCategoryConfigs()) {
+            if (normalized.containsKey(cfg.getPresetId())) {
+                throw new BadRequestException("presetSubCategoryConfigs chứa preset bị trùng");
+            }
+            LinkedHashSet<UUID> uniqueSubCategoryIds = new LinkedHashSet<>(cfg.getSelectedSubCategoryIds());
+            if (uniqueSubCategoryIds.isEmpty()) {
+                throw new BadRequestException("Mỗi preset phải chọn ít nhất 1 sub-category");
+            }
+            normalized.put(cfg.getPresetId(), new ArrayList<>(uniqueSubCategoryIds));
+        }
+        return normalized;
+    }
+
     @Override
     @Transactional
     public CampaignDetailResponse createSchoolCampaign(SchoolCampaignUpsertRequest request) {
@@ -196,7 +240,7 @@ public class CampaignServiceImpl implements ICampaignService {
         CampaignRound round = new CampaignRound();
         round.setCampaign(campaign);
         round.setRoundNumber(1);
-        round.setRoundName("Round 1");
+        round.setRoundName("Play & Learn");
         round.setStartTime(campaign.getStartDate());
         round.setEndTime(campaign.getEndDate());
         campaignRoundRepository.save(round);
@@ -253,6 +297,7 @@ public class CampaignServiceImpl implements ICampaignService {
         if (campaign.getSchoolStatus() != SchoolCampaignStatus.DRAFT) {
             throw new BadRequestException("Chỉ được kích hoạt campaign ở trạng thái DRAFT");
         }
+        ensureHasAtLeastOneGameAndQuiz(campaign);
         campaign.setSchoolStatus(SchoolCampaignStatus.SCHEDULED);
         campaignRepository.save(campaign);
 
@@ -487,6 +532,7 @@ public class CampaignServiceImpl implements ICampaignService {
         if (campaign.getPartnershipStatus() != PartnershipCampaignStatus.DRAFT) {
             throw new BadRequestException("Chỉ được kích hoạt campaign ở trạng thái DRAFT");
         }
+        ensureHasAtLeastOneGameAndQuiz(campaign);
         campaign.setPartnershipStatus(PartnershipCampaignStatus.JOINING);
         campaignRepository.save(campaign);
         return mapCampaignDetail(campaign);
@@ -616,12 +662,55 @@ public class CampaignServiceImpl implements ICampaignService {
         GameType gameType = gameTypeRepository.findById(request.getGameTypeId())
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy game type"));
 
-        List<WasteSubCategory> selected = wasteSubCategoryRepository.findByIdIn(request.getSelectedSubCategoryIds());
-        Set<UUID> supportedIds = gameType.getSupportedSubCategories().stream().map(BaseEntity::getId).collect(Collectors.toSet());
-        for (WasteSubCategory subCategory : selected) {
-            if (!supportedIds.contains(subCategory.getId())) {
-                throw new BadRequestException("selectedSubCategoryIds phải thuộc game type được chọn");
+        Set<UUID> requestedPresetIds = new HashSet<>(request.getSelectedPresetIds());
+        Map<UUID, Integer> presetOrder = new HashMap<>();
+        for (int i = 0; i < request.getSelectedPresetIds().size(); i++) {
+            presetOrder.putIfAbsent(request.getSelectedPresetIds().get(i), i);
+        }
+        Map<UUID, List<UUID>> presetSubCategoryRequests = normalizePresetSubCategoryConfigs(request);
+        if (!presetSubCategoryRequests.keySet().equals(requestedPresetIds)) {
+            throw new BadRequestException("Mỗi preset được chọn phải có cấu hình sub-category tương ứng");
+        }
+        List<GameLevelPreset> selectedPresets = gameLevelPresetRepository
+                .findByIdInAndGameTypeId(request.getSelectedPresetIds(), gameType.getId());
+        if (selectedPresets.size() != requestedPresetIds.size()) {
+            throw new BadRequestException("selectedPresetIds chứa preset không hợp lệ");
+        }
+        selectedPresets = selectedPresets.stream()
+                .sorted(Comparator.comparingInt(preset -> presetOrder.getOrDefault(preset.getId(), Integer.MAX_VALUE)))
+                .toList();
+
+        Set<UUID> requestedSubCategoryIds = presetSubCategoryRequests.values().stream()
+                .flatMap(Collection::stream)
+                .collect(java.util.stream.Collectors.toSet());
+        List<WasteSubCategory> activeSubCategories = wasteSubCategoryRepository.findByIdInAndIsActiveTrue(new ArrayList<>(requestedSubCategoryIds));
+        if (activeSubCategories.size() != requestedSubCategoryIds.size()) {
+            throw new BadRequestException("Có sub-category không hợp lệ hoặc đã bị xóa mềm");
+        }
+        Map<UUID, WasteSubCategory> subCategoryById = new HashMap<>();
+        for (WasteSubCategory subCategory : activeSubCategories) {
+            subCategoryById.put(subCategory.getId(), subCategory);
+        }
+
+        Map<String, List<UUID>> normalizedPresetSubCategoryConfig = new LinkedHashMap<>();
+        for (GameLevelPreset preset : selectedPresets) {
+            Set<WasteCategory> allowedCategories = preset.getWasteCategories() == null ? Set.of() : preset.getWasteCategories();
+            if (allowedCategories.isEmpty()) {
+                throw new BadRequestException("Preset chưa được admin cấu hình wasteCategory: " + preset.getId());
             }
+
+            List<UUID> configuredSubCategoryIds = presetSubCategoryRequests.getOrDefault(preset.getId(), List.of());
+            if (configuredSubCategoryIds.isEmpty()) {
+                throw new BadRequestException("Preset phải chọn ít nhất 1 sub-category: " + preset.getId());
+            }
+
+            for (UUID subCategoryId : configuredSubCategoryIds) {
+                WasteSubCategory subCategory = subCategoryById.get(subCategoryId);
+                if (subCategory == null || !allowedCategories.contains(subCategory.getCategory())) {
+                    throw new BadRequestException("Sub-category không thuộc wasteCategory admin đã cấu hình cho preset: " + preset.getId());
+                }
+            }
+            normalizedPresetSubCategoryConfig.put(preset.getId().toString(), configuredSubCategoryIds);
         }
 
         RoundGameConfig config = roundGameConfigRepository.findFirstByCampaignRoundIdOrderByDisplayOrderAsc(roundId)
@@ -629,8 +718,14 @@ public class CampaignServiceImpl implements ICampaignService {
         config.setCampaignRound(round);
         config.setGameType(gameType);
         config.setDifficultyOverride(request.getDifficultyOverride());
-        config.setResolvedDifficulty(request.getDifficultyOverride());
-        config.setAllowedSubCategories(selected);
+        GameLevelPreset resolvedPreset = selectedPresets.stream()
+                .filter(preset -> request.getDifficultyOverride() == null || preset.getDifficulty() == request.getDifficultyOverride())
+                .findFirst()
+                .orElse(selectedPresets.get(0));
+        config.setResolvedPreset(resolvedPreset);
+        config.setResolvedDifficulty(resolvedPreset.getDifficulty());
+        config.setSelectedPresets(selectedPresets);
+        config.setPresetSubCategoryConfig(normalizedPresetSubCategoryConfig);
         if (campaign.getCampaignType() == CampaignType.PARTNERSHIP_EVENT) {
             config.setCoinPerSession(null);
         } else {
@@ -647,27 +742,52 @@ public class CampaignServiceImpl implements ICampaignService {
         User user = getCurrentUser();
         CampaignRound round = campaignRoundRepository.findById(roundId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy round"));
-        Quiz quiz;
-        if (user.getRole() == Role.PARTNERSHIP_SCHOOL) {
-            School school = getCurrentSchool();
-            quiz = quizRepository.findByIdAndSchoolIdAndIsActiveTrue(request.getQuizId(), school.getId())
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz thuộc quyền sở hữu"));
-        } else {
-            Partnership partnership = getCurrentPartnership();
-            quiz = quizRepository.findByIdAndPartnershipIdAndIsActiveTrue(request.getQuizId(), partnership.getId())
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz thuộc quyền sở hữu"));
+
+        Set<UUID> requestedQuizIds = new LinkedHashSet<>();
+        if (request.getQuizIds() != null) {
+            requestedQuizIds.addAll(request.getQuizIds());
+        }
+        if (request.getQuizId() != null) {
+            requestedQuizIds.add(request.getQuizId());
+        }
+        if (requestedQuizIds.isEmpty()) {
+            throw new BadRequestException("Cần cung cấp ít nhất 1 quiz");
         }
 
+        List<Quiz> selectedQuizzes;
+        Map<UUID, Integer> quizOrder = new HashMap<>();
+        int order = 0;
+        for (UUID quizId : requestedQuizIds) {
+            quizOrder.putIfAbsent(quizId, order++);
+        }
+        if (user.getRole() == Role.PARTNERSHIP_SCHOOL) {
+            School school = getCurrentSchool();
+            selectedQuizzes = quizRepository.findByIdInAndSchoolIdAndIsActiveTrue(new ArrayList<>(requestedQuizIds), school.getId());
+        } else {
+            Partnership partnership = getCurrentPartnership();
+            selectedQuizzes = quizRepository.findByIdInAndPartnershipIdAndIsActiveTrue(new ArrayList<>(requestedQuizIds), partnership.getId());
+        }
+
+        if (selectedQuizzes.size() != requestedQuizIds.size()) {
+            throw new NotFoundException("Không tìm thấy quiz thuộc quyền sở hữu");
+        }
+        selectedQuizzes = selectedQuizzes.stream()
+                .sorted(Comparator.comparingInt(quiz -> quizOrder.getOrDefault(quiz.getId(), Integer.MAX_VALUE)))
+                .toList();
+
+        round.setSelectedQuizzes(selectedQuizzes);
+        round.setQuiz(selectedQuizzes.get(0));
+        campaignRoundRepository.save(round);
         // Tao moi hoac cap nhat CampaignRoundQuiz thay vi dung round.setQuiz()
-        CampaignRoundQuiz roundQuiz = campaignRoundQuizRepository
-                .findByCampaignRoundIdAndQuizId(roundId, quiz.getId())
-                .orElse(new CampaignRoundQuiz());
-        roundQuiz.setCampaignRound(round);
-        roundQuiz.setQuiz(quiz);
-        roundQuiz.setMaxAttempts(request.getMaxAttempts() != null ? request.getMaxAttempts() : 3);
-        roundQuiz.setDisplayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 1);
-        roundQuiz.setRequired(request.getIsRequired() != null ? request.getIsRequired() : true);
-        campaignRoundQuizRepository.save(roundQuiz);
+//        CampaignRoundQuiz roundQuiz = campaignRoundQuizRepository
+//                .findByCampaignRoundIdAndQuizId(roundId, quiz.getId())
+//                .orElse(new CampaignRoundQuiz());
+//        roundQuiz.setCampaignRound(round);
+//        roundQuiz.setQuiz(quiz);
+//        roundQuiz.setMaxAttempts(request.getMaxAttempts() != null ? request.getMaxAttempts() : 3);
+//        roundQuiz.setDisplayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 1);
+//        roundQuiz.setRequired(request.getIsRequired() != null ? request.getIsRequired() : true);
+//        campaignRoundQuizRepository.save(roundQuiz);
     }
 
     private boolean campaignMatchStudentStatus(Campaign campaign, CampaignParticipant participant, StudentCampaignStatusFilter status) {
@@ -738,12 +858,10 @@ public class CampaignServiceImpl implements ICampaignService {
                 .gameTypeName(config.getGameType().getName())
                 .resolvedDifficulty(config.getResolvedDifficulty())
                 .coinPerSession(coinPerSession)
-                .quizIds(campaignRoundQuizRepository
-                        .findByCampaignRoundIdOrderByDisplayOrderAsc(round.getId())
-                        .stream()
-                        .map(rq -> rq.getQuiz().getId())
-                        .toList())
-                .selectedSubCategoryIds(config.getAllowedSubCategories().stream().map(BaseEntity::getId).toList())
+                .quizId(round.getQuiz() != null ? round.getQuiz().getId() : null)
+                .quizIds(round.getSelectedQuizzes() == null ? List.of() : round.getSelectedQuizzes().stream().map(BaseEntity::getId).toList())
+                .selectedPresetIds(config.getSelectedPresets() == null ? List.of() : config.getSelectedPresets().stream().map(BaseEntity::getId).toList())
+                .presetSubCategoryConfig(config.getPresetSubCategoryConfig() == null ? Map.of() : config.getPresetSubCategoryConfig())
                 .build();
     }
 

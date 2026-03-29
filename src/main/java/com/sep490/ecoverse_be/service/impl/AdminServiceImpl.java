@@ -1,11 +1,14 @@
 package com.sep490.ecoverse_be.service.impl;
 
 import com.sep490.ecoverse_be.dto.request.UpdateApprovalRequest;
+import com.sep490.ecoverse_be.dto.request.AdminGameLevelPresetUpsertRequest;
+import com.sep490.ecoverse_be.dto.request.AdminGameLevelPresetItemUpsertRequest;
 import com.sep490.ecoverse_be.dto.request.AdminGameTypeUpsertRequest;
 import com.sep490.ecoverse_be.dto.request.AdminWasteItemUpsertRequest;
 import com.sep490.ecoverse_be.dto.request.AdminWasteSubCategoryUpsertRequest;
-import com.sep490.ecoverse_be.dto.request.MapGameTypeWasteCategoriesRequest;
 import com.sep490.ecoverse_be.dto.response.AdminCampaignAnalyticsResponse;
+import com.sep490.ecoverse_be.dto.response.AdminGameLevelPresetItemResponse;
+import com.sep490.ecoverse_be.dto.response.AdminGameLevelPresetResponse;
 import com.sep490.ecoverse_be.dto.response.AdminGameTypeResponse;
 import com.sep490.ecoverse_be.dto.response.AdminUserListResponse;
 import com.sep490.ecoverse_be.dto.response.AdminWasteItemResponse;
@@ -19,6 +22,8 @@ import com.sep490.ecoverse_be.entity.Parent;
 import com.sep490.ecoverse_be.entity.Partnership;
 import com.sep490.ecoverse_be.entity.Payment;
 import com.sep490.ecoverse_be.entity.Campaign;
+import com.sep490.ecoverse_be.entity.GameLevelPreset;
+import com.sep490.ecoverse_be.entity.GameLevelPresetItem;
 import com.sep490.ecoverse_be.entity.GameType;
 import com.sep490.ecoverse_be.entity.School;
 import com.sep490.ecoverse_be.entity.Student;
@@ -50,6 +55,7 @@ import com.sep490.ecoverse_be.repository.CampaignParticipantRepository;
 import com.sep490.ecoverse_be.repository.CampaignRepository;
 import com.sep490.ecoverse_be.repository.CampaignSchoolParticipateRepository;
 import com.sep490.ecoverse_be.repository.GameTypeRepository;
+import com.sep490.ecoverse_be.repository.GameLevelPresetRepository;
 import com.sep490.ecoverse_be.repository.SchoolRepository;
 import com.sep490.ecoverse_be.repository.StudentParentLinkRepository;
 import com.sep490.ecoverse_be.repository.StudentRepository;
@@ -116,6 +122,9 @@ public class AdminServiceImpl implements IAdminService {
 
     @Autowired
     private GameTypeRepository gameTypeRepository;
+
+    @Autowired
+    private GameLevelPresetRepository gameLevelPresetRepository;
 
     @Autowired
     private WasteSubCategoryRepository wasteSubCategoryRepository;
@@ -267,12 +276,53 @@ public class AdminServiceImpl implements IAdminService {
 
     @Override
     @Transactional
-    public AdminGameTypeResponse mapGameTypeWasteCategories(UUID id, MapGameTypeWasteCategoriesRequest request) {
-        GameType gameType = getActiveGameTypeOrThrow(id);
-        List<WasteSubCategory> mapped = wasteSubCategoryRepository.findByCategoryInAndIsActiveTrue(request.getWasteCategories());
-        gameType.setSupportedSubCategories(mapped);
-        gameType.setUpdatedBy(getCurrentAdmin());
-        return mapGameType(gameTypeRepository.save(gameType));
+    public AdminGameLevelPresetResponse createGameLevelPreset(UUID gameTypeId, AdminGameLevelPresetUpsertRequest request) {
+        GameType gameType = getActiveGameTypeOrThrow(gameTypeId);
+        if (gameLevelPresetRepository.existsByGameTypeIdAndDifficulty(gameTypeId, request.getDifficulty())) {
+            throw new BadRequestException("Preset cho difficulty này đã tồn tại");
+        }
+
+        GameLevelPreset preset = new GameLevelPreset();
+        preset.setGameType(gameType);
+        applyPresetUpsert(preset, request);
+        return mapGameLevelPreset(gameLevelPresetRepository.save(preset));
+    }
+
+    @Override
+    @Transactional
+    public AdminGameLevelPresetResponse updateGameLevelPreset(UUID gameTypeId, UUID presetId, AdminGameLevelPresetUpsertRequest request) {
+        getActiveGameTypeOrThrow(gameTypeId);
+        GameLevelPreset preset = getPresetOrThrow(gameTypeId, presetId);
+
+        if (gameLevelPresetRepository.existsByGameTypeIdAndDifficultyAndIdNot(gameTypeId, request.getDifficulty(), presetId)) {
+            throw new BadRequestException("Preset cho difficulty này đã tồn tại");
+        }
+
+        applyPresetUpsert(preset, request);
+        return mapGameLevelPreset(gameLevelPresetRepository.save(preset));
+    }
+
+    @Override
+    @Transactional
+    public void deleteGameLevelPreset(UUID gameTypeId, UUID presetId) {
+        getActiveGameTypeOrThrow(gameTypeId);
+        GameLevelPreset preset = getPresetOrThrow(gameTypeId, presetId);
+        gameLevelPresetRepository.delete(preset);
+    }
+
+    @Override
+    public List<AdminGameLevelPresetResponse> getGameLevelPresets(UUID gameTypeId) {
+        getActiveGameTypeOrThrow(gameTypeId);
+        return gameLevelPresetRepository.findByGameTypeIdOrderByDifficultyAsc(gameTypeId)
+                .stream()
+                .map(this::mapGameLevelPreset)
+                .toList();
+    }
+
+    @Override
+    public AdminGameLevelPresetResponse getGameLevelPresetById(UUID gameTypeId, UUID presetId) {
+        getActiveGameTypeOrThrow(gameTypeId);
+        return mapGameLevelPreset(getPresetOrThrow(gameTypeId, presetId));
     }
 
     @Override
@@ -844,16 +894,13 @@ public class AdminServiceImpl implements IAdminService {
     }
 
     private AdminGameTypeResponse mapGameType(GameType gameType) {
-        List<WasteCategory> categories = gameType.getSupportedSubCategories() == null
+        List<WasteCategory> categories = gameType.getLevelPresets() == null
                 ? List.of()
-                : gameType.getSupportedSubCategories().stream()
-                .map(WasteSubCategory::getCategory)
+                : gameType.getLevelPresets().stream()
+                .filter(p -> p.getWasteCategories() != null)
+                .flatMap(p -> p.getWasteCategories().stream())
                 .distinct()
                 .toList();
-
-        List<UUID> subCategoryIds = gameType.getSupportedSubCategories() == null
-                ? List.of()
-                : gameType.getSupportedSubCategories().stream().map(WasteSubCategory::getId).toList();
 
         return AdminGameTypeResponse.builder()
                 .id(gameType.getId())
@@ -862,16 +909,68 @@ public class AdminServiceImpl implements IAdminService {
                 .shortDescription(gameType.getShortDescription())
                 .fullDescription(gameType.getFullDescription())
                 .howToPlay(gameType.getHowToPlay())
-                .thumbnailUrl(gameType.getThumbnailUrl())
-                .iconUrl(gameType.getIconUrl())
-                .previewVideoUrl(gameType.getPreviewVideoUrl())
+                .thumbnailUrl(s3PresignedUrlService.generatePresignedUrl(gameType.getThumbnailUrl()))
+                .iconUrl(s3PresignedUrlService.generatePresignedUrl(gameType.getIconUrl()))
+                .previewVideoUrl(s3PresignedUrlService.generatePresignedUrl(gameType.getPreviewVideoUrl()))
                 .features(gameType.getFeatures())
                 .supportsCoin(gameType.isSupportsCoin())
                 .maxLevels(gameType.getMaxLevels())
                 .isActive(gameType.isActive())
                 .displayOrder(gameType.getDisplayOrder())
                 .mappedWasteCategories(categories)
-                .supportedSubCategoryIds(subCategoryIds)
+                .build();
+    }
+
+    private void applyPresetUpsert(GameLevelPreset preset, AdminGameLevelPresetUpsertRequest request) {
+        preset.setDifficulty(request.getDifficulty());
+        preset.setWasteCategories(request.getWasteCategories());
+
+        List<GameLevelPresetItem> items = request.getItems().stream()
+                .map(itemRequest -> mapPresetItemRequest(itemRequest, preset))
+                .sorted((a, b) -> Integer.compare(a.getLevelNumber(), b.getLevelNumber()))
+                .toList();
+
+        if (items.stream().map(GameLevelPresetItem::getLevelNumber).distinct().count() != items.size()) {
+            throw new BadRequestException("levelNumber trong items không được trùng nhau");
+        }
+
+        preset.setItems(items);
+    }
+
+    private GameLevelPresetItem mapPresetItemRequest(AdminGameLevelPresetItemUpsertRequest request, GameLevelPreset preset) {
+        GameLevelPresetItem item = new GameLevelPresetItem();
+        item.setPreset(preset);
+        item.setLevelNumber(request.getLevelNumber());
+        item.setItemCount(request.getItemCount());
+        item.setTimeLimitSeconds(request.getTimeLimitSeconds());
+        item.setScorePerCorrect(request.getScorePerCorrect());
+        item.setLives(request.getLives());
+        item.setConfigJson(request.getConfigJson());
+        return item;
+    }
+
+    private AdminGameLevelPresetResponse mapGameLevelPreset(GameLevelPreset preset) {
+        List<AdminGameLevelPresetItemResponse> items = preset.getItems() == null
+                ? List.of()
+                : preset.getItems().stream()
+                .sorted((a, b) -> Integer.compare(a.getLevelNumber(), b.getLevelNumber()))
+                .map(item -> AdminGameLevelPresetItemResponse.builder()
+                        .id(item.getId())
+                        .levelNumber(item.getLevelNumber())
+                        .itemCount(item.getItemCount())
+                        .timeLimitSeconds(item.getTimeLimitSeconds())
+                        .scorePerCorrect(item.getScorePerCorrect())
+                        .lives(item.getLives())
+                        .configJson(item.getConfigJson())
+                        .build())
+                .toList();
+
+        return AdminGameLevelPresetResponse.builder()
+                .id(preset.getId())
+                .gameTypeId(preset.getGameType().getId())
+                .difficulty(preset.getDifficulty())
+                .wasteCategories(preset.getWasteCategories())
+                .items(items)
                 .build();
     }
 
@@ -882,7 +981,7 @@ public class AdminServiceImpl implements IAdminService {
                 .subCategoryCode(subCategory.getSubCategoryCode())
                 .displayName(subCategory.getDisplayName())
                 .description(subCategory.getDescription())
-                .iconUrl(subCategory.getIconUrl())
+                .iconUrl(s3PresignedUrlService.generatePresignedUrl(subCategory.getIconUrl()))
                 .displayOrder(subCategory.getDisplayOrder())
                 .isActive(subCategory.isActive())
                 .build();
@@ -899,7 +998,7 @@ public class AdminServiceImpl implements IAdminService {
                 .subCategoryDisplayName(subCategory != null ? subCategory.getDisplayName() : null)
                 .description(wasteItem.getDescription())
                 .funFact(wasteItem.getFunFact())
-                .imageUrl(wasteItem.getImageUrl())
+                .imageUrl(s3PresignedUrlService.generatePresignedUrl(wasteItem.getImageUrl()))
                 .decompositionTime(wasteItem.getDecompositionTime())
                 .recyclingTips(wasteItem.getRecyclingTips())
                 .isActive(wasteItem.isActive())
@@ -909,6 +1008,12 @@ public class AdminServiceImpl implements IAdminService {
     private GameType getActiveGameTypeOrThrow(UUID id) {
         return gameTypeRepository.findByIdAndIsActiveTrue(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy game type"));
+    }
+
+    private GameLevelPreset getPresetOrThrow(UUID gameTypeId, UUID presetId) {
+        return gameLevelPresetRepository.findById(presetId)
+                .filter(preset -> preset.getGameType() != null && preset.getGameType().getId().equals(gameTypeId))
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy preset"));
     }
 
     private WasteSubCategory getActiveWasteSubCategoryOrThrow(UUID id) {

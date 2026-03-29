@@ -49,6 +49,9 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
     @Autowired
     private CoinTransactionRepository coinTransactionRepository;
 
+    @Autowired
+    private S3PresignedUrlService s3PresignedUrlService;
+
 
     private User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -69,7 +72,7 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
                 .rewardId(r.getReward().getId())
                 .rewardName(r.getReward().getRewardName())
                 .rewardType(r.getReward().getRewardType())
-                .rewardImageUrl(r.getReward().getImageUrl())
+                .rewardImageUrl(s3PresignedUrlService.generatePresignedUrl(r.getReward().getImageUrl()))
                 .quantity(r.getQuantity())
                 .totalCoins(r.getTotalCoins())
                 .status(r.getStatus())
