@@ -1,11 +1,8 @@
 package com.sep490.ecoverse_be.dto.request;
 
-<<<<<<< HEAD
-=======
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
->>>>>>> 67bfed110da3976363bf57f68c3bcbf51382cb0c
 import lombok.Getter;
 import lombok.Setter;
 
