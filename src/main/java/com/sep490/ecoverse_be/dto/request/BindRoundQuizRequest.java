@@ -6,14 +6,16 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
 import java.util.UUID;
 
 @Getter
 @Setter
 public class BindRoundQuizRequest {
 
-    @NotNull(message = "quizId không được null")
     private UUID quizId;
+
+    private List<UUID> quizIds;
 
     // So lan lam lai toi da (mac dinh 3, configurable 1-10)
     @Min(value = 1, message = "Số lần làm tối thiểu là 1")

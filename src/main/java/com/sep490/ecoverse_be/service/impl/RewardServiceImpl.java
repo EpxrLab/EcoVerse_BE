@@ -35,6 +35,9 @@ public class RewardServiceImpl implements IRewardService {
     @Autowired
     private ParentRepository parentRepository;
 
+    @Autowired
+    private S3PresignedUrlService s3PresignedUrlService;
+
     private User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return ((UserPrincipal) auth.getPrincipal()).getUser();
@@ -57,7 +60,7 @@ public class RewardServiceImpl implements IRewardService {
                 .rewardType(reward.getRewardType())
                 .description(reward.getDescription())
                 .coinCost(reward.getCoinCost())
-                .imageUrl(reward.getImageUrl())
+                .imageUrl(s3PresignedUrlService.generatePresignedUrl(reward.getImageUrl()))
                 .stockQuantity(reward.getStockQuantity())
                 .isUnlimited(reward.getIsUnlimited())
                 .isActive(reward.getIsActive())

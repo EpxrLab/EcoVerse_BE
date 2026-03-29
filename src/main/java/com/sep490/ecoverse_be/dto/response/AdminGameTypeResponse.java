@@ -24,8 +24,7 @@ public record AdminGameTypeResponse(
         int maxLevels,
         boolean isActive,
         int displayOrder,
-        List<WasteCategory> mappedWasteCategories,
-        List<UUID> supportedSubCategoryIds
+        List<WasteCategory> mappedWasteCategories
 ) {
 }
 

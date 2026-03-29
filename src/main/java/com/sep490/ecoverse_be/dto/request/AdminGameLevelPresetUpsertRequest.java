@@ -1,6 +1,7 @@
 package com.sep490.ecoverse_be.dto.request;
 
 import com.sep490.ecoverse_be.enums.QuizDifficulty;
+import com.sep490.ecoverse_be.enums.WasteCategory;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -8,24 +9,20 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.util.List;
-import java.util.UUID;
+import java.util.Set;
 
 @Getter
 @Setter
-public class UpdateRoundGameConfigRequest {
+public class AdminGameLevelPresetUpsertRequest {
 
     @NotNull
-    private UUID gameTypeId;
-
-    private QuizDifficulty difficultyOverride;
+    private QuizDifficulty difficulty;
 
     @NotEmpty
-    private List<UUID> selectedPresetIds;
+    private Set<WasteCategory> wasteCategories;
 
     @Valid
     @NotEmpty
-    private List<RoundPresetSubCategoryConfigRequest> presetSubCategoryConfigs;
-
-    private Integer coinPerSession;
+    private List<AdminGameLevelPresetItemUpsertRequest> items;
 }
 

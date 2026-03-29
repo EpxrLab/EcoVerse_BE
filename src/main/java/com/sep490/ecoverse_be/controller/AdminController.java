@@ -1,14 +1,15 @@
 package com.sep490.ecoverse_be.controller;
 
 import com.sep490.ecoverse_be.dto.request.AdminGameTypeUpsertRequest;
+import com.sep490.ecoverse_be.dto.request.AdminGameLevelPresetUpsertRequest;
 import com.sep490.ecoverse_be.dto.request.AdminWasteItemUpsertRequest;
 import com.sep490.ecoverse_be.dto.request.AdminWasteSubCategoryUpsertRequest;
 import com.sep490.ecoverse_be.dto.request.CreateSubscriptionPlanRequest;
-import com.sep490.ecoverse_be.dto.request.MapGameTypeWasteCategoriesRequest;
 import com.sep490.ecoverse_be.dto.request.UpdateApprovalRequest;
 import com.sep490.ecoverse_be.dto.request.UpdateSubscriptionPlanRequest;
 import com.sep490.ecoverse_be.dto.response.AdminUserListResponse;
 import com.sep490.ecoverse_be.dto.response.AdminCampaignAnalyticsResponse;
+import com.sep490.ecoverse_be.dto.response.AdminGameLevelPresetResponse;
 import com.sep490.ecoverse_be.dto.response.AdminGameTypeResponse;
 import com.sep490.ecoverse_be.dto.response.AdminWasteItemResponse;
 import com.sep490.ecoverse_be.dto.response.AdminWasteSubCategoryResponse;
@@ -398,11 +399,40 @@ public class AdminController {
         return ResponseEntity.ok(ResponseDto.success(adminService.getGameTypeById(id), "Lấy chi tiết game type thành công"));
     }
 
-    @PutMapping("/game-types/{id}/waste-categories")
-    public ResponseEntity<ResponseDto<AdminGameTypeResponse>> mapWasteCategories(
-            @PathVariable UUID id,
-            @Valid @RequestBody MapGameTypeWasteCategoriesRequest request) {
-        return ResponseEntity.ok(ResponseDto.success(adminService.mapGameTypeWasteCategories(id, request), "Map waste categories thành công"));
+    @PostMapping("/game-types/{gameTypeId}/presets")
+    public ResponseEntity<ResponseDto<AdminGameLevelPresetResponse>> createGamePreset(
+            @PathVariable UUID gameTypeId,
+            @Valid @RequestBody AdminGameLevelPresetUpsertRequest request) {
+        return ResponseEntity.status(201)
+                .body(ResponseDto.created(adminService.createGameLevelPreset(gameTypeId, request), "Tạo preset thành công"));
+    }
+
+    @PutMapping("/game-types/{gameTypeId}/presets/{presetId}")
+    public ResponseEntity<ResponseDto<AdminGameLevelPresetResponse>> updateGamePreset(
+            @PathVariable UUID gameTypeId,
+            @PathVariable UUID presetId,
+            @Valid @RequestBody AdminGameLevelPresetUpsertRequest request) {
+        return ResponseEntity.ok(ResponseDto.success(adminService.updateGameLevelPreset(gameTypeId, presetId, request), "Cập nhật preset thành công"));
+    }
+
+    @DeleteMapping("/game-types/{gameTypeId}/presets/{presetId}")
+    public ResponseEntity<ResponseDto<Void>> deleteGamePreset(
+            @PathVariable UUID gameTypeId,
+            @PathVariable UUID presetId) {
+        adminService.deleteGameLevelPreset(gameTypeId, presetId);
+        return ResponseEntity.ok(ResponseDto.success(null, "Xóa preset thành công"));
+    }
+
+    @GetMapping("/game-types/{gameTypeId}/presets")
+    public ResponseEntity<ResponseDto<List<AdminGameLevelPresetResponse>>> getGamePresets(@PathVariable UUID gameTypeId) {
+        return ResponseEntity.ok(ResponseDto.success(adminService.getGameLevelPresets(gameTypeId), "Lấy danh sách preset thành công"));
+    }
+
+    @GetMapping("/game-types/{gameTypeId}/presets/{presetId}")
+    public ResponseEntity<ResponseDto<AdminGameLevelPresetResponse>> getGamePreset(
+            @PathVariable UUID gameTypeId,
+            @PathVariable UUID presetId) {
+        return ResponseEntity.ok(ResponseDto.success(adminService.getGameLevelPresetById(gameTypeId, presetId), "Lấy chi tiết preset thành công"));
     }
 
     @PostMapping("/waste-sub-categories")

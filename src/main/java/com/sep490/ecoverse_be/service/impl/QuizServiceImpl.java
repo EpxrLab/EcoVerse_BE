@@ -58,6 +58,9 @@ public class QuizServiceImpl implements IQuizService {
     @Autowired
     private PartnershipRepository partnershipRepository;
 
+    @Autowired
+    private S3PresignedUrlService s3PresignedUrlService;
+
 
     private User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -110,7 +113,7 @@ public class QuizServiceImpl implements IQuizService {
                 .id(question.getId())
                 .questionOrder(question.getQuestionOrder())
                 .questionText(question.getQuestionText())
-                .questionImageUrl(question.getQuestionImageUrl())
+                .questionImageUrl(s3PresignedUrlService.generatePresignedUrl(question.getQuestionImageUrl()))
                 .answers(answerResponses)
                 .build();
     }
