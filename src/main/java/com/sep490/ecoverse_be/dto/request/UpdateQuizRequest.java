@@ -26,7 +26,7 @@ public class UpdateQuizRequest {
     private Integer targetGrade;
 
     @Min(value = 1, message = "Điểm thưởng phải >= 1")
-    private Integer pointsReward;
+    private Integer coinOnPass;
 
     @Min(value = 5, message = "Thời gian mỗi câu phải >= 5 giây")
     private Integer timePerQuestion;

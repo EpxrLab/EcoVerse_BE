@@ -172,7 +172,7 @@ public class QuizServiceImpl implements IQuizService {
      * quizCreated: USER cho tạo thủ công, IMPORT cho import Excel, AI cho AI generate.
      */
     private Quiz buildAndSaveQuiz(String title, String description, QuizDifficulty difficulty,
-                                   QuizType quizType, Integer targetGrade, Integer pointsReward,
+                                   QuizType quizType, Integer targetGrade, Integer coinOnPass,
                                    Integer timePerQuestion, Integer passScorePercentage,
                                    QuizCreated quizCreated, School school, Partnership partnership) {
         Quiz quiz = new Quiz();
@@ -182,7 +182,7 @@ public class QuizServiceImpl implements IQuizService {
         quiz.setQuizType(quizType);
         quiz.setSource(QuizSource.MANUAL);
         quiz.setTargetGrade(targetGrade);
-        quiz.setCoinsOnPass(pointsReward != null ? pointsReward : 10);
+        quiz.setCoinsOnPass(coinOnPass != null ? coinOnPass : 10);
         quiz.setTimePerQuestion(timePerQuestion);
         quiz.setPassScorePercentage(passScorePercentage != null ? passScorePercentage : 80);
         quiz.setPublished(false);
@@ -247,7 +247,7 @@ public class QuizServiceImpl implements IQuizService {
         Quiz quiz = buildAndSaveQuiz(
                 request.getTitle(), request.getDescription(),
                 request.getDifficulty(), request.getQuizType(),
-                request.getTargetGrade(), request.getPointsReward(),
+                request.getTargetGrade(), request.getCoinOnPass(),
                 request.getTimePerQuestion(), request.getPassScorePercentage(),
                 QuizCreated.USER, school, partnership
         );
@@ -297,7 +297,7 @@ public class QuizServiceImpl implements IQuizService {
         if (request.getDifficulty() != null) quiz.setDifficulty(request.getDifficulty());
         if (request.getQuizType() != null) quiz.setQuizType(request.getQuizType());
         if (request.getTargetGrade() != null) quiz.setTargetGrade(request.getTargetGrade());
-        if (request.getPointsReward() != null) quiz.setCoinsOnPass(request.getPointsReward());
+        if (request.getCoinOnPass() != null) quiz.setCoinsOnPass(request.getCoinOnPass());
         if (request.getTimePerQuestion() != null) quiz.setTimePerQuestion(request.getTimePerQuestion());
         if (request.getPassScorePercentage() != null) quiz.setPassScorePercentage(request.getPassScorePercentage());
 

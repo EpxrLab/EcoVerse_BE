@@ -41,6 +41,7 @@ public class ParentServiceImpl implements ParentService {
             studentAccountInfo.setGender(studentParentLink.getStudent().getGender());
             studentAccountInfo.setAddress(studentParentLink.getStudent().getAddress());
             studentAccountInfo.setDob(studentParentLink.getStudent().getDateOfBirth());
+            studentAccountInfo.setTotalCoin(studentParentLink.getStudent().getTotalCoins());
             studentAccountInfo.setAccountStatus(studentParentLink.getStudent().getUser().getStatus());
             studentAccountInfo.setActive(studentParentLink.getStudent().getUser().getIsActive());
             studentAccountInfos.add(studentAccountInfo);
