@@ -1,7 +1,6 @@
 package com.sep490.ecoverse_be.entity;
 
 import com.sep490.ecoverse_be.enums.QuizDifficulty;
-import com.sep490.ecoverse_be.enums.WasteCategory;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -9,7 +8,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.List;
-import java.util.Set;
 
 @Entity
 @Table(name = "game_level_presets",
@@ -44,19 +42,6 @@ public class GameLevelPreset extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "difficulty", nullable = false)
     private QuizDifficulty difficulty;
-
-    /**
-     * Top-level waste categories that can appear in this preset.
-     * Admin configures this at preset level instead of game-type level.
-     */
-    @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(
-            name = "game_level_preset_waste_categories",
-            joinColumns = @JoinColumn(name = "preset_id")
-    )
-    @Enumerated(EnumType.STRING)
-    @Column(name = "waste_category", nullable = false)
-    private Set<WasteCategory> wasteCategories;
 
     /**
      * Ordered level configs within this preset.

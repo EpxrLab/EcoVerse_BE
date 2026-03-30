@@ -694,7 +694,12 @@ public class CampaignServiceImpl implements ICampaignService {
 
         Map<String, List<UUID>> normalizedPresetSubCategoryConfig = new LinkedHashMap<>();
         for (GameLevelPreset preset : selectedPresets) {
-            Set<WasteCategory> allowedCategories = preset.getWasteCategories() == null ? Set.of() : preset.getWasteCategories();
+            Set<WasteCategory> allowedCategories = preset.getItems() == null
+                    ? Set.of()
+                    : preset.getItems().stream()
+                    .filter(item -> item.getWasteCategories() != null)
+                    .flatMap(item -> item.getWasteCategories().stream())
+                    .collect(java.util.stream.Collectors.toSet());
             if (allowedCategories.isEmpty()) {
                 throw new BadRequestException("Preset chưa được admin cấu hình wasteCategory: " + preset.getId());
             }
