@@ -27,7 +27,8 @@ public final class AppConstants {
             "/api/subscription-plans",
             "/api/subscription-plans/**",
             "/api/files/upload/contract",
-            "/api/files/view/**"
-
+            "/api/files/view/**",
+            // WebSocket: HTTP handshake bo qua Spring Security, xac thuc xu ly o STOMP layer
+            "/ws/**"
     };
 }
