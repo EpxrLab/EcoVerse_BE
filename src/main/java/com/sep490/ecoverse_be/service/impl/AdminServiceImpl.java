@@ -897,8 +897,10 @@ public class AdminServiceImpl implements IAdminService {
         List<WasteCategory> categories = gameType.getLevelPresets() == null
                 ? List.of()
                 : gameType.getLevelPresets().stream()
-                .filter(p -> p.getWasteCategories() != null)
-                .flatMap(p -> p.getWasteCategories().stream())
+                .filter(p -> p.getItems() != null)
+                .flatMap(p -> p.getItems().stream())
+                .filter(item -> item.getWasteCategories() != null)
+                .flatMap(item -> item.getWasteCategories().stream())
                 .distinct()
                 .toList();
 
@@ -923,7 +925,6 @@ public class AdminServiceImpl implements IAdminService {
 
     private void applyPresetUpsert(GameLevelPreset preset, AdminGameLevelPresetUpsertRequest request) {
         preset.setDifficulty(request.getDifficulty());
-        preset.setWasteCategories(request.getWasteCategories());
 
         List<GameLevelPresetItem> items = request.getItems().stream()
                 .map(itemRequest -> mapPresetItemRequest(itemRequest, preset))
@@ -932,6 +933,10 @@ public class AdminServiceImpl implements IAdminService {
 
         if (items.stream().map(GameLevelPresetItem::getLevelNumber).distinct().count() != items.size()) {
             throw new BadRequestException("levelNumber trong items không được trùng nhau");
+        }
+
+        if (items.stream().anyMatch(item -> item.getWasteCategories() == null || item.getWasteCategories().isEmpty())) {
+            throw new BadRequestException("Mỗi preset item phải có ít nhất 1 wasteCategory");
         }
 
         preset.setItems(items);
@@ -945,6 +950,7 @@ public class AdminServiceImpl implements IAdminService {
         item.setTimeLimitSeconds(request.getTimeLimitSeconds());
         item.setScorePerCorrect(request.getScorePerCorrect());
         item.setLives(request.getLives());
+        item.setWasteCategories(request.getWasteCategories());
         item.setConfigJson(request.getConfigJson());
         return item;
     }
@@ -961,6 +967,7 @@ public class AdminServiceImpl implements IAdminService {
                         .timeLimitSeconds(item.getTimeLimitSeconds())
                         .scorePerCorrect(item.getScorePerCorrect())
                         .lives(item.getLives())
+                        .wasteCategories(item.getWasteCategories())
                         .configJson(item.getConfigJson())
                         .build())
                 .toList();
@@ -969,7 +976,6 @@ public class AdminServiceImpl implements IAdminService {
                 .id(preset.getId())
                 .gameTypeId(preset.getGameType().getId())
                 .difficulty(preset.getDifficulty())
-                .wasteCategories(preset.getWasteCategories())
                 .items(items)
                 .build();
     }

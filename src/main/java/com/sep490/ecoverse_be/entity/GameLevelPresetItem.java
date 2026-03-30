@@ -1,5 +1,6 @@
 package com.sep490.ecoverse_be.entity;
 
+import com.sep490.ecoverse_be.enums.WasteCategory;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -9,6 +10,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.util.Map;
+import java.util.Set;
 
 @Entity
 @Table(name = "game_level_preset_items",
@@ -70,5 +72,18 @@ public class GameLevelPresetItem extends BaseEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "config_json", columnDefinition = "jsonb")
     private Map<String, Object> configJson;
+
+    /**
+     * Top-level waste categories allowed in this specific level item.
+     */
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(
+            name = "game_level_preset_item_waste_categories",
+            joinColumns = @JoinColumn(name = "preset_item_id")
+    )
+    @Enumerated(EnumType.STRING)
+    @Column(name = "waste_category", nullable = false)
+    private Set<WasteCategory> wasteCategories;
 }
+
 
