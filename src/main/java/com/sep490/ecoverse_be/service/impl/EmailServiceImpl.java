@@ -5,6 +5,7 @@ import com.sep490.ecoverse_be.service.IEmailService;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -16,12 +17,17 @@ public class EmailServiceImpl implements IEmailService {
     @Autowired
     JavaMailSender mailSender;
 
+    // FROM address lấy từ spring.mail.from (tách biệt với username làapikey" của SendGrid)
+    @Value("${spring.mail.from:}")
+    private String fromEmail;
+
     @Override
     public void sendOtpEmail(String to, String otp) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
+            helper.setFrom(fromEmail);
             helper.setTo(to);
             helper.setSubject("Mã Xác Thực OTP - EcoVerse System");
 
@@ -39,6 +45,7 @@ public class EmailServiceImpl implements IEmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
+            helper.setFrom(fromEmail);
             helper.setTo(to);
             helper.setSubject("Đặt Lại Mật Khẩu - Mã Xác Nhận Từ EcoVerse");
             helper.setText(buildForgotPasswordTemplate(otp), true);
@@ -99,6 +106,7 @@ public class EmailServiceImpl implements IEmailService {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromEmail);
             helper.setTo(to);
             helper.setSubject("Tài Khoản Đã Được Duyệt - EcoVerse");
             helper.setText(buildApprovalTemplate(organizationName), true);
@@ -113,6 +121,7 @@ public class EmailServiceImpl implements IEmailService {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromEmail);
             helper.setTo(to);
             helper.setSubject("Yêu Cầu Đăng Ký Bị Từ Chối - EcoVerse");
             helper.setText(buildRejectionTemplate(organizationName, reason), true);
@@ -187,6 +196,7 @@ public class EmailServiceImpl implements IEmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
+            helper.setFrom(fromEmail);
             helper.setTo(toEmail);
             helper.setSubject("Thông Tin Tài Khoản Đăng Nhập - EcoVerse System");
             helper.setText(buildCredentialTemplate(parentName, parentPhone, parentPassword, children), true);
