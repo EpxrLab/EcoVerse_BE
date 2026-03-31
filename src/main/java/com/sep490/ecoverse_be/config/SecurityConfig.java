@@ -62,8 +62,18 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of(
+        // --- Config cho WebSocket / SockJS endpoints ---
+        CorsConfiguration wsConfig = new CorsConfiguration();
+        wsConfig.setAllowedOriginPatterns(List.of("*"));
+        wsConfig.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        wsConfig.setAllowedHeaders(List.of("*"));
+        wsConfig.setAllowCredentials(true);
+        wsConfig.setMaxAge(3600L);
+
+        // --- Config cho REST API endpoints ---
+        CorsConfiguration apiConfig = new CorsConfiguration();
+        apiConfig.setAllowedOriginPatterns(List.of(
+                "http://localhost:3000",
                 "http://localhost:5173",
                 "http://localhost:8081",
                 "https://api.ecoverse-system.io.vn",
@@ -71,17 +81,19 @@ public class SecurityConfig {
                 "https://ecoverse-system.io.vn",
                 "https://www.ecoverse-system.io.vn"
         ));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setExposedHeaders(List.of(
+        apiConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        apiConfig.setAllowedHeaders(List.of("*"));
+        apiConfig.setExposedHeaders(List.of(
                 "X-Mode", "X-Center", "X-RadiusKm", "X-Limit", "X-Count", "X-Has-More",
                 "X-BBox", "X-District", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"
         ));
-        config.setAllowCredentials(true);
-        config.setMaxAge(3600L); // 1h
+        apiConfig.setAllowCredentials(true);
+        apiConfig.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
+        // WS config phai dang ky truoc vi UrlBasedCorsConfigurationSource khop pattern dau tien
+        source.registerCorsConfiguration("/ws/**", wsConfig);
+        source.registerCorsConfiguration("/**", apiConfig);
         return source;
     }
 

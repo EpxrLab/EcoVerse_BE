@@ -16,6 +16,7 @@ public interface ICampaignService {
     void inviteStudentsToSchoolCampaign(UUID campaignId, AssignStudentsRequest request);
     CampaignDetailResponse extendInviting(UUID campaignId, ExtendInvitingRequest request);
     CampaignDetailResponse cancelSchoolCampaign(UUID campaignId);
+    void deleteSchoolCampaign(UUID campaignId);
 
     CampaignDetailResponse createPartnershipCampaign(CreatePartnershipCampaignRequest request);
     List<CampaignSummaryResponse> getMyPartnershipCampaigns();

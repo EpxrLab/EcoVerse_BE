@@ -53,9 +53,13 @@ public interface INotificationService {
     void notifyBySchool(UUID schoolId, NotificationType type, String title, String message,
                         String referenceType, UUID referenceId, Map<String, Object> metadata);
 
-    // Gửi thông báo cho tất cả người tham gia một campaign
+    // Gửi thông báo cho tất cả người tham gia một campaign (học sinh)
     void notifyCampaignParticipants(UUID campaignId, NotificationType type, String title, String message,
                                     String referenceType, UUID referenceId, Map<String, Object> metadata);
+
+    // Gửi thông báo cho tất cả phụ huynh của học sinh tham gia campaign
+    void notifyCampaignParents(UUID campaignId, NotificationType type, String title, String message,
+                               String referenceType, UUID referenceId, Map<String, Object> metadata);
 
     // Gửi thông báo cho danh sách người dùng cụ thể (broadcast linh hoạt)
     void notifyUsers(List<User> recipients, NotificationType type, String title, String message,

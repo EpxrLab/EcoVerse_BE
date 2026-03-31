@@ -30,6 +30,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
+                // setAllowedOriginPatterns tren StompEndpointRegistration (cho WebSocket thuan)
                 .setAllowedOriginPatterns("*")
                 .addInterceptors(new org.springframework.web.socket.server.HandshakeInterceptor() {
                     @Override
@@ -58,6 +59,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                             Exception exception) {
                     }
                 })
+                // withSockJS(): origin check cho SockJS duoc xu ly qua CORS config cua SecurityConfig
                 .withSockJS();
     }
 

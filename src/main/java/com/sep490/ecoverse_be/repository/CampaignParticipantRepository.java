@@ -24,6 +24,8 @@ public interface CampaignParticipantRepository extends JpaRepository<CampaignPar
     boolean existsByCampaignIdAndStudentId(UUID campaignId, UUID studentId);
 
     List<CampaignParticipant> findByStudentIdAndIsActiveTrue(UUID studentId);
+
+    List<CampaignParticipant> findByCampaignIdAndIsActiveTrueOrderByCreatedAtAsc(UUID campaignId);
 }
 
 

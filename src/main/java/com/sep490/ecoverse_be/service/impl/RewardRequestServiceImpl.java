@@ -5,15 +5,18 @@ import com.sep490.ecoverse_be.dto.request.CreateRewardRequestDto;
 import com.sep490.ecoverse_be.dto.request.RejectRewardRequestDto;
 import com.sep490.ecoverse_be.dto.response.RewardRequestResponse;
 import com.sep490.ecoverse_be.entity.*;
+import com.sep490.ecoverse_be.enums.NotificationType;
 import com.sep490.ecoverse_be.enums.RewardRequestStatus;
 import com.sep490.ecoverse_be.enums.Role;
 import com.sep490.ecoverse_be.enums.TransactionType;
+import com.sep490.ecoverse_be.event.NotificationEvent;
 import com.sep490.ecoverse_be.exception.BadRequestException;
 import com.sep490.ecoverse_be.exception.NotFoundException;
 import com.sep490.ecoverse_be.model.UserPrincipal;
 import com.sep490.ecoverse_be.repository.*;
 import com.sep490.ecoverse_be.service.IRewardRequestService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -52,6 +55,8 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
     @Autowired
     private S3PresignedUrlService s3PresignedUrlService;
 
+    @Autowired
+    private ApplicationEventPublisher eventPublisher;
 
     private User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -207,6 +212,32 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
         deductCoins(student, totalCost, saved.getId(),
                 "Đổi quà: " + reward.getRewardName() + " (x" + dto.getQuantity() + ") - " + saved.getRequestCode(), currentUser);
 
+        List<StudentParentLink> parentLinks = studentParentLinkRepository.findByStudentId(saved.getStudent().getId());
+
+        // Thông báo cho học sinh: yêu cầu đổi quà đã tạo thành công
+        eventPublisher.publishEvent(NotificationEvent.builder()
+                .recipientUserId(student.getUser().getId())
+                .type(NotificationType.REWARD_AVAILABLE)
+                .title("Yêu cầu đổi quà đã được tạo")
+                .message("Yêu cầu đổi \"" + reward.getRewardName() + "\" (x" + dto.getQuantity()
+                        + ") đã được gửi. Vui lòng chờ nhà trường xét duyệt. Mã: " + saved.getRequestCode())
+                .referenceType("reward_request")
+                .referenceId(saved.getId())
+                .sendEmail(false)
+                .build());
+    // Thông báo cho học sinh: yêu cầu đổi quà đã tạo thành công
+        for (StudentParentLink link : parentLinks) {
+            eventPublisher.publishEvent(NotificationEvent.builder()
+                    .recipientUserId(link.getParent().getUser().getId())
+                    .type(NotificationType.REWARD_AVAILABLE)
+                    .title("Yêu cầu đổi quà cho con đã được tạo")
+                    .message("Yêu cầu đổi \"" + reward.getRewardName() + "\" (x" + dto.getQuantity()
+                            + ") đã được gửi. Vui lòng chờ nhà trường xét duyệt. Mã: " + saved.getRequestCode())
+                    .referenceType("reward_request")
+                    .referenceId(saved.getId())
+                    .sendEmail(false)
+                    .build());
+        }
         return mapToResponse(saved);
     }
 
@@ -320,6 +351,65 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
         request.setApprovedBy(currentUser);
         rewardRequestRepository.save(request);
 
+        User studentUser = request.getStudent().getUser();
+        // Lay parent cua hoc sinh (neu co) de gui them thong bao
+        List<StudentParentLink> parentLinks = studentParentLinkRepository.findByStudentId(request.getStudent().getId());
+
+        if (dto.isApproved()) {
+            // Thong bao hoc sinh: duoc duyet
+            eventPublisher.publishEvent(NotificationEvent.builder()
+                    .recipientUserId(studentUser.getId())
+                    .type(NotificationType.REWARD_AVAILABLE)
+                    .title("Yêu cầu đổi quà được duyệt!")
+                    .message("Yêu cầu đổi \"" + request.getReward().getRewardName()
+                            + "\" đã được nhà trường duyệt. Nhà trường sẽ liên hệ để giao quà sớm.")
+                    .referenceType("reward_request")
+                    .referenceId(request.getId())
+                    .sendEmail(false)
+                    .build());
+            // Thong bao phu huynh: duoc duyet
+            for (StudentParentLink link : parentLinks) {
+                eventPublisher.publishEvent(NotificationEvent.builder()
+                        .recipientUserId(link.getParent().getUser().getId())
+                        .type(NotificationType.REWARD_AVAILABLE)
+                        .title("Yêu cầu đổi quà của con được duyệt")
+                        .message("Yêu cầu đổi \"" + request.getReward().getRewardName()
+                                + "\" của " + request.getStudent().getFullName()
+                                + " đã được nhà trường duyệt.")
+                        .referenceType("reward_request")
+                        .referenceId(request.getId())
+                        .sendEmail(false)
+                        .build());
+            }
+        } else {
+            // Thong bao hoc sinh: bi tu choi + hoan xu
+            eventPublisher.publishEvent(NotificationEvent.builder()
+                    .recipientUserId(studentUser.getId())
+                    .type(NotificationType.REWARD_AVAILABLE)
+                    .title("Yêu cầu đổi quà bị từ chối")
+                    .message("Yêu cầu đổi \"" + request.getReward().getRewardName()
+                            + "\" bị từ chối. Lý do: " + (dto.getReason() != null ? dto.getReason() : "Không có lý do")
+                            + ". Xu đã được hoàn trả.")
+                    .referenceType("reward_request")
+                    .referenceId(request.getId())
+                    .sendEmail(false)
+                    .build());
+            // Thong bao phu huynh: bi tu choi
+            for (StudentParentLink link : parentLinks) {
+                eventPublisher.publishEvent(NotificationEvent.builder()
+                        .recipientUserId(link.getParent().getUser().getId())
+                        .type(NotificationType.REWARD_AVAILABLE)
+                        .title("Yêu cầu đổi quà của con bị từ chối")
+                        .message("Yêu cầu đổi \"" + request.getReward().getRewardName()
+                                + "\" của " + request.getStudent().getFullName()
+                                + " bị từ chối. Xu đã được hoàn trả.")
+                        .referenceType("reward_request")
+                        .referenceId(request.getId())
+                        .sendEmail(false)
+                        .build());
+            }
+        }
+
         return mapToResponse(request);
     }
 
@@ -342,6 +432,22 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
         request.setDeliveredAt(LocalDateTime.now());
         request.setUpdatedAt(LocalDateTime.now());
         rewardRequestRepository.save(request);
+
+        // Thong bao phu huynh: qua san sang giao, phu huynh can xac nhan
+        List<StudentParentLink> parentLinks = studentParentLinkRepository.findByStudentId(request.getStudent().getId());
+        for (StudentParentLink link : parentLinks) {
+            eventPublisher.publishEvent(NotificationEvent.builder()
+                    .recipientUserId(link.getParent().getUser().getId())
+                    .type(NotificationType.REWARD_DELIVERED)
+                    .title("Quà đã giao!")
+                    .message("Quà \"" + request.getReward().getRewardName() + "\" của "
+                            + request.getStudent().getFullName()
+                            + " đã giao. Vui lòng xác nhận đã nhận quà.")
+                    .referenceType("reward_request")
+                    .referenceId(request.getId())
+                    .sendEmail(false)
+                    .build());
+        }
 
         return mapToResponse(request);
     }
@@ -369,7 +475,6 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
         request.setUpdatedAt(LocalDateTime.now());
         request.setConfirmedByParent(parent);
         rewardRequestRepository.save(request);
-
         return mapToResponse(request);
     }
 }
