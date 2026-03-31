@@ -16,5 +16,6 @@ public class QuizQuestionResponse {
     private int questionOrder;
     private String questionText;
     private String questionImageUrl;
+    private String questionImagePresignedUrl;
     private List<QuizAnswerResponse> answers;
 }

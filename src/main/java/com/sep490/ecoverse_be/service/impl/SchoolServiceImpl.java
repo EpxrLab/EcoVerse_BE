@@ -201,7 +201,8 @@ public class SchoolServiceImpl implements ISchoolService {
         Student updateStudent = studentRepository.save(student);
         StudentProfileResponse response = modelMapper.map(updateStudent, StudentProfileResponse.class);
         response.setId(updateStudent.getId());
-        response.setAvatarUrl(s3PresignedUrlService.generatePresignedUrl(updateStudent.getAvatarUrl()));
+        response.setAvatarUrl(updateStudent.getAvatarUrl());
+        response.setAvatarPresignedUrl(s3PresignedUrlService.generatePresignedUrl(updateStudent.getAvatarUrl()));
         response.setTotalCoins(updateStudent.getTotalCoins());
         response.setIsFirstLogin(updateStudent.getIsFirstLogin());
         return response;
@@ -228,7 +229,8 @@ public class SchoolServiceImpl implements ISchoolService {
                 .dateOfBirth(student.getDateOfBirth())
                 .gender(student.getGender().name())
                 .address((student.getAddress()))
-                .avatarUrl(s3PresignedUrlService.generatePresignedUrl(student.getAvatarUrl()))
+                .avatarUrl(student.getAvatarUrl())
+                .avatarPresignedUrl(s3PresignedUrlService.generatePresignedUrl(student.getAvatarUrl()))
                 .build();
     }
 }

@@ -26,7 +26,7 @@ import java.util.Map;
 public class GameType extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "type_code", nullable = false, unique = true)
+    @Column(name = "type_code", nullable = false)
     private GameTypeCode typeCode;
 
     @Column(nullable = false, length = 255)
@@ -47,8 +47,20 @@ public class GameType extends BaseEntity {
     @Column(name = "icon_url", length = 500)
     private String iconUrl;
 
-    @Column(name = "preview_video_url", length = 500)
-    private String previewVideoUrl;
+
+    /**
+     * Admin defines which WasteSubCategories are available for this game type.
+     * School/Partnership can then choose a subset of these when configuring a round.
+     *
+     * Join table: game_type_sub_categories (game_type_id, sub_category_id)
+     */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "game_type_sub_categories",
+            joinColumns = @JoinColumn(name = "game_type_id"),
+            inverseJoinColumns = @JoinColumn(name = "sub_category_id")
+    )
+    private List<WasteSubCategory> supportedSubCategories;
 
     /**
      * Feature flags specific to this game type.
@@ -67,13 +79,16 @@ public class GameType extends BaseEntity {
     private boolean supportsCoin = true;
 
     /**
-     * Maximum level_number across all GameLevelPresetItems for this game type.
+     * Maximum level_number across all GameLevelPresets for this game type.
      */
     @Column(name = "max_levels", nullable = false)
     private int maxLevels;
 
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
+
+    @Column(name = "is_delete", nullable = false)
+    private boolean isDelete = false;
 
     @Column(name = "display_order")
     private int displayOrder = 0;

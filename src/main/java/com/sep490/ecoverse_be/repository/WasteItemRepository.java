@@ -10,12 +10,12 @@ import java.util.UUID;
 
 public interface WasteItemRepository extends JpaRepository<WasteItem, UUID>, JpaSpecificationExecutor<WasteItem> {
 
-    List<WasteItem> findByIsActiveTrue();
+    List<WasteItem> findByIsDeleteFalse();
 
-    Optional<WasteItem> findByIdAndIsActiveTrue(UUID id);
+    Optional<WasteItem> findByIdAndIsDeleteFalse(UUID id);
 
-    boolean existsByItemNameIgnoreCaseAndSubCategoryId(String itemName, UUID subCategoryId);
+    boolean existsByItemNameIgnoreCaseAndSubCategoryIdAndIsDeleteFalse(String itemName, UUID subCategoryId);
 
-    boolean existsByItemNameIgnoreCaseAndSubCategoryIdAndIdNot(String itemName, UUID subCategoryId, UUID id);
+    boolean existsByItemNameIgnoreCaseAndSubCategoryIdAndIdNotAndIsDeleteFalse(String itemName, UUID subCategoryId, UUID id);
 }
 

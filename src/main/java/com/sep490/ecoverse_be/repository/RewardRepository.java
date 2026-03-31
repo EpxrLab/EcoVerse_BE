@@ -10,11 +10,11 @@ import java.util.UUID;
 
 public interface RewardRepository extends JpaRepository<Reward, UUID> {
 
-    List<Reward> findBySchoolIdAndIsActiveTrueOrderByCreatedAtDesc(UUID schoolId);
+    List<Reward> findBySchoolIdAndIsDeleteFalseOrderByCreatedAtDesc(UUID schoolId);
 
-    List<Reward> findBySchoolIdAndRewardTypeAndIsActiveTrueOrderByCreatedAtDesc(UUID schoolId, RewardType rewardType);
+    List<Reward> findBySchoolIdAndRewardTypeAndIsDeleteFalseOrderByCreatedAtDesc(UUID schoolId, RewardType rewardType);
 
-    Optional<Reward> findByIdAndSchoolIdAndIsActiveTrue(UUID id, UUID schoolId);
+    Optional<Reward> findByIdAndSchoolIdAndIsDeleteFalse(UUID id, UUID schoolId);
 
-    boolean existsByRewardNameAndSchoolIdAndIsActiveTrue(String rewardName, UUID schoolId);
+    boolean existsByRewardNameAndSchoolIdAndIsDeleteFalse(String rewardName, UUID schoolId);
 }

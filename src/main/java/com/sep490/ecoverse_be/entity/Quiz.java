@@ -131,6 +131,9 @@ public class Quiz extends BaseEntity {
     @Column(nullable = false)
     private boolean isActive = true;
 
+    @Column(name = "is_delete", nullable = false)
+    private boolean isDelete = false;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private QuizCreated createdBy;

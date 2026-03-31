@@ -30,7 +30,6 @@ public class AdminGameTypeUpsertRequest {
 
     private String iconUrl;
 
-    private String previewVideoUrl;
 
     private Map<String, Object> features;
 

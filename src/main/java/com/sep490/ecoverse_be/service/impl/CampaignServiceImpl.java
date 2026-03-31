@@ -60,6 +60,9 @@ public class CampaignServiceImpl implements ICampaignService {
     @Autowired
     private CampaignRoundQuizRepository campaignRoundQuizRepository;
 
+    @Autowired
+    private S3PresignedUrlService s3PresignedUrlService;
+
     private User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !(auth.getPrincipal() instanceof UserPrincipal principal)) {
@@ -93,6 +96,41 @@ public class CampaignServiceImpl implements ICampaignService {
             return campaign.getPartnershipStatus().name();
         }
         return campaign.getSchoolStatus().name();
+    }
+
+    private void ensureRoundEditableByCurrentUser(Campaign campaign, User user) {
+        if (campaign.getCampaignType() == CampaignType.PARTNERSHIP_EVENT) {
+            if (campaign.getCreatorPartnership() == null || !campaign.getCreatorPartnership().getUser().getId().equals(user.getId())) {
+                throw new BadRequestException("Bạn không có quyền sửa round này");
+            }
+            return;
+        }
+        if (campaign.getCreatorSchool() == null || !campaign.getCreatorSchool().getUser().getId().equals(user.getId())) {
+            throw new BadRequestException("Bạn không có quyền sửa round này");
+        }
+    }
+
+    private Set<WasteCategory> collectAllowedCategories(GameLevelPreset preset) {
+        if (preset.getItems() == null) {
+            return Set.of();
+        }
+        return preset.getItems().stream()
+                .filter(item -> item.getWasteCategories() != null)
+                .flatMap(item -> item.getWasteCategories().stream())
+                .collect(java.util.stream.Collectors.toSet());
+    }
+
+    private WasteSubCategoryOptionResponse mapWasteSubCategoryOption(WasteSubCategory subCategory) {
+        return WasteSubCategoryOptionResponse.builder()
+                .id(subCategory.getId())
+                .category(subCategory.getCategory())
+                .subCategoryCode(subCategory.getSubCategoryCode())
+                .displayName(subCategory.getDisplayName())
+                .description(subCategory.getDescription())
+                .iconUrl(subCategory.getIconUrl())
+                .iconPresignedUrl(s3PresignedUrlService.generatePresignedUrl(subCategory.getIconUrl()))
+                .displayOrder(subCategory.getDisplayOrder())
+                .build();
     }
 
     private String createCode(String prefix) {
@@ -200,6 +238,9 @@ public class CampaignServiceImpl implements ICampaignService {
     }
 
     private Map<UUID, List<UUID>> normalizePresetSubCategoryConfigs(UpdateRoundGameConfigRequest request) {
+        if (request.getPresetSubCategoryConfigs() == null || request.getPresetSubCategoryConfigs().isEmpty()) {
+            throw new BadRequestException("Cần cấu hình sub-category cho từng preset");
+        }
         Map<UUID, List<UUID>> normalized = new LinkedHashMap<>();
         for (RoundPresetSubCategoryConfigRequest cfg : request.getPresetSubCategoryConfigs()) {
             if (normalized.containsKey(cfg.getPresetId())) {
@@ -212,6 +253,71 @@ public class CampaignServiceImpl implements ICampaignService {
             normalized.put(cfg.getPresetId(), new ArrayList<>(uniqueSubCategoryIds));
         }
         return normalized;
+    }
+
+    @Override
+    public List<PresetAvailableSubCategoriesResponse> getAvailableSubCategoriesForPresets(UUID roundId, UUID gameTypeId, List<UUID> presetIds) {
+        User user = getCurrentUser();
+        CampaignRound round = campaignRoundRepository.findById(roundId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy round"));
+        ensureRoundEditableByCurrentUser(round.getCampaign(), user);
+
+        if (presetIds == null || presetIds.isEmpty()) {
+            throw new BadRequestException("Cần cung cấp ít nhất 1 preset");
+        }
+
+        GameType gameType = gameTypeRepository.findById(gameTypeId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy game type"));
+
+        List<UUID> orderedPresetIds = new ArrayList<>(new LinkedHashSet<>(presetIds));
+        List<GameLevelPreset> presets = gameLevelPresetRepository.findByIdInAndGameTypeId(orderedPresetIds, gameType.getId());
+        if (presets.size() != orderedPresetIds.size()) {
+            throw new BadRequestException("presetIds chứa preset không hợp lệ");
+        }
+
+        Map<UUID, Integer> orderMap = new HashMap<>();
+        for (int i = 0; i < orderedPresetIds.size(); i++) {
+            orderMap.put(orderedPresetIds.get(i), i);
+        }
+        presets = presets.stream()
+                .sorted(Comparator.comparingInt(p -> orderMap.getOrDefault(p.getId(), Integer.MAX_VALUE)))
+                .toList();
+
+        Set<WasteCategory> allCategories = presets.stream()
+                .map(this::collectAllowedCategories)
+                .flatMap(Set::stream)
+                .collect(java.util.stream.Collectors.toSet());
+
+        List<WasteSubCategory> activeSubCategories = allCategories.isEmpty()
+                ? List.of()
+                : wasteSubCategoryRepository.findByCategoryInAndIsDeleteFalse(new ArrayList<>(allCategories)).stream()
+                .sorted(Comparator.comparingInt(WasteSubCategory::getDisplayOrder)
+                        .thenComparing(WasteSubCategory::getDisplayName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+
+        return presets.stream()
+                .map(preset -> {
+                    Set<WasteCategory> allowedCategories = collectAllowedCategories(preset);
+                    List<WasteSubCategoryOptionResponse> options = activeSubCategories.stream()
+                            .filter(subCategory -> allowedCategories.contains(subCategory.getCategory()))
+                            .collect(java.util.stream.Collectors.collectingAndThen(
+                                    java.util.stream.Collectors.toMap(
+                                            WasteSubCategory::getId,
+                                            this::mapWasteSubCategoryOption,
+                                            (left, right) -> left,
+                                            LinkedHashMap::new
+                                    ),
+                                    map -> new ArrayList<>(map.values())
+                            ));
+
+                    return PresetAvailableSubCategoriesResponse.builder()
+                            .presetId(preset.getId())
+                            .gameTypeId(gameType.getId())
+                            .difficulty(preset.getDifficulty())
+                            .availableSubCategories(options)
+                            .build();
+                })
+                .toList();
     }
 
     @Override
@@ -648,16 +754,7 @@ public class CampaignServiceImpl implements ICampaignService {
         CampaignRound round = campaignRoundRepository.findById(roundId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy round"));
         Campaign campaign = round.getCampaign();
-
-        if (campaign.getCampaignType() == CampaignType.PARTNERSHIP_EVENT) {
-            if (campaign.getCreatorPartnership() == null || !campaign.getCreatorPartnership().getUser().getId().equals(user.getId())) {
-                throw new BadRequestException("Bạn không có quyền sửa round này");
-            }
-        } else {
-            if (campaign.getCreatorSchool() == null || !campaign.getCreatorSchool().getUser().getId().equals(user.getId())) {
-                throw new BadRequestException("Bạn không có quyền sửa round này");
-            }
-        }
+        ensureRoundEditableByCurrentUser(campaign, user);
 
         GameType gameType = gameTypeRepository.findById(request.getGameTypeId())
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy game type"));
@@ -683,7 +780,7 @@ public class CampaignServiceImpl implements ICampaignService {
         Set<UUID> requestedSubCategoryIds = presetSubCategoryRequests.values().stream()
                 .flatMap(Collection::stream)
                 .collect(java.util.stream.Collectors.toSet());
-        List<WasteSubCategory> activeSubCategories = wasteSubCategoryRepository.findByIdInAndIsActiveTrue(new ArrayList<>(requestedSubCategoryIds));
+        List<WasteSubCategory> activeSubCategories = wasteSubCategoryRepository.findByIdInAndIsDeleteFalse(new ArrayList<>(requestedSubCategoryIds));
         if (activeSubCategories.size() != requestedSubCategoryIds.size()) {
             throw new BadRequestException("Có sub-category không hợp lệ hoặc đã bị xóa mềm");
         }
@@ -694,12 +791,7 @@ public class CampaignServiceImpl implements ICampaignService {
 
         Map<String, List<UUID>> normalizedPresetSubCategoryConfig = new LinkedHashMap<>();
         for (GameLevelPreset preset : selectedPresets) {
-            Set<WasteCategory> allowedCategories = preset.getItems() == null
-                    ? Set.of()
-                    : preset.getItems().stream()
-                    .filter(item -> item.getWasteCategories() != null)
-                    .flatMap(item -> item.getWasteCategories().stream())
-                    .collect(java.util.stream.Collectors.toSet());
+            Set<WasteCategory> allowedCategories = collectAllowedCategories(preset);
             if (allowedCategories.isEmpty()) {
                 throw new BadRequestException("Preset chưa được admin cấu hình wasteCategory: " + preset.getId());
             }
@@ -757,10 +849,10 @@ public class CampaignServiceImpl implements ICampaignService {
 
             Quiz quiz;
             if (isSchool) {
-                quiz = quizRepository.findByIdAndSchoolIdAndIsActiveTrue(request.getQuizId(), school.getId())
+                quiz = quizRepository.findByIdAndSchoolIdAndIsDeleteFalse(request.getQuizId(), school.getId())
                         .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz " + request.getQuizId() + " thuộc quyền sở hữu"));
             } else {
-                quiz = quizRepository.findByIdAndPartnershipIdAndIsActiveTrue(request.getQuizId(), partnership.getId())
+                quiz = quizRepository.findByIdAndPartnershipIdAndIsDeleteFalse(request.getQuizId(), partnership.getId())
                         .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz " + request.getQuizId() + " thuộc quyền sở hữu"));
             }
 

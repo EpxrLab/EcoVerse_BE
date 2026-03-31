@@ -11,6 +11,7 @@ public record StudentQuestionResponse(
         int questionOrder,
         String questionText,
         String questionImageUrl,
+        String questionImagePresignedUrl,
         // Danh sach dap an - KHONG co isCorrect de tranh gian lan
         List<StudentAnswerOptionResponse> answers
 ) {}

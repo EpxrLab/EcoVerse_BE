@@ -48,6 +48,9 @@ public class Reward extends BaseEntity {
 
     private Boolean isActive = true;
 
+    @Column(name = "is_delete", nullable = false)
+    private Boolean isDelete = false;
+
     @Column(columnDefinition = "text")
     private String termsConditions;
 

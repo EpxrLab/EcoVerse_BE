@@ -192,10 +192,10 @@ public class AdminServiceImpl implements IAdminService {
     @Override
     @Transactional
     public AdminGameTypeResponse createGameType(AdminGameTypeUpsertRequest request) {
-        if (gameTypeRepository.existsByTypeCode(request.getTypeCode())) {
+        if (gameTypeRepository.existsByTypeCodeAndIsDeleteFalse(request.getTypeCode())) {
             throw new BadRequestException("Game type code đã tồn tại");
         }
-        if (gameTypeRepository.existsByNameIgnoreCase(request.getName())) {
+        if (gameTypeRepository.existsByNameIgnoreCaseAndIsDeleteFalse(request.getName())) {
             throw new BadRequestException("Tên game type đã tồn tại");
         }
 
@@ -207,7 +207,6 @@ public class AdminServiceImpl implements IAdminService {
         gameType.setHowToPlay(request.getHowToPlay());
         gameType.setThumbnailUrl(request.getThumbnailUrl());
         gameType.setIconUrl(request.getIconUrl());
-        gameType.setPreviewVideoUrl(request.getPreviewVideoUrl());
         gameType.setFeatures(request.getFeatures() != null ? request.getFeatures() : new LinkedHashMap<>());
         gameType.setSupportsCoin(request.getSupportsCoin() == null || request.getSupportsCoin());
         gameType.setMaxLevels(request.getMaxLevels() != null ? request.getMaxLevels() : 1);
@@ -223,10 +222,10 @@ public class AdminServiceImpl implements IAdminService {
     public AdminGameTypeResponse updateGameType(UUID id, AdminGameTypeUpsertRequest request) {
         GameType gameType = getActiveGameTypeOrThrow(id);
 
-        if (!gameType.getTypeCode().equals(request.getTypeCode()) && gameTypeRepository.existsByTypeCode(request.getTypeCode())) {
+        if (!gameType.getTypeCode().equals(request.getTypeCode()) && gameTypeRepository.existsByTypeCodeAndIsDeleteFalse(request.getTypeCode())) {
             throw new BadRequestException("Game type code đã tồn tại");
         }
-        if (!gameType.getName().equalsIgnoreCase(request.getName()) && gameTypeRepository.existsByNameIgnoreCase(request.getName())) {
+        if (!gameType.getName().equalsIgnoreCase(request.getName()) && gameTypeRepository.existsByNameIgnoreCaseAndIsDeleteFalse(request.getName())) {
             throw new BadRequestException("Tên game type đã tồn tại");
         }
 
@@ -237,7 +236,6 @@ public class AdminServiceImpl implements IAdminService {
         gameType.setHowToPlay(request.getHowToPlay());
         gameType.setThumbnailUrl(request.getThumbnailUrl());
         gameType.setIconUrl(request.getIconUrl());
-        gameType.setPreviewVideoUrl(request.getPreviewVideoUrl());
         if (request.getFeatures() != null) {
             gameType.setFeatures(request.getFeatures());
         }
@@ -258,14 +256,14 @@ public class AdminServiceImpl implements IAdminService {
     @Transactional
     public void deleteGameType(UUID id) {
         GameType gameType = getActiveGameTypeOrThrow(id);
-        gameType.setActive(false);
+        gameType.setDelete(true);
         gameType.setUpdatedBy(getCurrentAdmin());
         gameTypeRepository.save(gameType);
     }
 
     @Override
     public List<AdminGameTypeResponse> getGameTypes() {
-        return gameTypeRepository.findByIsActiveTrue().stream().map(this::mapGameType).toList();
+        return gameTypeRepository.findByIsDeleteFalse().stream().map(this::mapGameType).toList();
     }
 
     @Override
@@ -328,7 +326,7 @@ public class AdminServiceImpl implements IAdminService {
     @Override
     @Transactional
     public AdminWasteSubCategoryResponse createWasteSubCategory(AdminWasteSubCategoryUpsertRequest request) {
-        if (wasteSubCategoryRepository.existsByCategoryAndSubCategoryCode(request.getCategory(), request.getSubCategoryCode())) {
+        if (wasteSubCategoryRepository.existsByCategoryAndSubCategoryCodeAndIsDeleteFalse(request.getCategory(), request.getSubCategoryCode())) {
             throw new BadRequestException("Sub category code đã tồn tại trong category");
         }
         WasteSubCategory subCategory = new WasteSubCategory();
@@ -347,7 +345,7 @@ public class AdminServiceImpl implements IAdminService {
     @Transactional
     public AdminWasteSubCategoryResponse updateWasteSubCategory(UUID id, AdminWasteSubCategoryUpsertRequest request) {
         WasteSubCategory subCategory = getActiveWasteSubCategoryOrThrow(id);
-        if (wasteSubCategoryRepository.existsByCategoryAndSubCategoryCodeAndIdNot(request.getCategory(), request.getSubCategoryCode(), id)) {
+        if (wasteSubCategoryRepository.existsByCategoryAndSubCategoryCodeAndIdNotAndIsDeleteFalse(request.getCategory(), request.getSubCategoryCode(), id)) {
             throw new BadRequestException("Sub category code đã tồn tại trong category");
         }
         subCategory.setCategory(request.getCategory());
@@ -368,20 +366,20 @@ public class AdminServiceImpl implements IAdminService {
     @Transactional
     public void deleteWasteSubCategory(UUID id) {
         WasteSubCategory subCategory = getActiveWasteSubCategoryOrThrow(id);
-        subCategory.setActive(false);
+        subCategory.setDelete(true);
         wasteSubCategoryRepository.save(subCategory);
     }
 
     @Override
     public List<AdminWasteSubCategoryResponse> getWasteSubCategories() {
-        return wasteSubCategoryRepository.findByIsActiveTrue().stream().map(this::mapWasteSubCategory).toList();
+        return wasteSubCategoryRepository.findByIsDeleteFalse().stream().map(this::mapWasteSubCategory).toList();
     }
 
     @Override
     @Transactional
     public AdminWasteItemResponse createWasteItem(AdminWasteItemUpsertRequest request) {
         WasteSubCategory subCategory = getActiveWasteSubCategoryOrThrow(request.getSubCategoryId());
-        if (wasteItemRepository.existsByItemNameIgnoreCaseAndSubCategoryId(request.getItemName(), request.getSubCategoryId())) {
+        if (wasteItemRepository.existsByItemNameIgnoreCaseAndSubCategoryIdAndIsDeleteFalse(request.getItemName(), request.getSubCategoryId())) {
             throw new BadRequestException("Waste item đã tồn tại trong sub-category");
         }
         WasteItem wasteItem = new WasteItem();
@@ -403,7 +401,7 @@ public class AdminServiceImpl implements IAdminService {
     public AdminWasteItemResponse updateWasteItem(UUID id, AdminWasteItemUpsertRequest request) {
         WasteItem wasteItem = getActiveWasteItemOrThrow(id);
         WasteSubCategory subCategory = getActiveWasteSubCategoryOrThrow(request.getSubCategoryId());
-        if (wasteItemRepository.existsByItemNameIgnoreCaseAndSubCategoryIdAndIdNot(request.getItemName(), request.getSubCategoryId(), id)) {
+        if (wasteItemRepository.existsByItemNameIgnoreCaseAndSubCategoryIdAndIdNotAndIsDeleteFalse(request.getItemName(), request.getSubCategoryId(), id)) {
             throw new BadRequestException("Waste item đã tồn tại trong sub-category");
         }
         wasteItem.setItemName(request.getItemName());
@@ -424,13 +422,13 @@ public class AdminServiceImpl implements IAdminService {
     @Transactional
     public void deleteWasteItem(UUID id) {
         WasteItem wasteItem = getActiveWasteItemOrThrow(id);
-        wasteItem.setActive(false);
+        wasteItem.setDelete(true);
         wasteItemRepository.save(wasteItem);
     }
 
     @Override
     public List<AdminWasteItemResponse> getWasteItems() {
-        return wasteItemRepository.findByIsActiveTrue().stream().map(this::mapWasteItem).toList();
+        return wasteItemRepository.findByIsDeleteFalse().stream().map(this::mapWasteItem).toList();
     }
 
     @Override
@@ -628,8 +626,10 @@ public class AdminServiceImpl implements IAdminService {
                 .position(school.getPosition())
                 .linkWeb(school.getLinkWeb())
                 .description(school.getDescription())
-                .logoUrl(s3PresignedUrlService.generatePresignedUrl(school.getLogoUrl()))
-                .licenseUrl(s3PresignedUrlService.generatePresignedUrl(school.getLicenseUrl()))
+                .logoUrl(school.getLogoUrl())
+                .logoPresignedUrl(s3PresignedUrlService.generatePresignedUrl(school.getLogoUrl()))
+                .licenseUrl(school.getLicenseUrl())
+                .licensePresignedUrl(s3PresignedUrlService.generatePresignedUrl(school.getLicenseUrl()))
                 .approvalStatus(school.getApprovalStatus())
                 .approvedAt(school.getApprovedAt())
                 .accountStatus(user.getStatus())
@@ -656,8 +656,10 @@ public class AdminServiceImpl implements IAdminService {
                 .position(partnership.getPosition())
                 .linkWeb(partnership.getLinkWeb())
                 .description(partnership.getDescription())
-                .logoUrl(s3PresignedUrlService.generatePresignedUrl(partnership.getLogoUrl()))
-                .licenseUrl(s3PresignedUrlService.generatePresignedUrl(partnership.getLicenseUrl()))
+                .logoUrl(partnership.getLogoUrl())
+                .logoPresignedUrl(s3PresignedUrlService.generatePresignedUrl(partnership.getLogoUrl()))
+                .licenseUrl(partnership.getLicenseUrl())
+                .licensePresignedUrl(s3PresignedUrlService.generatePresignedUrl(partnership.getLicenseUrl()))
                 .approvalStatus(partnership.getApprovalStatus())
                 .approvedAt(partnership.getApprovedAt())
                 .accountStatus(user.getStatus())
@@ -844,7 +846,8 @@ public class AdminServiceImpl implements IAdminService {
                 .dateOfBirth(student.getDateOfBirth())
                 .gender(student.getGender() != null ? student.getGender().name() : null)
                 .address(student.getAddress())
-                .avatarUrl(s3PresignedUrlService.generatePresignedUrl(student.getAvatarUrl()))
+                .avatarUrl(student.getAvatarUrl())
+                .avatarPresignedUrl(s3PresignedUrlService.generatePresignedUrl(student.getAvatarUrl()))
                 .accountStatus(user.getStatus())
                 .isActive(user.getIsActive())
                 .schoolName(school.getSchoolName())
@@ -911,9 +914,10 @@ public class AdminServiceImpl implements IAdminService {
                 .shortDescription(gameType.getShortDescription())
                 .fullDescription(gameType.getFullDescription())
                 .howToPlay(gameType.getHowToPlay())
-                .thumbnailUrl(s3PresignedUrlService.generatePresignedUrl(gameType.getThumbnailUrl()))
-                .iconUrl(s3PresignedUrlService.generatePresignedUrl(gameType.getIconUrl()))
-                .previewVideoUrl(s3PresignedUrlService.generatePresignedUrl(gameType.getPreviewVideoUrl()))
+                .thumbnailUrl(gameType.getThumbnailUrl())
+                .thumbnailPresignedUrl(s3PresignedUrlService.generatePresignedUrl(gameType.getThumbnailUrl()))
+                .iconUrl(gameType.getIconUrl())
+                .iconPresignedUrl(s3PresignedUrlService.generatePresignedUrl(gameType.getIconUrl()))
                 .features(gameType.getFeatures())
                 .supportsCoin(gameType.isSupportsCoin())
                 .maxLevels(gameType.getMaxLevels())
@@ -987,7 +991,8 @@ public class AdminServiceImpl implements IAdminService {
                 .subCategoryCode(subCategory.getSubCategoryCode())
                 .displayName(subCategory.getDisplayName())
                 .description(subCategory.getDescription())
-                .iconUrl(s3PresignedUrlService.generatePresignedUrl(subCategory.getIconUrl()))
+                .iconUrl(subCategory.getIconUrl())
+                .iconPresignedUrl(s3PresignedUrlService.generatePresignedUrl(subCategory.getIconUrl()))
                 .displayOrder(subCategory.getDisplayOrder())
                 .isActive(subCategory.isActive())
                 .build();
@@ -1004,7 +1009,8 @@ public class AdminServiceImpl implements IAdminService {
                 .subCategoryDisplayName(subCategory != null ? subCategory.getDisplayName() : null)
                 .description(wasteItem.getDescription())
                 .funFact(wasteItem.getFunFact())
-                .imageUrl(s3PresignedUrlService.generatePresignedUrl(wasteItem.getImageUrl()))
+                .imageUrl(wasteItem.getImageUrl())
+                .imagePresignedUrl(s3PresignedUrlService.generatePresignedUrl(wasteItem.getImageUrl()))
                 .decompositionTime(wasteItem.getDecompositionTime())
                 .recyclingTips(wasteItem.getRecyclingTips())
                 .isActive(wasteItem.isActive())
@@ -1012,7 +1018,7 @@ public class AdminServiceImpl implements IAdminService {
     }
 
     private GameType getActiveGameTypeOrThrow(UUID id) {
-        return gameTypeRepository.findByIdAndIsActiveTrue(id)
+        return gameTypeRepository.findByIdAndIsDeleteFalse(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy game type"));
     }
 
@@ -1023,12 +1029,12 @@ public class AdminServiceImpl implements IAdminService {
     }
 
     private WasteSubCategory getActiveWasteSubCategoryOrThrow(UUID id) {
-        return wasteSubCategoryRepository.findByIdAndIsActiveTrue(id)
+        return wasteSubCategoryRepository.findByIdAndIsDeleteFalse(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy waste sub-category"));
     }
 
     private WasteItem getActiveWasteItemOrThrow(UUID id) {
-        return wasteItemRepository.findByIdAndIsActiveTrue(id)
+        return wasteItemRepository.findByIdAndIsDeleteFalse(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy waste item"));
     }
 

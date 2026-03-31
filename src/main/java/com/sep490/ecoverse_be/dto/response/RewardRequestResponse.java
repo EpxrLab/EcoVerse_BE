@@ -1,6 +1,5 @@
 package com.sep490.ecoverse_be.dto.response;
 
-import com.sep490.ecoverse_be.entity.User;
 import com.sep490.ecoverse_be.enums.RewardRequestStatus;
 import com.sep490.ecoverse_be.enums.RewardType;
 import lombok.*;
@@ -27,6 +26,7 @@ public class RewardRequestResponse {
     private String rewardName;
     private RewardType rewardType;
     private String rewardImageUrl;
+    private String rewardImagePresignedUrl;
 
     private int quantity;
     private BigDecimal totalCoins;

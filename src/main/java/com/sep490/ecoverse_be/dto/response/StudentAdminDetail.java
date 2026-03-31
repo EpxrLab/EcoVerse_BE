@@ -22,6 +22,7 @@ public class StudentAdminDetail implements AdminUserDetail {
     private String gender;
     private String address;
     private String avatarUrl;
+    private String avatarPresignedUrl;
     private AccountStatus accountStatus;
     private Boolean isActive;
     private String schoolName;

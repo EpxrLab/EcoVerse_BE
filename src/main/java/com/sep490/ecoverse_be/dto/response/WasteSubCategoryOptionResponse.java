@@ -6,7 +6,7 @@ import lombok.Builder;
 import java.util.UUID;
 
 @Builder
-public record AdminWasteSubCategoryResponse(
+public record WasteSubCategoryOptionResponse(
         UUID id,
         WasteCategory category,
         String subCategoryCode,
@@ -14,8 +14,7 @@ public record AdminWasteSubCategoryResponse(
         String description,
         String iconUrl,
         String iconPresignedUrl,
-        int displayOrder,
-        boolean isActive
+        int displayOrder
 ) {
 }
 

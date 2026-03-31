@@ -10,17 +10,19 @@ import java.util.UUID;
 
 public interface WasteSubCategoryRepository extends JpaRepository<WasteSubCategory, UUID> {
 
-    List<WasteSubCategory> findByIdInAndIsActiveTrue(List<UUID> ids);
+    List<WasteSubCategory> findByIdIn(List<UUID> ids);
 
-    List<WasteSubCategory> findByIsActiveTrue();
+    List<WasteSubCategory> findByIdInAndIsDeleteFalse(List<UUID> ids);
 
-    Optional<WasteSubCategory> findByIdAndIsActiveTrue(UUID id);
+    Optional<WasteSubCategory> findByIdAndIsDeleteFalse(UUID id);
 
-    List<WasteSubCategory> findByCategoryInAndIsActiveTrue(List<WasteCategory> categories);
+    List<WasteSubCategory> findByIsDeleteFalse();
 
-    boolean existsByCategoryAndSubCategoryCode(WasteCategory category, String subCategoryCode);
+    List<WasteSubCategory> findByCategoryInAndIsDeleteFalse(List<WasteCategory> categories);
 
-    boolean existsByCategoryAndSubCategoryCodeAndIdNot(WasteCategory category, String subCategoryCode, UUID id);
+    boolean existsByCategoryAndSubCategoryCodeAndIsDeleteFalse(WasteCategory category, String subCategoryCode);
+
+    boolean existsByCategoryAndSubCategoryCodeAndIdNotAndIsDeleteFalse(WasteCategory category, String subCategoryCode, UUID id);
 }
 
 
