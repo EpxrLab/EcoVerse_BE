@@ -22,6 +22,7 @@ public class StudentProfileResponse {
     private String gender;
     private String address;
     private String avatarUrl;
+    private String avatarPresignedUrl;
     private BigDecimal totalCoins;
     private Boolean isFirstLogin;
     private SchoolSummary school;

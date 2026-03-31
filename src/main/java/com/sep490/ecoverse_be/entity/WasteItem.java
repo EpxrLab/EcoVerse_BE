@@ -63,6 +63,9 @@ public class WasteItem extends BaseEntity {
     @Column(nullable = false)
     private boolean isActive = true;
 
+    @Column(name = "is_delete", nullable = false)
+    private boolean isDelete = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private User createdBy;

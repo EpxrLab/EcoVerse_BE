@@ -72,7 +72,8 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
                 .rewardId(r.getReward().getId())
                 .rewardName(r.getReward().getRewardName())
                 .rewardType(r.getReward().getRewardType())
-                .rewardImageUrl(s3PresignedUrlService.generatePresignedUrl(r.getReward().getImageUrl()))
+                .rewardImageUrl(r.getReward().getImageUrl())
+                .rewardImagePresignedUrl(s3PresignedUrlService.generatePresignedUrl(r.getReward().getImageUrl()))
                 .quantity(r.getQuantity())
                 .totalCoins(r.getTotalCoins())
                 .status(r.getStatus())
@@ -183,7 +184,7 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
             student = targetStudent;
         }
 
-        Reward reward = rewardRepository.findByIdAndSchoolIdAndIsActiveTrue(dto.getRewardId(), student.getSchool().getId())
+        Reward reward = rewardRepository.findByIdAndSchoolIdAndIsDeleteFalse(dto.getRewardId(), student.getSchool().getId())
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy quà"));
 
         reserveStock(reward, dto.getQuantity());

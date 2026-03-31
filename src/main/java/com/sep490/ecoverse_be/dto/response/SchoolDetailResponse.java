@@ -31,7 +31,9 @@ public class SchoolDetailResponse implements AdminUserDetail {
     private String linkWeb;
     private String description;
     private String logoUrl;
+    private String logoPresignedUrl;
     private String licenseUrl;
+    private String licensePresignedUrl;
     private ApprovalStatus approvalStatus;
     private LocalDateTime approvedAt;
     private AccountStatus accountStatus;

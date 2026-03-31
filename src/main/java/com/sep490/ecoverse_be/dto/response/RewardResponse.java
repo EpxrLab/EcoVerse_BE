@@ -20,6 +20,7 @@ public class RewardResponse {
     private String description;
     private BigDecimal coinCost;
     private String imageUrl;
+    private String imagePresignedUrl;
     private Integer stockQuantity;
     private Boolean isUnlimited;
     private Boolean isActive;

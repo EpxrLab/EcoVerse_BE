@@ -13,6 +13,7 @@ public record WasteSubCategoryOptionResponse(
         String displayName,
         String description,
         String iconUrl,
+        String iconPresignedUrl,
         int displayOrder
 ) {
 }

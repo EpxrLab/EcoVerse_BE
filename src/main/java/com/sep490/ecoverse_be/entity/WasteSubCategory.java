@@ -11,11 +11,6 @@ import java.util.List;
 
 @Entity
 @Table(name = "waste_sub_categories",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uk_wsc_category_code",
-                        columnNames = {"category", "sub_category_code"})
-        },
         indexes = {
                 @Index(name = "idx_wsc_category", columnList = "category"),
                 @Index(name = "idx_wsc_is_active", columnList = "is_active")
@@ -60,6 +55,9 @@ public class WasteSubCategory extends BaseEntity {
 
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
+
+    @Column(name = "is_delete", nullable = false)
+    private boolean isDelete = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")

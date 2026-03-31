@@ -12,17 +12,17 @@ public interface WasteSubCategoryRepository extends JpaRepository<WasteSubCatego
 
     List<WasteSubCategory> findByIdIn(List<UUID> ids);
 
-    List<WasteSubCategory> findByIdInAndIsActiveTrue(List<UUID> ids);
+    List<WasteSubCategory> findByIdInAndIsDeleteFalse(List<UUID> ids);
 
-    Optional<WasteSubCategory> findByIdAndIsActiveTrue(UUID id);
+    Optional<WasteSubCategory> findByIdAndIsDeleteFalse(UUID id);
 
-    List<WasteSubCategory> findByIsActiveTrue();
+    List<WasteSubCategory> findByIsDeleteFalse();
 
-    List<WasteSubCategory> findByCategoryInAndIsActiveTrue(List<WasteCategory> categories);
+    List<WasteSubCategory> findByCategoryInAndIsDeleteFalse(List<WasteCategory> categories);
 
-    boolean existsByCategoryAndSubCategoryCode(WasteCategory category, String subCategoryCode);
+    boolean existsByCategoryAndSubCategoryCodeAndIsDeleteFalse(WasteCategory category, String subCategoryCode);
 
-    boolean existsByCategoryAndSubCategoryCodeAndIdNot(WasteCategory category, String subCategoryCode, UUID id);
+    boolean existsByCategoryAndSubCategoryCodeAndIdNotAndIsDeleteFalse(WasteCategory category, String subCategoryCode, UUID id);
 }
 
 

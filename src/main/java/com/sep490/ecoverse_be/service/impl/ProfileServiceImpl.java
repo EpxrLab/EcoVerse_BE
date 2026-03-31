@@ -80,7 +80,8 @@ public class ProfileServiceImpl implements IProfileService {
                 .dateOfBirth(student.getDateOfBirth())
                 .gender(student.getGender() != null ? student.getGender().name() : null)
                 .address(student.getAddress())
-                .avatarUrl(s3PresignedUrlService.generatePresignedUrl(student.getAvatarUrl()))
+                .avatarUrl(student.getAvatarUrl())
+                .avatarPresignedUrl(s3PresignedUrlService.generatePresignedUrl(student.getAvatarUrl()))
                 .totalCoins(student.getTotalCoins() != null ? student.getTotalCoins() : null)
                 .isFirstLogin(student.getIsFirstLogin())
                 .school(StudentProfileResponse.SchoolSummary.builder()
@@ -140,8 +141,10 @@ public class ProfileServiceImpl implements IProfileService {
                 .linkWeb(school.getLinkWeb())
                 .description(school.getDescription())
                 .approvalStatus(school.getApprovalStatus() != null ? school.getApprovalStatus().name() : null)
-                .logoUrl(s3PresignedUrlService.generatePresignedUrl(school.getLogoUrl()))
-                .licenseUrl(s3PresignedUrlService.generatePresignedUrl(school.getLicenseUrl()))
+                .logoUrl(school.getLogoUrl())
+                .logoPresignedUrl(s3PresignedUrlService.generatePresignedUrl(school.getLogoUrl()))
+                .licenseUrl(school.getLicenseUrl())
+                .licensePresignedUrl(s3PresignedUrlService.generatePresignedUrl(school.getLicenseUrl()))
                 .build();
     }
 
@@ -165,8 +168,10 @@ public class ProfileServiceImpl implements IProfileService {
                 .linkWeb(partnership.getLinkWeb())
                 .description(partnership.getDescription())
                 .approvalStatus(partnership.getApprovalStatus() != null ? partnership.getApprovalStatus().name() : null)
-                .logoUrl(s3PresignedUrlService.generatePresignedUrl(partnership.getLogoUrl()))
-                .licenseUrl(s3PresignedUrlService.generatePresignedUrl(partnership.getLicenseUrl()))
+                .logoUrl(partnership.getLogoUrl())
+                .logoPresignedUrl(s3PresignedUrlService.generatePresignedUrl(partnership.getLogoUrl()))
+                .licenseUrl(partnership.getLicenseUrl())
+                .licensePresignedUrl(s3PresignedUrlService.generatePresignedUrl(partnership.getLicenseUrl()))
                 .build();
     }
 
@@ -205,8 +210,10 @@ public class ProfileServiceImpl implements IProfileService {
                 .linkWeb(school.getLinkWeb())
                 .description(school.getDescription())
                 .approvalStatus(school.getApprovalStatus() != null ? school.getApprovalStatus().name() : null)
-                .logoUrl(s3PresignedUrlService.generatePresignedUrl(school.getLogoUrl()))
-                .licenseUrl(s3PresignedUrlService.generatePresignedUrl(school.getLicenseUrl()))
+                .logoUrl(school.getLogoUrl())
+                .logoPresignedUrl(s3PresignedUrlService.generatePresignedUrl(school.getLogoUrl()))
+                .licenseUrl(school.getLicenseUrl())
+                .licensePresignedUrl(s3PresignedUrlService.generatePresignedUrl(school.getLicenseUrl()))
                 .build();
     }
 
@@ -245,8 +252,10 @@ public class ProfileServiceImpl implements IProfileService {
                 .linkWeb(partnership.getLinkWeb())
                 .description(partnership.getDescription())
                 .approvalStatus(partnership.getApprovalStatus() != null ? partnership.getApprovalStatus().name() : null)
-                .logoUrl(s3PresignedUrlService.generatePresignedUrl(partnership.getLogoUrl()))
-                .licenseUrl(s3PresignedUrlService.generatePresignedUrl(partnership.getLicenseUrl()))
+                .logoUrl(partnership.getLogoUrl())
+                .logoPresignedUrl(s3PresignedUrlService.generatePresignedUrl(partnership.getLogoUrl()))
+                .licenseUrl(partnership.getLicenseUrl())
+                .licensePresignedUrl(s3PresignedUrlService.generatePresignedUrl(partnership.getLicenseUrl()))
                 .build();
     }
 }

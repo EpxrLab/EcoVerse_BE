@@ -26,7 +26,7 @@ import java.util.Map;
 public class GameType extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "type_code", nullable = false, unique = true)
+    @Column(name = "type_code", nullable = false)
     private GameTypeCode typeCode;
 
     @Column(nullable = false, length = 255)
@@ -86,6 +86,9 @@ public class GameType extends BaseEntity {
 
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
+
+    @Column(name = "is_delete", nullable = false)
+    private boolean isDelete = false;
 
     @Column(name = "display_order")
     private int displayOrder = 0;

@@ -26,5 +26,7 @@ public class SchoolProfileResponse {
     private String description;
     private String approvalStatus;
     private String logoUrl;
+    private String logoPresignedUrl;
     private String licenseUrl;
+    private String licensePresignedUrl;
 }

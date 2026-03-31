@@ -16,6 +16,7 @@ public class FileMapper {
         return new FileResponse(
                 file.getId(),
                 file.getFileName(),
+                file.getFileUrl(),
                 s3PresignedUrlService.generatePresignedUrl(file.getFileUrl()),
                 file.getFileType(),
                 file.getFileSize(),

@@ -127,7 +127,8 @@ public class CampaignServiceImpl implements ICampaignService {
                 .subCategoryCode(subCategory.getSubCategoryCode())
                 .displayName(subCategory.getDisplayName())
                 .description(subCategory.getDescription())
-                .iconUrl(s3PresignedUrlService.generatePresignedUrl(subCategory.getIconUrl()))
+                .iconUrl(subCategory.getIconUrl())
+                .iconPresignedUrl(s3PresignedUrlService.generatePresignedUrl(subCategory.getIconUrl()))
                 .displayOrder(subCategory.getDisplayOrder())
                 .build();
     }
@@ -289,7 +290,7 @@ public class CampaignServiceImpl implements ICampaignService {
 
         List<WasteSubCategory> activeSubCategories = allCategories.isEmpty()
                 ? List.of()
-                : wasteSubCategoryRepository.findByCategoryInAndIsActiveTrue(new ArrayList<>(allCategories)).stream()
+                : wasteSubCategoryRepository.findByCategoryInAndIsDeleteFalse(new ArrayList<>(allCategories)).stream()
                 .sorted(Comparator.comparingInt(WasteSubCategory::getDisplayOrder)
                         .thenComparing(WasteSubCategory::getDisplayName, String.CASE_INSENSITIVE_ORDER))
                 .toList();
@@ -779,7 +780,7 @@ public class CampaignServiceImpl implements ICampaignService {
         Set<UUID> requestedSubCategoryIds = presetSubCategoryRequests.values().stream()
                 .flatMap(Collection::stream)
                 .collect(java.util.stream.Collectors.toSet());
-        List<WasteSubCategory> activeSubCategories = wasteSubCategoryRepository.findByIdInAndIsActiveTrue(new ArrayList<>(requestedSubCategoryIds));
+        List<WasteSubCategory> activeSubCategories = wasteSubCategoryRepository.findByIdInAndIsDeleteFalse(new ArrayList<>(requestedSubCategoryIds));
         if (activeSubCategories.size() != requestedSubCategoryIds.size()) {
             throw new BadRequestException("Có sub-category không hợp lệ hoặc đã bị xóa mềm");
         }
@@ -848,10 +849,10 @@ public class CampaignServiceImpl implements ICampaignService {
 
             Quiz quiz;
             if (isSchool) {
-                quiz = quizRepository.findByIdAndSchoolIdAndIsActiveTrue(request.getQuizId(), school.getId())
+                quiz = quizRepository.findByIdAndSchoolIdAndIsDeleteFalse(request.getQuizId(), school.getId())
                         .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz " + request.getQuizId() + " thuộc quyền sở hữu"));
             } else {
-                quiz = quizRepository.findByIdAndPartnershipIdAndIsActiveTrue(request.getQuizId(), partnership.getId())
+                quiz = quizRepository.findByIdAndPartnershipIdAndIsDeleteFalse(request.getQuizId(), partnership.getId())
                         .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz " + request.getQuizId() + " thuộc quyền sở hữu"));
             }
 

@@ -16,6 +16,7 @@ public record AdminWasteItemResponse(
         String description,
         String funFact,
         String imageUrl,
+        String imagePresignedUrl,
         String decompositionTime,
         String recyclingTips,
         boolean isActive

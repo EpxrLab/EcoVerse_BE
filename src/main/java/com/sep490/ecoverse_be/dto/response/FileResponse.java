@@ -9,6 +9,7 @@ public record FileResponse(
         UUID id,
         String fileName,
         String fileUrl,
+        String filePresignedUrl,
         String fileType,
         Long fileSize,
         String uploadedByEmail,

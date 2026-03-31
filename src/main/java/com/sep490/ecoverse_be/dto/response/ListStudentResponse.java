@@ -20,4 +20,5 @@ public class ListStudentResponse {
     private String gender;
     private String address;
     private String avatarUrl;
+    private String avatarPresignedUrl;
 }
