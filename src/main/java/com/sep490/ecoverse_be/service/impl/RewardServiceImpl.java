@@ -49,7 +49,7 @@ public class RewardServiceImpl implements IRewardService {
     }
 
     private Reward assertOwnership(UUID rewardId, UUID schoolId) {
-        return rewardRepository.findByIdAndSchoolIdAndIsActiveTrue(rewardId, schoolId)
+        return rewardRepository.findByIdAndSchoolIdAndIsDeleteFalse(rewardId, schoolId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy quà"));
     }
 
@@ -60,7 +60,8 @@ public class RewardServiceImpl implements IRewardService {
                 .rewardType(reward.getRewardType())
                 .description(reward.getDescription())
                 .coinCost(reward.getCoinCost())
-                .imageUrl(s3PresignedUrlService.generatePresignedUrl(reward.getImageUrl()))
+                .imageUrl(reward.getImageUrl())
+                .imagePresignedUrl(s3PresignedUrlService.generatePresignedUrl(reward.getImageUrl()))
                 .stockQuantity(reward.getStockQuantity())
                 .isUnlimited(reward.getIsUnlimited())
                 .isActive(reward.getIsActive())
@@ -76,7 +77,7 @@ public class RewardServiceImpl implements IRewardService {
         User currentUser = getCurrentUser();
         School school = resolveSchool(currentUser.getId());
 
-        if (rewardRepository.existsByRewardNameAndSchoolIdAndIsActiveTrue(request.getRewardName(), school.getId())) {
+        if (rewardRepository.existsByRewardNameAndSchoolIdAndIsDeleteFalse(request.getRewardName(), school.getId())) {
             throw new BadRequestException("Tên quà '" + request.getRewardName() + "' đã tồn tại trong trường này");
         }
 
@@ -107,8 +108,8 @@ public class RewardServiceImpl implements IRewardService {
         School school = resolveSchool(currentUser.getId());
 
         List<Reward> rewards = rewardType != null
-                ? rewardRepository.findBySchoolIdAndRewardTypeAndIsActiveTrueOrderByCreatedAtDesc(school.getId(), rewardType)
-                : rewardRepository.findBySchoolIdAndIsActiveTrueOrderByCreatedAtDesc(school.getId());
+                ? rewardRepository.findBySchoolIdAndRewardTypeAndIsDeleteFalseOrderByCreatedAtDesc(school.getId(), rewardType)
+                : rewardRepository.findBySchoolIdAndIsDeleteFalseOrderByCreatedAtDesc(school.getId());
 
         return rewards.stream().map(this::mapToResponse).collect(Collectors.toList());
     }
@@ -121,8 +122,8 @@ public class RewardServiceImpl implements IRewardService {
         School school = student.getSchool();
 
         List<Reward> rewards = rewardType != null
-                ? rewardRepository.findBySchoolIdAndRewardTypeAndIsActiveTrueOrderByCreatedAtDesc(school.getId(), rewardType)
-                : rewardRepository.findBySchoolIdAndIsActiveTrueOrderByCreatedAtDesc(school.getId());
+                ? rewardRepository.findBySchoolIdAndRewardTypeAndIsDeleteFalseOrderByCreatedAtDesc(school.getId(), rewardType)
+                : rewardRepository.findBySchoolIdAndIsDeleteFalseOrderByCreatedAtDesc(school.getId());
 
         return rewards.stream().map(this::mapToResponse).collect(Collectors.toList());
     }
@@ -141,8 +142,8 @@ public class RewardServiceImpl implements IRewardService {
         School school = student.getSchool();
 
         List<Reward> rewards = rewardType != null
-                ? rewardRepository.findBySchoolIdAndRewardTypeAndIsActiveTrueOrderByCreatedAtDesc(school.getId(), rewardType)
-                : rewardRepository.findBySchoolIdAndIsActiveTrueOrderByCreatedAtDesc(school.getId());
+                ? rewardRepository.findBySchoolIdAndRewardTypeAndIsDeleteFalseOrderByCreatedAtDesc(school.getId(), rewardType)
+                : rewardRepository.findBySchoolIdAndIsDeleteFalseOrderByCreatedAtDesc(school.getId());
 
         return rewards.stream().map(this::mapToResponse).collect(Collectors.toList());
     }
@@ -163,7 +164,7 @@ public class RewardServiceImpl implements IRewardService {
         Reward reward = assertOwnership(rewardId, school.getId());
 
         if (request.getRewardName() != null && !request.getRewardName().equals(reward.getRewardName())) {
-            if (rewardRepository.existsByRewardNameAndSchoolIdAndIsActiveTrue(request.getRewardName(), school.getId())) {
+            if (rewardRepository.existsByRewardNameAndSchoolIdAndIsDeleteFalse(request.getRewardName(), school.getId())) {
                 throw new BadRequestException("Tên quà '" + request.getRewardName() + "' đã tồn tại trong trường này");
             }
             reward.setRewardName(request.getRewardName());
@@ -196,7 +197,7 @@ public class RewardServiceImpl implements IRewardService {
         School school = resolveSchool(currentUser.getId());
         Reward reward = assertOwnership(rewardId, school.getId());
 
-        reward.setIsActive(false);
+        reward.setIsDelete(true);
         rewardRepository.save(reward);
     }
 

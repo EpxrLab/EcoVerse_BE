@@ -33,6 +33,7 @@ public interface ICampaignService {
     void assignStudentsToPartnershipInvitation(UUID invitationId, AssignStudentsRequest request);
 
     void updateRoundGameConfig(UUID roundId, UpdateRoundGameConfigRequest request);
+    List<PresetAvailableSubCategoriesResponse> getAvailableSubCategoriesForPresets(UUID roundId, UUID gameTypeId, List<UUID> presetIds);
     void bindQuizzesToRound(UUID roundId, List<BindRoundQuizRequest> requests);
 
     List<CampaignSummaryResponse> getStudentCampaigns(StudentCampaignStatusFilter status);

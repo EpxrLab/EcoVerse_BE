@@ -58,7 +58,7 @@ public class RoundGameConfig extends BaseEntity {
     private List<GameLevelPreset> selectedPresets;
 
     /**
-     * Per-preset selectable sub-category IDs constrained by preset.wasteCategories.
+     * Per-preset selectable sub-category IDs constrained by that preset's item-level wasteCategories.
      * Key = presetId (string), value = selected sub-category IDs.
      */
     @JdbcTypeCode(SqlTypes.JSON)

@@ -80,7 +80,6 @@ public class FileServiceImpl implements IFileService {
     private void enrichPresignedUrl(StorageResponse response) {
         String presignedUrl = s3PresignedUrlService.generatePresignedUrl(response.getPublicId());
         response.setPresignedUrl(presignedUrl);
-        response.setUrl(presignedUrl);
     }
 
     private void saveFileEntity(MultipartFile file, StorageResponse response,

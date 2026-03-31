@@ -2,6 +2,7 @@ package com.sep490.ecoverse_be.controller;
 
 import com.sep490.ecoverse_be.dto.request.BindRoundQuizRequest;
 import com.sep490.ecoverse_be.dto.request.UpdateRoundGameConfigRequest;
+import com.sep490.ecoverse_be.dto.response.PresetAvailableSubCategoriesResponse;
 import com.sep490.ecoverse_be.dto.response.ResponseDto;
 import com.sep490.ecoverse_be.service.ICampaignService;
 import jakarta.validation.Valid;
@@ -26,6 +27,17 @@ public class CampaignRoundController {
                                                               @Valid @RequestBody UpdateRoundGameConfigRequest request) {
         campaignService.updateRoundGameConfig(id, request);
         return ResponseEntity.ok(ResponseDto.success(null, "Cập nhật game config thành công"));
+    }
+
+    @GetMapping("/{id}/game-config/available-sub-categories")
+    public ResponseEntity<ResponseDto<List<PresetAvailableSubCategoriesResponse>>> getAvailableSubCategories(
+            @PathVariable UUID id,
+            @RequestParam UUID gameTypeId,
+            @RequestParam List<UUID> presetIds) {
+        return ResponseEntity.ok(ResponseDto.success(
+                campaignService.getAvailableSubCategoriesForPresets(id, gameTypeId, presetIds),
+                "Lấy danh sách sub-category khả dụng theo preset thành công"
+        ));
     }
 
     // Gắn nhiều quiz vào round cùng lúc (POST để set mới, PUT để ghi đè toàn bộ)

@@ -10,13 +10,13 @@ import java.util.UUID;
 
 public interface GameTypeRepository extends JpaRepository<GameType, UUID> {
 
-	boolean existsByTypeCode(GameTypeCode typeCode);
+	boolean existsByTypeCodeAndIsDeleteFalse(GameTypeCode typeCode);
 
-	boolean existsByNameIgnoreCase(String name);
+	boolean existsByNameIgnoreCaseAndIsDeleteFalse(String name);
 
-	List<GameType> findByIsActiveTrue();
+	List<GameType> findByIsDeleteFalse();
 
-	Optional<GameType> findByIdAndIsActiveTrue(UUID id);
+	Optional<GameType> findByIdAndIsDeleteFalse(UUID id);
 
 	Optional<GameType> findByTypeCode(GameTypeCode typeCode);
 }

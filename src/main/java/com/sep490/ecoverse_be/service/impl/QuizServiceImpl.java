@@ -86,11 +86,11 @@ public class QuizServiceImpl implements IQuizService {
     private Quiz assertOwnership(UUID quizId, User user) {
         if (user.getRole() == Role.PARTNERSHIP_SCHOOL) {
             School school = resolveSchool(user.getId());
-            return quizRepository.findByIdAndSchoolIdAndIsActiveTrue(quizId, school.getId())
+            return quizRepository.findByIdAndSchoolIdAndIsDeleteFalse(quizId, school.getId())
                     .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz"));
         } else {
             Partnership partnership = resolvePartnership(user.getId());
-            return quizRepository.findByIdAndPartnershipIdAndIsActiveTrue(quizId, partnership.getId())
+            return quizRepository.findByIdAndPartnershipIdAndIsDeleteFalse(quizId, partnership.getId())
                     .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz"));
         }
     }
@@ -113,13 +113,14 @@ public class QuizServiceImpl implements IQuizService {
                 .id(question.getId())
                 .questionOrder(question.getQuestionOrder())
                 .questionText(question.getQuestionText())
-                .questionImageUrl(s3PresignedUrlService.generatePresignedUrl(question.getQuestionImageUrl()))
+                .questionImageUrl(question.getQuestionImageUrl())
+                .questionImagePresignedUrl(s3PresignedUrlService.generatePresignedUrl(question.getQuestionImageUrl()))
                 .answers(answerResponses)
                 .build();
     }
 
     private QuizResponse mapToQuizResponse(Quiz quiz) {
-        List<QuizQuestion> questions = quizQuestionRepository.findByQuizIdAndIsActiveTrueOrderByQuestionOrder(quiz.getId());
+        List<QuizQuestion> questions = quizQuestionRepository.findByQuizIdAndIsDeleteFalseOrderByQuestionOrder(quiz.getId());
         List<QuizAnswer> allAnswers = quizAnswerRepository.findByQuestionIn(questions);
 
         Map<UUID, List<QuizAnswer>> answersByQuestion = allAnswers.stream()
@@ -267,14 +268,14 @@ public class QuizServiceImpl implements IQuizService {
 
         if (currentUser.getRole() == Role.PARTNERSHIP_SCHOOL) {
             School school = resolveSchool(currentUser.getId());
-            quizzes = quizRepository.findBySchoolIdAndIsActiveTrueOrderByCreatedAtDesc(school.getId());
+            quizzes = quizRepository.findBySchoolIdAndIsDeleteFalseOrderByCreatedAtDesc(school.getId());
         } else {
             Partnership partnership = resolvePartnership(currentUser.getId());
-            quizzes = quizRepository.findByPartnershipIdAndIsActiveTrueOrderByCreatedAtDesc(partnership.getId());
+            quizzes = quizRepository.findByPartnershipIdAndIsDeleteFalseOrderByCreatedAtDesc(partnership.getId());
         }
 
         return quizzes.stream()
-                .map(q -> mapToSummary(q, quizQuestionRepository.countByQuizIdAndIsActiveTrue(q.getId())))
+                .map(q -> mapToSummary(q, quizQuestionRepository.countByQuizIdAndIsDeleteFalse(q.getId())))
                 .collect(Collectors.toList());
     }
 
@@ -314,14 +315,14 @@ public class QuizServiceImpl implements IQuizService {
         User currentUser = getCurrentUser();
         Quiz quiz = assertOwnership(quizId, currentUser);
 
-        quiz.setActive(false);
+        quiz.setDelete(true);
         quiz.setPublished(false);
         quizRepository.save(quiz);
 
         List<QuizQuestion> activeQuestions = quizQuestionRepository
-                .findByQuizIdAndIsActiveTrueOrderByQuestionOrder(quiz.getId());
+                .findByQuizIdAndIsDeleteFalseOrderByQuestionOrder(quiz.getId());
         for (QuizQuestion question : activeQuestions) {
-            question.setActive(false);
+            question.setDelete(true);
             quizQuestionRepository.save(question);
         }
     }
@@ -333,7 +334,7 @@ public class QuizServiceImpl implements IQuizService {
         Quiz quiz = assertOwnership(quizId, currentUser);
 
         if (!quiz.isPublished()) {
-            int questionCount = quizQuestionRepository.countByQuizIdAndIsActiveTrue(quiz.getId());
+            int questionCount = quizQuestionRepository.countByQuizIdAndIsDeleteFalse(quiz.getId());
             if (questionCount == 0) {
                 throw new BadRequestException("Quiz phải có ít nhất 1 câu hỏi mới được publish");
             }
@@ -356,7 +357,7 @@ public class QuizServiceImpl implements IQuizService {
         }
 
         Set<Integer> existingOrders = quizQuestionRepository
-                .findByQuizIdAndIsActiveTrueOrderByQuestionOrder(quiz.getId())
+                .findByQuizIdAndIsDeleteFalseOrderByQuestionOrder(quiz.getId())
                 .stream()
                 .map(QuizQuestion::getQuestionOrder)
                 .collect(Collectors.toSet());
@@ -378,11 +379,11 @@ public class QuizServiceImpl implements IQuizService {
         User currentUser = getCurrentUser();
         assertOwnership(quizId, currentUser);
 
-        QuizQuestion question = quizQuestionRepository.findByIdAndQuizIdAndIsActiveTrue(questionId, quizId)
+        QuizQuestion question = quizQuestionRepository.findByIdAndQuizIdAndIsDeleteFalse(questionId, quizId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy câu hỏi trong quiz này"));
 
         boolean orderChanged = question.getQuestionOrder() != request.getQuestionOrder();
-        if (orderChanged && quizQuestionRepository.existsByQuizIdAndQuestionOrderAndIsActiveTrue(quizId, request.getQuestionOrder())) {
+        if (orderChanged && quizQuestionRepository.existsByQuizIdAndQuestionOrderAndIsDeleteFalse(quizId, request.getQuestionOrder())) {
             throw new BadRequestException(
                     "Thứ tự câu hỏi " + request.getQuestionOrder() + " đã được sử dụng bởi câu hỏi khác");
         }
@@ -415,11 +416,12 @@ public class QuizServiceImpl implements IQuizService {
         User currentUser = getCurrentUser();
         assertOwnership(quizId, currentUser);
 
-        QuizQuestion question = quizQuestionRepository.findByIdAndQuizIdAndIsActiveTrue(questionId, quizId)
+        QuizQuestion question = quizQuestionRepository.findByIdAndQuizIdAndIsDeleteFalse(questionId, quizId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy câu hỏi trong quiz này"));
 
         quizAnswerRepository.deleteAllByQuestionId(question.getId());
-        quizQuestionRepository.delete(question);
+        question.setDelete(true);
+        quizQuestionRepository.save(question);
     }
 
 

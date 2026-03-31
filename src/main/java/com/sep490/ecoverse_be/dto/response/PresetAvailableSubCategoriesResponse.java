@@ -7,12 +7,11 @@ import java.util.List;
 import java.util.UUID;
 
 @Builder
-public record AdminGameLevelPresetResponse(
-        UUID id,
+public record PresetAvailableSubCategoriesResponse(
+        UUID presetId,
         UUID gameTypeId,
         QuizDifficulty difficulty,
-        List<AdminGameLevelPresetItemResponse> items
+        List<WasteSubCategoryOptionResponse> availableSubCategories
 ) {
 }
-
 

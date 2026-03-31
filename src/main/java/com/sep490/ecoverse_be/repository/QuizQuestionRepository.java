@@ -9,13 +9,13 @@ import java.util.UUID;
 
 public interface QuizQuestionRepository extends JpaRepository<QuizQuestion, UUID> {
 
-    List<QuizQuestion> findByQuizIdAndIsActiveTrueOrderByQuestionOrder(UUID quizId);
+    List<QuizQuestion> findByQuizIdAndIsDeleteFalseOrderByQuestionOrder(UUID quizId);
 
-    Optional<QuizQuestion> findByIdAndQuizIdAndIsActiveTrue(UUID id, UUID quizId);
+    Optional<QuizQuestion> findByIdAndQuizIdAndIsDeleteFalse(UUID id, UUID quizId);
 
-    boolean existsByQuizIdAndQuestionOrderAndIsActiveTrue(UUID quizId, int questionOrder);
+    boolean existsByQuizIdAndQuestionOrderAndIsDeleteFalse(UUID quizId, int questionOrder);
 
-    int countByQuizIdAndIsActiveTrue(UUID quizId);
+    int countByQuizIdAndIsDeleteFalse(UUID quizId);
 
     List<QuizQuestion> findByQuizId(UUID quizId);
 }

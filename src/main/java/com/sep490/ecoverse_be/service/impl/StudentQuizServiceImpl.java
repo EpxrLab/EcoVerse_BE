@@ -50,6 +50,8 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
     private RoundLeaderboardRepository roundLeaderboardRepository;
     @Autowired
     private SchoolLeaderboardRepository schoolLeaderboardRepository;
+    @Autowired
+    private S3PresignedUrlService s3PresignedUrlService;
 
     // Lay thong tin student dang dang nhap
     private Student getCurrentStudent() {
@@ -104,12 +106,12 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
                     throw new BadRequestException("Bạn đang có bài làm chưa nộp. Hãy nộp bài trước khi bắt đầu lại");
                 });
 
-        Quiz quiz = quizRepository.findById(quizId)
+        Quiz quiz = quizRepository.findByIdAndIsDeleteFalse(quizId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz"));
 
         // Lay danh sach cau hoi
         List<QuizQuestion> questions = quizQuestionRepository
-                .findByQuizIdAndIsActiveTrueOrderByQuestionOrder(quizId);
+                .findByQuizIdAndIsDeleteFalseOrderByQuestionOrder(quizId);
         if (questions.isEmpty()) {
             throw new BadRequestException("Quiz chưa có câu hỏi");
         }
@@ -149,6 +151,7 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
                             .questionOrder(q.getQuestionOrder())
                             .questionText(q.getQuestionText())
                             .questionImageUrl(q.getQuestionImageUrl())
+                            .questionImagePresignedUrl(s3PresignedUrlService.generatePresignedUrl(q.getQuestionImageUrl()))
                             .answers(answerOptions)
                             .build();
                 })
@@ -194,7 +197,7 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
 
         // Lay danh sach cau hoi cua quiz
         List<QuizQuestion> questions = quizQuestionRepository
-                .findByQuizIdAndIsActiveTrueOrderByQuestionOrder(quiz.getId());
+                .findByQuizIdAndIsDeleteFalseOrderByQuestionOrder(quiz.getId());
 
         // Lay tat ca dap an cho cac cau hoi
         List<QuizAnswer> allAnswers = quizAnswerRepository.findByQuestionIn(questions);
@@ -412,7 +415,7 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
 
         // Lay tat ca cau hoi de biet dap an dung
         List<QuizQuestion> questions = quizQuestionRepository
-                .findByQuizIdAndIsActiveTrueOrderByQuestionOrder(attempt.getQuiz().getId());
+                .findByQuizIdAndIsDeleteFalseOrderByQuestionOrder(attempt.getQuiz().getId());
         List<QuizAnswer> allAnswers = quizAnswerRepository.findByQuestionIn(questions);
         Map<UUID, QuizAnswer> correctAnswerByQuestion = allAnswers.stream()
                 .filter(QuizAnswer::isCorrect)
