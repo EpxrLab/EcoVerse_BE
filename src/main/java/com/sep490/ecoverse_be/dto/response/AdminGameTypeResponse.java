@@ -18,7 +18,6 @@ public record AdminGameTypeResponse(
         String howToPlay,
         String thumbnailUrl,
         String iconUrl,
-        String previewVideoUrl,
         Map<String, Object> features,
         boolean supportsCoin,
         int maxLevels,

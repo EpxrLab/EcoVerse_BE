@@ -192,10 +192,10 @@ public class AdminServiceImpl implements IAdminService {
     @Override
     @Transactional
     public AdminGameTypeResponse createGameType(AdminGameTypeUpsertRequest request) {
-        if (gameTypeRepository.existsByTypeCode(request.getTypeCode())) {
+        if (gameTypeRepository.existsByTypeCodeAndIsActiveTrue(request.getTypeCode())) {
             throw new BadRequestException("Game type code đã tồn tại");
         }
-        if (gameTypeRepository.existsByNameIgnoreCase(request.getName())) {
+        if (gameTypeRepository.existsByNameIgnoreCaseAndIsActiveTrue(request.getName())) {
             throw new BadRequestException("Tên game type đã tồn tại");
         }
 
@@ -207,7 +207,6 @@ public class AdminServiceImpl implements IAdminService {
         gameType.setHowToPlay(request.getHowToPlay());
         gameType.setThumbnailUrl(request.getThumbnailUrl());
         gameType.setIconUrl(request.getIconUrl());
-        gameType.setPreviewVideoUrl(request.getPreviewVideoUrl());
         gameType.setFeatures(request.getFeatures() != null ? request.getFeatures() : new LinkedHashMap<>());
         gameType.setSupportsCoin(request.getSupportsCoin() == null || request.getSupportsCoin());
         gameType.setMaxLevels(request.getMaxLevels() != null ? request.getMaxLevels() : 1);
@@ -223,10 +222,10 @@ public class AdminServiceImpl implements IAdminService {
     public AdminGameTypeResponse updateGameType(UUID id, AdminGameTypeUpsertRequest request) {
         GameType gameType = getActiveGameTypeOrThrow(id);
 
-        if (!gameType.getTypeCode().equals(request.getTypeCode()) && gameTypeRepository.existsByTypeCode(request.getTypeCode())) {
+        if (!gameType.getTypeCode().equals(request.getTypeCode()) && gameTypeRepository.existsByTypeCodeAndIsActiveTrue(request.getTypeCode())) {
             throw new BadRequestException("Game type code đã tồn tại");
         }
-        if (!gameType.getName().equalsIgnoreCase(request.getName()) && gameTypeRepository.existsByNameIgnoreCase(request.getName())) {
+        if (!gameType.getName().equalsIgnoreCase(request.getName()) && gameTypeRepository.existsByNameIgnoreCaseAndIsActiveTrue(request.getName())) {
             throw new BadRequestException("Tên game type đã tồn tại");
         }
 
@@ -237,7 +236,6 @@ public class AdminServiceImpl implements IAdminService {
         gameType.setHowToPlay(request.getHowToPlay());
         gameType.setThumbnailUrl(request.getThumbnailUrl());
         gameType.setIconUrl(request.getIconUrl());
-        gameType.setPreviewVideoUrl(request.getPreviewVideoUrl());
         if (request.getFeatures() != null) {
             gameType.setFeatures(request.getFeatures());
         }
@@ -913,7 +911,6 @@ public class AdminServiceImpl implements IAdminService {
                 .howToPlay(gameType.getHowToPlay())
                 .thumbnailUrl(s3PresignedUrlService.generatePresignedUrl(gameType.getThumbnailUrl()))
                 .iconUrl(s3PresignedUrlService.generatePresignedUrl(gameType.getIconUrl()))
-                .previewVideoUrl(s3PresignedUrlService.generatePresignedUrl(gameType.getPreviewVideoUrl()))
                 .features(gameType.getFeatures())
                 .supportsCoin(gameType.isSupportsCoin())
                 .maxLevels(gameType.getMaxLevels())

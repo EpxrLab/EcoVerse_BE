@@ -10,9 +10,9 @@ import java.util.UUID;
 
 public interface GameTypeRepository extends JpaRepository<GameType, UUID> {
 
-	boolean existsByTypeCode(GameTypeCode typeCode);
+	boolean existsByTypeCodeAndIsActiveTrue(GameTypeCode typeCode);
 
-	boolean existsByNameIgnoreCase(String name);
+	boolean existsByNameIgnoreCaseAndIsActiveTrue(String name);
 
 	List<GameType> findByIsActiveTrue();
 
