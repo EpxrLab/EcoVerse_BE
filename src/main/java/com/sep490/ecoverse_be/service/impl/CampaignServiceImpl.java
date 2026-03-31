@@ -527,6 +527,17 @@ public class CampaignServiceImpl implements ICampaignService {
 
     @Override
     @Transactional
+    public void deleteSchoolCampaign(UUID campaignId) {
+        Campaign campaign = getSchoolCampaignOwned(campaignId, getCurrentSchool().getId());
+        if (campaign.getSchoolStatus() != SchoolCampaignStatus.DRAFT) {
+            throw new BadRequestException("Chỉ được xóa campaign ở trạng thái DRAFT");
+        }
+        campaign.setActive(false);
+        campaignRepository.save(campaign);
+    }
+
+    @Override
+    @Transactional
     public void inviteStudentsToSchoolCampaign(UUID campaignId, AssignStudentsRequest request) {
         School school = getCurrentSchool();
         Campaign campaign = getSchoolCampaignOwned(campaignId, school.getId());
