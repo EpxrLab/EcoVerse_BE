@@ -1,8 +1,10 @@
 package com.sep490.ecoverse_be.scheduler;
 
 import com.sep490.ecoverse_be.entity.Campaign;
+import com.sep490.ecoverse_be.enums.NotificationType;
 import com.sep490.ecoverse_be.enums.SchoolCampaignStatus;
 import com.sep490.ecoverse_be.repository.CampaignRepository;
+import com.sep490.ecoverse_be.service.INotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -18,6 +20,7 @@ import java.util.List;
 public class CampaignScheduler {
 
     private final CampaignRepository campaignRepository;
+    private final INotificationService notificationService;
 
     /**
      * Chạy mỗi phút để tự động chuyển trạng thái campaign trường (SCHOOL_INTERNAL).
@@ -57,6 +60,28 @@ public class CampaignScheduler {
             campaignRepository.save(campaign);
             log.info("[CampaignScheduler] Campaign '{}' ({}): {} → ON_GOING",
                     campaign.getCampaignName(), campaign.getCampaignCode(), campaign.getSchoolStatus());
+
+            // Broadcast toi tat ca hoc sinh tham gia
+            notificationService.notifyCampaignParticipants(
+                    campaign.getId(),
+                    NotificationType.CAMPAIGN_START,
+                    "Chiến dịch đã bắt đầu!",
+                    "Chiến dịch \"" + campaign.getCampaignName() + "\" đã bắt đầu. Hãy vào thi đấu ngay!",
+                    "campaign",
+                    campaign.getId(),
+                    null
+            );
+
+            // Broadcast toi tat ca phu huynh cua hoc sinh tham gia
+            notificationService.notifyCampaignParents(
+                    campaign.getId(),
+                    NotificationType.CAMPAIGN_START,
+                    "Chiến dịch của con đã bắt đầu",
+                    "Chiến dịch \"" + campaign.getCampaignName() + "\" mà con bạn tham gia đã chính thức bắt đầu.",
+                    "campaign",
+                    campaign.getId(),
+                    null
+            );
         }
         log.info("[CampaignScheduler] {} campaign(s) transitioned to ON_GOING", campaigns.size());
     }
@@ -71,6 +96,28 @@ public class CampaignScheduler {
             campaignRepository.save(campaign);
             log.info("[CampaignScheduler] Campaign '{}' ({}): ON_GOING → COMPLETED",
                     campaign.getCampaignName(), campaign.getCampaignCode());
+
+            // Broadcast toi tat ca hoc sinh: thong bao ket thuc + kiem tra ket qua xu
+            notificationService.notifyCampaignParticipants(
+                    campaign.getId(),
+                    NotificationType.CAMPAIGN_END,
+                    "Chiến dịch đã kết thúc!",
+                    "Chiến dịch \"" + campaign.getCampaignName() + "\" đã kết thúc. Kiểm tra kết quả và xu thưởng của bạn ngay!",
+                    "campaign",
+                    campaign.getId(),
+                    null
+            );
+
+            // Broadcast toi phu huynh: thong bao ket thuc
+            notificationService.notifyCampaignParents(
+                    campaign.getId(),
+                    NotificationType.CAMPAIGN_END,
+                    "Chiến dịch của con đã kết thúc",
+                    "Chiến dịch \"" + campaign.getCampaignName() + "\" mà con bạn tham gia đã kết thúc. Hãy kiểm tra kết quả của con.",
+                    "campaign",
+                    campaign.getId(),
+                    null
+            );
         }
         log.info("[CampaignScheduler] {} campaign(s) transitioned to COMPLETED", campaigns.size());
     }

@@ -8,8 +8,10 @@ import com.sep490.ecoverse_be.exception.BadRequestException;
 import com.sep490.ecoverse_be.exception.NotFoundException;
 import com.sep490.ecoverse_be.model.UserPrincipal;
 import com.sep490.ecoverse_be.repository.*;
+import com.sep490.ecoverse_be.event.NotificationEvent;
 import com.sep490.ecoverse_be.service.ICampaignService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -59,6 +61,9 @@ public class CampaignServiceImpl implements ICampaignService {
     private DefaultCoinConfigRepository defaultCoinConfigRepository;
     @Autowired
     private CampaignRoundQuizRepository campaignRoundQuizRepository;
+
+    @Autowired
+    private ApplicationEventPublisher eventPublisher;
 
     @Autowired
     private S3PresignedUrlService s3PresignedUrlService;
@@ -166,17 +171,33 @@ public class CampaignServiceImpl implements ICampaignService {
                 .stream()
                 .map(r -> {
                     Optional<RoundGameConfig> configOpt = roundGameConfigRepository.findFirstByCampaignRoundIdOrderByDisplayOrderAsc(r.getId());
+
+                    UUID gameTypeId = configOpt.map(cfg -> cfg.getGameType().getId()).orElse(null);
+                    String gameTypeName = configOpt.map(cfg -> cfg.getGameType().getName()).orElse(null);
                     List<UUID> selectedPresetIds = configOpt
                             .map(cfg -> cfg.getSelectedPresets() == null
                                     ? List.<UUID>of()
                                     : cfg.getSelectedPresets().stream().map(BaseEntity::getId).toList())
                             .orElse(List.of());
                     Map<String, List<UUID>> presetSubCategoryConfig = configOpt
-                            .map(cfg -> cfg.getPresetSubCategoryConfig() == null ? Map.<String, List<UUID>>of() : cfg.getPresetSubCategoryConfig())
+                            .map(cfg -> cfg.getPresetSubCategoryConfig() == null
+                                    ? Map.<String, List<UUID>>of()
+                                    : cfg.getPresetSubCategoryConfig())
                             .orElse(Map.of());
-                    List<UUID> quizIds = r.getSelectedQuizzes() == null
-                            ? List.of()
-                            : r.getSelectedQuizzes().stream().map(BaseEntity::getId).toList();
+
+                    // Lấy danh sách quiz kèm thông tin chi tiết từ CampaignRoundQuiz
+                    List<RoundQuizBriefResponse> quizzes = campaignRoundQuizRepository
+                            .findByCampaignRoundIdOrderByDisplayOrderAsc(r.getId())
+                            .stream()
+                            .map(rq -> RoundQuizBriefResponse.builder()
+                                    .quizId(rq.getQuiz().getId())
+                                    .title(rq.getQuiz().getTitle())
+                                    .difficulty(rq.getQuiz().getDifficulty())
+                                    .displayOrder(rq.getDisplayOrder())
+                                    .maxAttempts(rq.getMaxAttempts())
+                                    .isRequired(rq.isRequired())
+                                    .build())
+                            .toList();
 
                     return CampaignRoundInfoResponse.builder()
                             .id(r.getId())
@@ -185,12 +206,30 @@ public class CampaignServiceImpl implements ICampaignService {
                             .status(r.getStatus())
                             .startTime(r.getStartTime())
                             .endTime(r.getEndTime())
-                            .quizId(r.getQuiz() != null ? r.getQuiz().getId() : null)
-                            .quizIds(quizIds)
+                            .gameTypeId(gameTypeId)
+                            .gameTypeName(gameTypeName)
+                            .difficultyOverride(configOpt.map(RoundGameConfig::getDifficultyOverride).orElse(null))
+                            .resolvedDifficulty(configOpt.map(RoundGameConfig::getResolvedDifficulty).orElse(null))
+                            .coinPerSession(configOpt.map(RoundGameConfig::getCoinPerSession).orElse(null))
                             .selectedPresetIds(selectedPresetIds)
                             .presetSubCategoryConfig(presetSubCategoryConfig)
+                            .quizzes(quizzes)
                             .build();
                 })
+                .toList();
+
+        // Lấy danh sách học sinh đã được mời tham gia campaign
+        List<CampaignParticipantInfoResponse> participants = campaignParticipantRepository
+                .findByCampaignIdAndIsActiveTrueOrderByCreatedAtAsc(campaign.getId())
+                .stream()
+                .map(p -> CampaignParticipantInfoResponse.builder()
+                        .studentId(p.getStudent().getId())
+                        .studentCode(p.getStudent().getStudentCode())
+                        .fullName(p.getStudent().getFullName())
+                        .gradeLevel(p.getStudent().getGradeLevel())
+                        .className(p.getStudent().getClassName())
+                        .parentApprovalStatus(p.getParentApprovalStatus())
+                        .build())
                 .toList();
 
         return CampaignDetailResponse.builder()
@@ -207,6 +246,7 @@ public class CampaignServiceImpl implements ICampaignService {
                 .topRankingCount(campaign.getTopRankingCount())
                 .totalRounds(campaign.getTotalRounds())
                 .rounds(rounds)
+                .participants(participants)
                 .build();
     }
 
@@ -219,7 +259,9 @@ public class CampaignServiceImpl implements ICampaignService {
                 .status(statusOf(campaign))
                 .startDate(campaign.getStartDate())
                 .endDate(campaign.getEndDate())
+                .invitationDate(campaign.getInvitationDate())
                 .invitationDeadline(campaign.getInvitationDeadline())
+                .description(campaign.getDescription())
                 .build();
     }
 
@@ -481,6 +523,17 @@ public class CampaignServiceImpl implements ICampaignService {
         campaign.setSchoolStatus(SchoolCampaignStatus.CANCELLED);
         campaignRepository.save(campaign);
         return mapCampaignDetail(campaign);
+    }
+
+    @Override
+    @Transactional
+    public void deleteSchoolCampaign(UUID campaignId) {
+        Campaign campaign = getSchoolCampaignOwned(campaignId, getCurrentSchool().getId());
+        if (campaign.getSchoolStatus() != SchoolCampaignStatus.DRAFT) {
+            throw new BadRequestException("Chỉ được xóa campaign ở trạng thái DRAFT");
+        }
+        campaign.setActive(false);
+        campaignRepository.save(campaign);
     }
 
     @Override
@@ -1046,6 +1099,32 @@ public class CampaignServiceImpl implements ICampaignService {
         participant.setParentApprovedBy(parent);
         participant.setParentApprovedAt(LocalDateTime.now());
         campaignParticipantRepository.save(participant);
+
+        // Thong bao cho hoc sinh sau khi phu huynh xu ly duyet
+        User studentUser = participant.getStudent().getUser();
+        if (status == ParticipationStatus.APPROVED) {
+            eventPublisher.publishEvent(NotificationEvent.builder()
+                    .recipientUserId(studentUser.getId())
+                    .type(NotificationType.CAMPAIGN_JOINING)
+                    .title("Bạn đã tham gia chiến dịch!")
+                    .message("Phụ huynh đã duyệt cho bạn tham gia chiến dịch \""
+                            + campaign.getCampaignName() + "\". Hãy sẵn sàng thi đấu!")
+                    .referenceType("campaign")
+                    .referenceId(campaign.getId())
+                    .sendEmail(false)
+                    .build());
+        } else {
+            eventPublisher.publishEvent(NotificationEvent.builder()
+                    .recipientUserId(studentUser.getId())
+                    .type(NotificationType.CAMPAIGN_JOINING)
+                    .title("Lời mời tham gia bị từ chối")
+                    .message("Phụ huynh đã từ chối cho bạn tham gia chiến dịch \""
+                            + campaign.getCampaignName() + "\".")
+                    .referenceType("campaign")
+                    .referenceId(campaign.getId())
+                    .sendEmail(false)
+                    .build());
+        }
     }
 
     @Override

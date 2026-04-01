@@ -28,6 +28,7 @@ public class DataInitializer implements CommandLineRunner {
     private final SubscriptionPlanRepository subscriptionPlanRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final PaymentRepository paymentRepository;
+    private final StudentParentLinkRepository studentParentLinkRepository;
 
     private static final String DEFAULT_PASSWORD = "SP26@sep490";
     private static final String SCHOOL_FREE_PLAN_CODE = "SCHOOL_FREE";
@@ -41,6 +42,7 @@ public class DataInitializer implements CommandLineRunner {
         initPartnershipAccount();
         initParentAccount();
         initStudentAccount();
+        linkParentWithStudentIfMissing();
     }
 
     private void initFreeSubscriptionPlans() {
@@ -263,6 +265,43 @@ public class DataInitializer implements CommandLineRunner {
         studentRepository.save(student);
 
         log.info("Student account created: {}", userName);
+    }
+
+    private void linkParentWithStudentIfMissing() {
+        String parentEmail = "parent@ecoverse.com";
+        String studentUsername = "LVD";
+
+        User parentUser = userRepository.findByEmail(parentEmail).orElse(null);
+        User studentUser = userRepository.findByUsername(studentUsername).orElse(null);
+
+        if (parentUser == null || studentUser == null) {
+            log.warn("Parent or Student user not found, cannot create link.");
+            return;
+        }
+
+        Parent parent = parentRepository.findByUserId(parentUser.getId()).orElse(null);
+        Student student = studentRepository.findByUserId(studentUser.getId()).orElse(null);
+
+        if (parent == null || student == null) {
+            log.warn("Parent or Student entity not found, cannot create link.");
+            return;
+        }
+
+        boolean exists = studentParentLinkRepository
+                .existsByStudentIdAndParentId(student.getId(), parent.getId());
+
+        if (exists) {
+            log.info("Student-Parent link already exists, skipping.");
+            return;
+        }
+
+        StudentParentLink link = new StudentParentLink();
+        link.setStudent(student);
+        link.setParent(parent);
+
+        studentParentLinkRepository.save(link);
+
+        log.info("Linked parent [{}] with student [{}]", parentEmail, studentUsername);
     }
 
     private void assignFreeSubscriptionToSchoolIfMissing(School school, User schoolUser) {

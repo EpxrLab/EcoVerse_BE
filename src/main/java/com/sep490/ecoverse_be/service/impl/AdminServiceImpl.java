@@ -78,9 +78,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -256,7 +259,7 @@ public class AdminServiceImpl implements IAdminService {
     @Transactional
     public void deleteGameType(UUID id) {
         GameType gameType = getActiveGameTypeOrThrow(id);
-        gameType.setDelete(true);
+        gameType.setActive(false);
         gameType.setUpdatedBy(getCurrentAdmin());
         gameTypeRepository.save(gameType);
     }
@@ -366,7 +369,7 @@ public class AdminServiceImpl implements IAdminService {
     @Transactional
     public void deleteWasteSubCategory(UUID id) {
         WasteSubCategory subCategory = getActiveWasteSubCategoryOrThrow(id);
-        subCategory.setDelete(true);
+        subCategory.setActive(false);
         wasteSubCategoryRepository.save(subCategory);
     }
 
@@ -422,7 +425,7 @@ public class AdminServiceImpl implements IAdminService {
     @Transactional
     public void deleteWasteItem(UUID id) {
         WasteItem wasteItem = getActiveWasteItemOrThrow(id);
-        wasteItem.setDelete(true);
+        wasteItem.setActive(false);
         wasteItemRepository.save(wasteItem);
     }
 
@@ -626,10 +629,8 @@ public class AdminServiceImpl implements IAdminService {
                 .position(school.getPosition())
                 .linkWeb(school.getLinkWeb())
                 .description(school.getDescription())
-                .logoUrl(school.getLogoUrl())
-                .logoPresignedUrl(s3PresignedUrlService.generatePresignedUrl(school.getLogoUrl()))
-                .licenseUrl(school.getLicenseUrl())
-                .licensePresignedUrl(s3PresignedUrlService.generatePresignedUrl(school.getLicenseUrl()))
+                .logoUrl(s3PresignedUrlService.generatePresignedUrl(school.getLogoUrl()))
+                .licenseUrl(s3PresignedUrlService.generatePresignedUrl(school.getLicenseUrl()))
                 .approvalStatus(school.getApprovalStatus())
                 .approvedAt(school.getApprovedAt())
                 .accountStatus(user.getStatus())
@@ -656,10 +657,8 @@ public class AdminServiceImpl implements IAdminService {
                 .position(partnership.getPosition())
                 .linkWeb(partnership.getLinkWeb())
                 .description(partnership.getDescription())
-                .logoUrl(partnership.getLogoUrl())
-                .logoPresignedUrl(s3PresignedUrlService.generatePresignedUrl(partnership.getLogoUrl()))
-                .licenseUrl(partnership.getLicenseUrl())
-                .licensePresignedUrl(s3PresignedUrlService.generatePresignedUrl(partnership.getLicenseUrl()))
+                .logoUrl(s3PresignedUrlService.generatePresignedUrl(partnership.getLogoUrl()))
+                .licenseUrl(s3PresignedUrlService.generatePresignedUrl(partnership.getLicenseUrl()))
                 .approvalStatus(partnership.getApprovalStatus())
                 .approvedAt(partnership.getApprovedAt())
                 .accountStatus(user.getStatus())
@@ -721,7 +720,6 @@ public class AdminServiceImpl implements IAdminService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy đối tác với id: " + partnershipId));
         return mapToPartnershipDetailResponse(partnership);
     }
-
     // --- Specification builders ---
 
     private Specification<School> buildSchoolSpec(ApprovalStatus approvalStatus, String keyword) {
@@ -846,8 +844,7 @@ public class AdminServiceImpl implements IAdminService {
                 .dateOfBirth(student.getDateOfBirth())
                 .gender(student.getGender() != null ? student.getGender().name() : null)
                 .address(student.getAddress())
-                .avatarUrl(student.getAvatarUrl())
-                .avatarPresignedUrl(s3PresignedUrlService.generatePresignedUrl(student.getAvatarUrl()))
+                .avatarUrl(s3PresignedUrlService.generatePresignedUrl(student.getAvatarUrl()))
                 .accountStatus(user.getStatus())
                 .isActive(user.getIsActive())
                 .schoolName(school.getSchoolName())
@@ -914,10 +911,8 @@ public class AdminServiceImpl implements IAdminService {
                 .shortDescription(gameType.getShortDescription())
                 .fullDescription(gameType.getFullDescription())
                 .howToPlay(gameType.getHowToPlay())
-                .thumbnailUrl(gameType.getThumbnailUrl())
-                .thumbnailPresignedUrl(s3PresignedUrlService.generatePresignedUrl(gameType.getThumbnailUrl()))
-                .iconUrl(gameType.getIconUrl())
-                .iconPresignedUrl(s3PresignedUrlService.generatePresignedUrl(gameType.getIconUrl()))
+                .thumbnailUrl(s3PresignedUrlService.generatePresignedUrl(gameType.getThumbnailUrl()))
+                .iconUrl(s3PresignedUrlService.generatePresignedUrl(gameType.getIconUrl()))
                 .features(gameType.getFeatures())
                 .supportsCoin(gameType.isSupportsCoin())
                 .maxLevels(gameType.getMaxLevels())
@@ -930,10 +925,31 @@ public class AdminServiceImpl implements IAdminService {
     private void applyPresetUpsert(GameLevelPreset preset, AdminGameLevelPresetUpsertRequest request) {
         preset.setDifficulty(request.getDifficulty());
 
+        Set<Integer> requestedLevels = new HashSet<>();
+        for (AdminGameLevelPresetItemUpsertRequest itemRequest : request.getItems()) {
+            if (!requestedLevels.add(itemRequest.getLevelNumber())) {
+                throw new BadRequestException("levelNumber trong items không được trùng nhau");
+            }
+        }
+
+        Map<Integer, GameLevelPresetItem> existingByLevel = new HashMap<>();
+        if (preset.getItems() != null) {
+            for (GameLevelPresetItem existingItem : preset.getItems()) {
+                existingByLevel.putIfAbsent(existingItem.getLevelNumber(), existingItem);
+            }
+        }
+
         List<GameLevelPresetItem> items = request.getItems().stream()
-                .map(itemRequest -> mapPresetItemRequest(itemRequest, preset))
                 .sorted((a, b) -> Integer.compare(a.getLevelNumber(), b.getLevelNumber()))
-                .toList();
+                .map(itemRequest -> {
+                    GameLevelPresetItem item = existingByLevel.get(itemRequest.getLevelNumber());
+                    if (item == null) {
+                        item = new GameLevelPresetItem();
+                    }
+                    applyPresetItemRequest(item, itemRequest, preset);
+                    return item;
+                })
+                .collect(Collectors.toCollection(ArrayList::new));
 
         if (items.stream().map(GameLevelPresetItem::getLevelNumber).distinct().count() != items.size()) {
             throw new BadRequestException("levelNumber trong items không được trùng nhau");
@@ -943,20 +959,27 @@ public class AdminServiceImpl implements IAdminService {
             throw new BadRequestException("Mỗi preset item phải có ít nhất 1 wasteCategory");
         }
 
-        preset.setItems(items);
+        if (preset.getItems() == null) {
+            preset.setItems(new ArrayList<>());
+        } else {
+            preset.getItems().clear();
+        }
+        preset.getItems().addAll(items);
     }
 
-    private GameLevelPresetItem mapPresetItemRequest(AdminGameLevelPresetItemUpsertRequest request, GameLevelPreset preset) {
-        GameLevelPresetItem item = new GameLevelPresetItem();
+    private void applyPresetItemRequest(GameLevelPresetItem item,
+                                        AdminGameLevelPresetItemUpsertRequest request,
+                                        GameLevelPreset preset) {
         item.setPreset(preset);
         item.setLevelNumber(request.getLevelNumber());
         item.setItemCount(request.getItemCount());
         item.setTimeLimitSeconds(request.getTimeLimitSeconds());
         item.setScorePerCorrect(request.getScorePerCorrect());
         item.setLives(request.getLives());
-        item.setWasteCategories(request.getWasteCategories());
+        item.setWasteCategories(request.getWasteCategories() == null
+                ? Set.of()
+                : new HashSet<>(request.getWasteCategories()));
         item.setConfigJson(request.getConfigJson());
-        return item;
     }
 
     private AdminGameLevelPresetResponse mapGameLevelPreset(GameLevelPreset preset) {
@@ -991,8 +1014,7 @@ public class AdminServiceImpl implements IAdminService {
                 .subCategoryCode(subCategory.getSubCategoryCode())
                 .displayName(subCategory.getDisplayName())
                 .description(subCategory.getDescription())
-                .iconUrl(subCategory.getIconUrl())
-                .iconPresignedUrl(s3PresignedUrlService.generatePresignedUrl(subCategory.getIconUrl()))
+                .iconUrl(s3PresignedUrlService.generatePresignedUrl(subCategory.getIconUrl()))
                 .displayOrder(subCategory.getDisplayOrder())
                 .isActive(subCategory.isActive())
                 .build();
@@ -1009,8 +1031,7 @@ public class AdminServiceImpl implements IAdminService {
                 .subCategoryDisplayName(subCategory != null ? subCategory.getDisplayName() : null)
                 .description(wasteItem.getDescription())
                 .funFact(wasteItem.getFunFact())
-                .imageUrl(wasteItem.getImageUrl())
-                .imagePresignedUrl(s3PresignedUrlService.generatePresignedUrl(wasteItem.getImageUrl()))
+                .imageUrl(s3PresignedUrlService.generatePresignedUrl(wasteItem.getImageUrl()))
                 .decompositionTime(wasteItem.getDecompositionTime())
                 .recyclingTips(wasteItem.getRecyclingTips())
                 .isActive(wasteItem.isActive())
