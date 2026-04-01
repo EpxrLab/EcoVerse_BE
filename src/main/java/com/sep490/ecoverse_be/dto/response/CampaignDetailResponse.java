@@ -21,7 +21,8 @@ public record CampaignDetailResponse(
         LocalDateTime invitationDeadline,
         Integer topRankingCount,
         Integer totalRounds,
-        List<CampaignRoundInfoResponse> rounds
+        List<CampaignRoundInfoResponse> rounds,
+        List<CampaignParticipantInfoResponse> participants
 ) {
 }
 

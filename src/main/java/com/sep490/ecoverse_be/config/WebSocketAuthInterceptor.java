@@ -60,10 +60,16 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                 throw new IllegalArgumentException("Account is not active");
             }
 
-            // Dat Principal vao session de SimpMessagingTemplate.convertAndSendToUser dung duoc
-            UserPrincipal principal = new UserPrincipal(user);
+            // Dat Principal vao session voi name = userId (UUID string)
+            // QUAN TRONG: SimpMessagingTemplate.convertAndSendToUser(userId, ...) dinh tuyen
+            // theo Principal.getName(). NotificationServiceImpl dung userId.toString() de push,
+            // nen Principal.getName() PHAI tra ve userId de routing khop.
+            UserPrincipal userPrincipal = new UserPrincipal(user);
+            String userIdStr = user.getId().toString();
             UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                    principal, token, principal.getAuthorities());
+                    userIdStr,              // principal = userId string (dung cho routing)
+                    token,
+                    userPrincipal.getAuthorities());
             accessor.setUser(auth);
 
             log.info("WebSocket CONNECT authenticated: userId={}, email={}", user.getId(), user.getEmail());

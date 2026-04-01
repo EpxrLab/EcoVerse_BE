@@ -72,6 +72,12 @@ public class SchoolCampaignController {
         return ResponseEntity.ok(ResponseDto.success(campaignService.cancelSchoolCampaign(id), "Hủy campaign thành công"));
     }
 
+    @DeleteMapping("/campaigns/{id}")
+    public ResponseEntity<ResponseDto<Void>> deleteCampaign(@PathVariable UUID id) {
+        campaignService.deleteSchoolCampaign(id);
+        return ResponseEntity.ok(ResponseDto.success(null, "Xóa campaign thành công"));
+    }
+
     @GetMapping("/partnership-invitations")
     public ResponseEntity<ResponseDto<List<PartnershipInvitationResponse>>> getPartnershipInvitations() {
         return ResponseEntity.ok(ResponseDto.success(campaignService.getPartnershipInvitationsForSchool(), "Lấy danh sách lời mời thành công"));

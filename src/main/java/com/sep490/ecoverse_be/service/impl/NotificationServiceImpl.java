@@ -235,6 +235,24 @@ public class NotificationServiceImpl implements INotificationService {
 
     @Override
     @Transactional
+    public void notifyCampaignParents(UUID campaignId, NotificationType type, String title, String message,
+                                      String referenceType, UUID referenceId, Map<String, Object> metadata) {
+        // Lay tat ca parent cua student dang tham gia campaign qua StudentParentLink
+        List<User> parentUsers = entityManager.createQuery(
+                        "SELECT DISTINCT spl.parent.user FROM StudentParentLink spl " +
+                                "WHERE spl.student.id IN (" +
+                                "  SELECT cp.student.id FROM CampaignParticipant cp " +
+                                "  WHERE cp.campaign.id = :campaignId AND cp.isActive = true" +
+                                ") AND spl.parent.user.isActive = true",
+                        User.class)
+                .setParameter("campaignId", campaignId)
+                .getResultList();
+        notifyUsers(parentUsers, type, title, message, referenceType, referenceId, metadata, false);
+        log.info("Broadcast notification to campaign parents, campaignId={}: {} parents notified", campaignId, parentUsers.size());
+    }
+
+    @Override
+    @Transactional
     public void notifyUsers(List<User> recipients, NotificationType type, String title, String message,
                             String referenceType, UUID referenceId, Map<String, Object> metadata, boolean sendEmail) {
         // Fan-out at write: mỗi User có 1 record riêng trong DB

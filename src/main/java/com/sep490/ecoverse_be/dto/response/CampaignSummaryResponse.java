@@ -15,6 +15,8 @@ public record CampaignSummaryResponse(
         String status,
         LocalDateTime startDate,
         LocalDateTime endDate,
+        LocalDateTime invitationDate,
+        String description,
         LocalDateTime invitationDeadline
 ) {
 }
