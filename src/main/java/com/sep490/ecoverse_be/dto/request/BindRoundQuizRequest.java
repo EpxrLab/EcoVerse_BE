@@ -13,8 +13,6 @@ import java.util.UUID;
 @Setter
 public class BindRoundQuizRequest {
 
-    private UUID quizId;
-
     private List<UUID> quizIds;
 
     // So lan lam lai toi da (mac dinh 3, configurable 1-10)
