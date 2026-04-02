@@ -51,6 +51,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(req -> req
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/admin/game-types", "/api/admin/game-types/*").permitAll()
                         .requestMatchers(AppConstants.PUBLIC_URLS).permitAll()
                         .anyRequest().authenticated()
                 )
