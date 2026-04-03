@@ -20,4 +20,7 @@ public interface CampaignRoundQuizRepository extends JpaRepository<CampaignRound
 
     // Kiem tra quiz da ton tai trong round chua
     boolean existsByCampaignRoundIdAndQuizId(UUID roundId, UUID quizId);
+
+    // Xoa toan bo quiz cua 1 round (dung cho overwrite)
+    void deleteByCampaignRoundId(UUID roundId);
 }
