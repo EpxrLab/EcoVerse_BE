@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,4 +32,10 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     @Query("SELECT p FROM Payment p WHERE p.subscription.id = :subscriptionId AND p.status = :status")
     Optional<Payment> findBySubscriptionIdAndStatus(@Param("subscriptionId") UUID subscriptionId,
                                                      @Param("status") PaymentStatus status);
+
+    @Query("SELECT p FROM Payment p WHERE p.subscription.id = :subscriptionId ORDER BY p.createdAt DESC")
+    List<Payment> findAllBySubscriptionIdOrderByCreatedAtDesc(@Param("subscriptionId") UUID subscriptionId);
+
+    @Query("SELECT p FROM Payment p WHERE p.subscription.id IN :subscriptionIds ORDER BY p.createdAt DESC")
+    List<Payment> findAllBySubscriptionIdInOrderByCreatedAtDesc(@Param("subscriptionIds") List<UUID> subscriptionIds);
 }

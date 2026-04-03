@@ -5,6 +5,7 @@ import com.sep490.ecoverse_be.dto.request.RenewSubscriptionRequest;
 import com.sep490.ecoverse_be.dto.response.PageResponse;
 import com.sep490.ecoverse_be.dto.response.PaymentResponse;
 import com.sep490.ecoverse_be.dto.response.SubscriptionResponse;
+import com.sep490.ecoverse_be.dto.response.SubscriptionTransactionResponse;
 import com.sep490.ecoverse_be.entity.*;
 import com.sep490.ecoverse_be.enums.*;
 import com.sep490.ecoverse_be.exception.FuncErrorException;
@@ -27,7 +28,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -200,7 +204,7 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
                     .orElseThrow(() -> new ResourceNotFoundException("No active subscription found."));
         }
 
-        return subscriptionMapper.toResponse(subscription);
+        return toSubscriptionResponse(subscription);
     }
 
     @Override
@@ -243,7 +247,7 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         };
 
         Page<Subscription> page = subscriptionRepository.findAll(spec, pageable);
-        return PageResponse.from(page, subscriptionMapper::toResponse);
+        return toSubscriptionPageResponse(page);
     }
 
     @Override
@@ -251,7 +255,7 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
     public SubscriptionResponse getSubscriptionById(UUID subscriptionId) {
         Subscription subscription = subscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription not found."));
-        return subscriptionMapper.toResponse(subscription);
+        return toSubscriptionResponse(subscription);
     }
 
     @Override
@@ -281,7 +285,7 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         };
 
         Page<Subscription> page = subscriptionRepository.findAll(spec, pageable);
-        return PageResponse.from(page, subscriptionMapper::toResponse);
+        return toSubscriptionPageResponse(page);
     }
 
     @Override
@@ -307,7 +311,7 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         subscriptionRepository.save(subscription);
         log.info("Subscription {} activated manually by user {}", subscription.getSubscriptionCode(), userId);
 
-        return subscriptionMapper.toResponse(subscription);
+        return toSubscriptionResponse(subscription);
     }
 
     @Override
@@ -329,7 +333,7 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         subscriptionRepository.save(subscription);
         log.info("Subscription {} cancelled by user {}", subscription.getSubscriptionCode(), userId);
 
-        return subscriptionMapper.toResponse(subscription);
+        return toSubscriptionResponse(subscription);
     }
 
     // ========================= Helper Methods =========================
@@ -394,5 +398,55 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         payment.setCreatedBy(user);
         payment.setNotes("Free plan - no payment required");
         return paymentRepository.save(payment);
+    }
+
+    private SubscriptionResponse toSubscriptionResponse(Subscription subscription) {
+        List<SubscriptionTransactionResponse> transactions = paymentRepository
+                .findAllBySubscriptionIdOrderByCreatedAtDesc(subscription.getId())
+                .stream()
+                .map(subscriptionMapper::toTransactionResponse)
+                .toList();
+
+        return subscriptionMapper.toResponse(subscription, transactions);
+    }
+
+    private PageResponse<SubscriptionResponse> toSubscriptionPageResponse(Page<Subscription> page) {
+        List<Subscription> subscriptions = page.getContent();
+        Map<UUID, List<SubscriptionTransactionResponse>> transactionMap = getTransactionMap(subscriptions);
+
+        List<SubscriptionResponse> content = subscriptions.stream()
+                .map(subscription -> subscriptionMapper.toResponse(
+                        subscription,
+                        transactionMap.getOrDefault(subscription.getId(), Collections.emptyList())
+                ))
+                .toList();
+
+        return new PageResponse<>(
+                content,
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isLast()
+        );
+    }
+
+    private Map<UUID, List<SubscriptionTransactionResponse>> getTransactionMap(List<Subscription> subscriptions) {
+        if (subscriptions.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<UUID> subscriptionIds = subscriptions.stream().map(Subscription::getId).toList();
+        List<Payment> payments = paymentRepository.findAllBySubscriptionIdInOrderByCreatedAtDesc(subscriptionIds);
+
+        Map<UUID, List<SubscriptionTransactionResponse>> transactionMap = new HashMap<>();
+        for (Payment payment : payments) {
+            UUID subscriptionId = payment.getSubscription().getId();
+            transactionMap
+                    .computeIfAbsent(subscriptionId, ignored -> new ArrayList<>())
+                    .add(subscriptionMapper.toTransactionResponse(payment));
+        }
+
+        return transactionMap;
     }
 }
