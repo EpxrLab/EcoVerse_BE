@@ -4,6 +4,7 @@ import com.sep490.ecoverse_be.enums.SubscriberType;
 import com.sep490.ecoverse_be.enums.SubscriptionStatus;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public record SubscriptionResponse(
@@ -21,6 +22,7 @@ public record SubscriptionResponse(
         String cancellationReason,
         LocalDateTime cancelledAt,
         String notes,
+        List<SubscriptionTransactionResponse> transactions,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

@@ -1,14 +1,19 @@
 package com.sep490.ecoverse_be.mapper;
 
+import com.sep490.ecoverse_be.dto.response.SubscriptionTransactionResponse;
+import com.sep490.ecoverse_be.entity.Payment;
 import com.sep490.ecoverse_be.dto.response.SubscriptionResponse;
 import com.sep490.ecoverse_be.entity.Subscription;
 import com.sep490.ecoverse_be.enums.SubscriberType;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Component
 public class SubscriptionMapper {
 
-    public SubscriptionResponse toResponse(Subscription subscription) {
+    public SubscriptionResponse toResponse(Subscription subscription,
+                                           List<SubscriptionTransactionResponse> transactions) {
         String subscriberName = null;
         if (subscription.getSubscriberType() == SubscriberType.SCHOOL && subscription.getSchool() != null) {
             subscriberName = subscription.getSchool().getSchoolName();
@@ -31,8 +36,22 @@ public class SubscriptionMapper {
                 subscription.getCancellationReason(),
                 subscription.getCancelledAt(),
                 subscription.getNotes(),
+                transactions,
                 subscription.getCreatedAt(),
                 subscription.getUpdatedAt()
+        );
+    }
+
+    public SubscriptionTransactionResponse toTransactionResponse(Payment payment) {
+        return new SubscriptionTransactionResponse(
+                payment.getId(),
+                payment.getPaymentCode(),
+                payment.getAmount(),
+                payment.getCurrency(),
+                payment.getStatus(),
+                payment.getTransactionRef(),
+                payment.getPaidAt(),
+                payment.getCreatedAt()
         );
     }
 }

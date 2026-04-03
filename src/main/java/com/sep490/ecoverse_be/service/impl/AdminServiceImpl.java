@@ -720,6 +720,7 @@ public class AdminServiceImpl implements IAdminService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy đối tác với id: " + partnershipId));
         return mapToPartnershipDetailResponse(partnership);
     }
+
     // --- Specification builders ---
 
     private Specification<School> buildSchoolSpec(ApprovalStatus approvalStatus, String keyword) {
