@@ -114,7 +114,7 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
                     throw new BadRequestException("Bạn đang có bài làm chưa nộp. Hãy nộp bài trước khi bắt đầu lại");
                 });
 
-        Quiz quiz = quizRepository.findByIdAndIsDeleteFalse(quizId)
+        Quiz quiz = quizRepository.findByIdAndIsActiveTrue(quizId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz"));
 
         // Lay danh sach cau hoi

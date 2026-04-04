@@ -9,19 +9,19 @@ import java.util.UUID;
 
 public interface QuizRepository extends JpaRepository<Quiz, UUID> {
 
-    Optional<Quiz> findByIdAndIsDeleteFalse(UUID id);
+    Optional<Quiz> findByIdAndIsActiveTrue(UUID id);
 
-    // School-owned quizzes
-    List<Quiz> findBySchoolIdAndIsDeleteFalseOrderByCreatedAtDesc(UUID schoolId);
+    // School-owned quizzes (chỉ quiz đang active — DB không có cột is_delete)
+    List<Quiz> findBySchoolIdAndIsActiveTrueOrderByCreatedAtDesc(UUID schoolId);
 
-    Optional<Quiz> findByIdAndSchoolIdAndIsDeleteFalse(UUID id, UUID schoolId);
+    Optional<Quiz> findByIdAndSchoolIdAndIsActiveTrue(UUID id, UUID schoolId);
 
-    List<Quiz> findByIdInAndSchoolIdAndIsDeleteFalse(List<UUID> ids, UUID schoolId);
+    List<Quiz> findByIdInAndSchoolIdAndIsActiveTrue(List<UUID> ids, UUID schoolId);
 
     // Partnership-owned quizzes
-    List<Quiz> findByPartnershipIdAndIsDeleteFalseOrderByCreatedAtDesc(UUID partnershipId);
+    List<Quiz> findByPartnershipIdAndIsActiveTrueOrderByCreatedAtDesc(UUID partnershipId);
 
-    Optional<Quiz> findByIdAndPartnershipIdAndIsDeleteFalse(UUID id, UUID partnershipId);
+    Optional<Quiz> findByIdAndPartnershipIdAndIsActiveTrue(UUID id, UUID partnershipId);
 
-    List<Quiz> findByIdInAndPartnershipIdAndIsDeleteFalse(List<UUID> ids, UUID partnershipId);
+    List<Quiz> findByIdInAndPartnershipIdAndIsActiveTrue(List<UUID> ids, UUID partnershipId);
 }
