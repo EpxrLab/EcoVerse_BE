@@ -16,6 +16,8 @@ public interface RoundLeaderboardRepository extends JpaRepository<RoundLeaderboa
     // Tim entry cua 1 student trong 1 round
     Optional<RoundLeaderboard> findByCampaignRoundIdAndStudentId(UUID campaignRoundId, UUID studentId);
 
+    boolean existsByCampaignRoundIdAndStudentIdAndIsAdvancedTrue(UUID campaignRoundId, UUID studentId);
+
     // Lay tat ca entry trong 1 round de re-rank
     List<RoundLeaderboard> findByCampaignRoundId(UUID campaignRoundId);
 }

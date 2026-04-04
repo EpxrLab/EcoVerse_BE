@@ -2,6 +2,8 @@ package com.sep490.ecoverse_be.repository;
 
 import com.sep490.ecoverse_be.entity.QuizAttempt;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -31,4 +33,14 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, UUID> 
     // Kiem tra attempt dang mo (chua hoan thanh) cua student cho quiz nay trong round
     Optional<QuizAttempt> findByCampaignParticipantIdAndCampaignRoundIdAndQuizIdAndIsCompletedFalse(
             UUID participantId, UUID roundId, UUID quizId);
+
+    @Query("""
+            SELECT qa
+            FROM QuizAttempt qa
+            WHERE qa.campaignParticipant.id = :participantId
+              AND qa.campaignRound.campaign.id = :campaignId
+              AND qa.isCompleted = true
+            """)
+    List<QuizAttempt> findCompletedByParticipantAndCampaign(@Param("participantId") UUID participantId,
+                                                            @Param("campaignId") UUID campaignId);
 }

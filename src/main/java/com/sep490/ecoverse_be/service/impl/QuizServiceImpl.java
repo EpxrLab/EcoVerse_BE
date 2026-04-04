@@ -86,11 +86,11 @@ public class QuizServiceImpl implements IQuizService {
     private Quiz assertOwnership(UUID quizId, User user) {
         if (user.getRole() == Role.PARTNERSHIP_SCHOOL) {
             School school = resolveSchool(user.getId());
-            return quizRepository.findByIdAndSchoolIdAndIsDeleteFalse(quizId, school.getId())
+            return quizRepository.findByIdAndSchoolIdAndIsActiveTrue(quizId, school.getId())
                     .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz"));
         } else {
             Partnership partnership = resolvePartnership(user.getId());
-            return quizRepository.findByIdAndPartnershipIdAndIsDeleteFalse(quizId, partnership.getId())
+            return quizRepository.findByIdAndPartnershipIdAndIsActiveTrue(quizId, partnership.getId())
                     .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz"));
         }
     }
@@ -268,10 +268,10 @@ public class QuizServiceImpl implements IQuizService {
 
         if (currentUser.getRole() == Role.PARTNERSHIP_SCHOOL) {
             School school = resolveSchool(currentUser.getId());
-            quizzes = quizRepository.findBySchoolIdAndIsDeleteFalseOrderByCreatedAtDesc(school.getId());
+            quizzes = quizRepository.findBySchoolIdAndIsActiveTrueOrderByCreatedAtDesc(school.getId());
         } else {
             Partnership partnership = resolvePartnership(currentUser.getId());
-            quizzes = quizRepository.findByPartnershipIdAndIsDeleteFalseOrderByCreatedAtDesc(partnership.getId());
+            quizzes = quizRepository.findByPartnershipIdAndIsActiveTrueOrderByCreatedAtDesc(partnership.getId());
         }
 
         return quizzes.stream()
@@ -315,7 +315,7 @@ public class QuizServiceImpl implements IQuizService {
         User currentUser = getCurrentUser();
         Quiz quiz = assertOwnership(quizId, currentUser);
 
-        quiz.setDelete(true);
+        quiz.setActive(false);
         quiz.setPublished(false);
         quizRepository.save(quiz);
 

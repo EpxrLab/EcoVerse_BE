@@ -38,6 +38,7 @@ public interface ICampaignService {
 
     List<CampaignSummaryResponse> getStudentCampaigns(StudentCampaignStatusFilter status);
     CampaignDetailResponse getStudentCampaignDetail(UUID campaignId);
+    StudentCurrentRoundContentResponse getStudentCurrentRoundContent(UUID campaignId);
     PlayConfigResponse getPlayConfig(UUID campaignId, UUID roundId);
     List<LeaderboardEntryResponse> getCampaignLeaderboard(UUID campaignId);
     List<LeaderboardEntryResponse> getCampaignRoundLeaderboard(UUID roundId);

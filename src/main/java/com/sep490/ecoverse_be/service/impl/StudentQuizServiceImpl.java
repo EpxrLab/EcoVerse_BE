@@ -7,6 +7,7 @@ import com.sep490.ecoverse_be.entity.*;
 import com.sep490.ecoverse_be.enums.CampaignType;
 import com.sep490.ecoverse_be.enums.ParticipationStatus;
 import com.sep490.ecoverse_be.enums.RoundStatus;
+import com.sep490.ecoverse_be.enums.TransactionType;
 import com.sep490.ecoverse_be.exception.BadRequestException;
 import com.sep490.ecoverse_be.exception.NotFoundException;
 import com.sep490.ecoverse_be.model.UserPrincipal;
@@ -34,6 +35,8 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
     private CampaignParticipantRepository campaignParticipantRepository;
     @Autowired
     private CampaignRoundRepository campaignRoundRepository;
+        @Autowired
+        private CampaignRoundParticipantRepository campaignRoundParticipantRepository;
     @Autowired
     private CampaignRoundQuizRepository campaignRoundQuizRepository;
     @Autowired
@@ -46,6 +49,10 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
     private QuizAttemptRepository quizAttemptRepository;
     @Autowired
     private QuizAttemptAnswerRepository quizAttemptAnswerRepository;
+        @Autowired
+        private CoinTransactionRepository coinTransactionRepository;
+        @Autowired
+        private GameSessionRepository gameSessionRepository;
     @Autowired
     private RoundLeaderboardRepository roundLeaderboardRepository;
     @Autowired
@@ -79,6 +86,7 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
         // Kiem tra round hop le
         CampaignRound round = campaignRoundRepository.findByIdAndCampaignId(roundId, campaignId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy round trong campaign"));
+        ensurePartnershipRoundAccess(participant, round);
         if (round.getStatus() != RoundStatus.ACTIVE) {
             throw new BadRequestException("Round chưa bắt đầu hoặc đã kết thúc");
         }
@@ -106,7 +114,7 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
                     throw new BadRequestException("Bạn đang có bài làm chưa nộp. Hãy nộp bài trước khi bắt đầu lại");
                 });
 
-        Quiz quiz = quizRepository.findByIdAndIsDeleteFalse(quizId)
+        Quiz quiz = quizRepository.findByIdAndIsActiveTrue(quizId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz"));
 
         // Lay danh sach cau hoi
@@ -194,6 +202,7 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
         Quiz quiz = attempt.getQuiz();
         CampaignParticipant participant = attempt.getCampaignParticipant();
         CampaignRound round = attempt.getCampaignRound();
+        ensurePartnershipRoundAccess(participant, round);
 
         // Lay danh sach cau hoi cua quiz
         List<QuizQuestion> questions = quizQuestionRepository
@@ -277,6 +286,10 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
         attempt.setCompleted(true);
         attempt.setCoinsEarned(coinsEarned);
         quizAttemptRepository.save(attempt);
+
+                if (coinsEarned != null && coinsEarned > 0) {
+                        awardQuizCoins(participant, attempt, coinsEarned);
+                }
 
         // Cap nhat leaderboard
         updateLeaderboardAfterQuizSubmit(participant, round);
@@ -534,6 +547,19 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
                         .divide(BigDecimal.valueOf(bestTimes.size()), 2, RoundingMode.HALF_UP);
 
         int quizzesCompleted = bestScores.size();
+        int totalQuizCoins = quizAttemptRepository.findByCampaignParticipantIdAndCampaignRoundIdAndIsCompletedTrue(
+                        participant.getId(), round.getId())
+                .stream()
+                .map(QuizAttempt::getCoinsEarned)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum();
+        int totalGameCoins = gameSessionRepository.findCompletedByParticipantAndRound(participant.getId(), round.getId())
+                .stream()
+                .map(GameSession::getCoinAwarded)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum();
 
         // Tim hoac tao RoundLeaderboard entry
         RoundLeaderboard roundLb = roundLeaderboardRepository
@@ -571,6 +597,9 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
             combinedTime = avgQuizTime;
         }
         roundLb.setAvgTimeSeconds(combinedTime);
+                if (round.getCampaign().getCampaignType() == CampaignType.SCHOOL_INTERNAL) {
+                        roundLb.setTotalCoinsEarned(totalQuizCoins + totalGameCoins);
+                }
 
         roundLeaderboardRepository.save(roundLb);
 
@@ -579,7 +608,7 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
 
         // Neu la school campaign (1 round) thi cap nhat SchoolLeaderboard
         if (round.getCampaign().getCampaignType() == CampaignType.SCHOOL_INTERNAL) {
-            updateSchoolLeaderboard(participant, round, quizAccuracy, avgQuizTime, quizzesCompleted);
+                        updateSchoolLeaderboard(participant, round, quizAccuracy, avgQuizTime, quizzesCompleted, totalQuizCoins);
         }
     }
 
@@ -613,8 +642,17 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
     }
 
     // Cap nhat SchoolLeaderboard (danh cho school campaign - 1 round)
-    private void updateSchoolLeaderboard(CampaignParticipant participant, CampaignRound round,
-                                          BigDecimal quizAccuracy, BigDecimal avgQuizTime, int quizzesCompleted) {
+        private void updateSchoolLeaderboard(CampaignParticipant participant, CampaignRound round,
+                                                                                 BigDecimal quizAccuracy, BigDecimal avgQuizTime, int quizzesCompleted,
+                                                                                 int totalQuizCoins) {
+                int totalGameCoins = gameSessionRepository
+                        .findCompletedByParticipantAndCampaign(participant.getId(), round.getCampaign().getId())
+                        .stream()
+                        .map(GameSession::getCoinAwarded)
+                        .filter(Objects::nonNull)
+                        .mapToInt(Integer::intValue)
+                        .sum();
+
         SchoolLeaderboard schoolLb = schoolLeaderboardRepository
                 .findByCampaignIdAndStudentId(round.getCampaign().getId(), participant.getStudent().getId())
                 .orElseGet(() -> {
@@ -639,6 +677,7 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
                 ? gameAvgTime.add(avgQuizTime).divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP)
                 : avgQuizTime;
         schoolLb.setAvgTimeSeconds(combinedTime);
+        schoolLb.setTotalCoinsEarned(totalQuizCoins + totalGameCoins);
 
         schoolLeaderboardRepository.save(schoolLb);
 
@@ -671,4 +710,72 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
 
         schoolLeaderboardRepository.saveAll(entries);
     }
+
+        private void ensurePartnershipRoundAccess(CampaignParticipant participant, CampaignRound requestedRound) {
+                Campaign campaign = participant.getCampaign();
+                if (campaign.getCampaignType() != CampaignType.PARTNERSHIP_EVENT) {
+                        return;
+                }
+
+                LocalDateTime now = LocalDateTime.now();
+                CampaignRound activeRound = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId()).stream()
+                                .filter(r -> r.getStatus() == RoundStatus.ACTIVE)
+                                .filter(r -> r.getStartTime() != null && r.getEndTime() != null)
+                                .filter(r -> !now.isBefore(r.getStartTime()) && !now.isAfter(r.getEndTime()))
+                                .findFirst()
+                                .orElseThrow(() -> new BadRequestException("Hiện tại không có round hợp lệ để tham gia"));
+
+                if (!activeRound.getId().equals(requestedRound.getId())) {
+                        throw new BadRequestException("Round cũ đã kết thúc, bạn chỉ có thể tham gia round hiện tại");
+                }
+
+                Integer roundNumber = requestedRound.getRoundNumber();
+                if (roundNumber == null || roundNumber <= 1) {
+                        return;
+                }
+
+                CampaignRound previousRound = campaignRoundRepository
+                                .findByCampaignIdAndRoundNumber(campaign.getId(), roundNumber - 1)
+                                .orElseThrow(() -> new BadRequestException("Không tìm thấy round trước để kiểm tra điều kiện"));
+
+                boolean advanced = roundLeaderboardRepository.existsByCampaignRoundIdAndStudentIdAndIsAdvancedTrue(
+                                previousRound.getId(),
+                                participant.getStudent().getId()
+                ) || campaignRoundParticipantRepository.existsByCampaignRoundIdAndCampaignParticipantIdAndIsAdvancedTrue(
+                                previousRound.getId(),
+                                participant.getId()
+                );
+
+                if (!advanced) {
+                        throw new BadRequestException("Bạn không đủ điều kiện tham gia round này");
+                }
+        }
+
+        private void awardQuizCoins(CampaignParticipant participant, QuizAttempt attempt, int coinsEarned) {
+                if (participant.getCampaign().getCampaignType() != CampaignType.SCHOOL_INTERNAL) {
+                        return;
+                }
+
+                Student student = participant.getStudent();
+                BigDecimal before = student.getTotalCoins() == null ? BigDecimal.ZERO : student.getTotalCoins();
+                BigDecimal delta = BigDecimal.valueOf(coinsEarned);
+                BigDecimal after = before.add(delta);
+
+                student.setTotalCoins(after);
+                studentRepository.save(student);
+
+                CoinTransaction tx = new CoinTransaction();
+                tx.setTransactionCode("TX-QUIZ-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+                tx.setStudent(student);
+                tx.setCampaign(participant.getCampaign());
+                tx.setTransactionType(TransactionType.EARN_QUIZ);
+                tx.setAmount(delta);
+                tx.setBalanceBefore(before);
+                tx.setBalanceAfter(after);
+                tx.setReferenceType("QUIZ_ATTEMPT");
+                tx.setReferenceId(attempt.getId());
+                tx.setDescription("Thưởng xu từ quiz " + attempt.getQuiz().getTitle());
+                tx.setCreatedBy(student.getUser());
+                coinTransactionRepository.save(tx);
+        }
 }
