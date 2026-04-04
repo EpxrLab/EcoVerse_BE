@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @Service
@@ -61,6 +62,8 @@ public class CampaignServiceImpl implements ICampaignService {
     private DefaultCoinConfigRepository defaultCoinConfigRepository;
     @Autowired
     private CampaignRoundQuizRepository campaignRoundQuizRepository;
+    @Autowired
+    private GameSessionRepository gameSessionRepository;
 
     @Autowired
     private ApplicationEventPublisher eventPublisher;
@@ -973,17 +976,142 @@ public class CampaignServiceImpl implements ICampaignService {
     }
 
     @Override
+    public StudentCurrentRoundContentResponse getStudentCurrentRoundContent(UUID campaignId) {
+        Student student = getCurrentStudent();
+        CampaignParticipant participant = campaignParticipantRepository
+                .findByCampaignIdAndStudentIdAndIsActiveTrue(campaignId, student.getId())
+                .orElseThrow(() -> new BadRequestException("Bạn không tham gia campaign này"));
+
+        Campaign campaign = participant.getCampaign();
+        ensureStudentInOnGoingCampaign(participant, campaign);
+
+        CampaignRound currentRound = findCurrentRound(campaign);
+        ensurePartnershipRoundAccess(participant, currentRound);
+
+        List<StudentRoundGameConfigResponse> games = roundGameConfigRepository
+                .findByCampaignRoundIdOrderByDisplayOrderAsc(currentRound.getId())
+                .stream()
+                .map(config -> {
+                    Integer coinPerSession = null;
+                    if (campaign.getCampaignType() != CampaignType.PARTNERSHIP_EVENT) {
+                        if (config.getCoinPerSession() != null) {
+                            coinPerSession = config.getCoinPerSession();
+                        } else if (config.getResolvedDifficulty() != null) {
+                            coinPerSession = defaultCoinConfigRepository
+                                    .findByGameTypeIdAndDifficulty(config.getGameType().getId(), config.getResolvedDifficulty())
+                                    .map(DefaultCoinConfig::getDefaultCoin)
+                                    .orElse(0);
+                        }
+                    }
+
+                    Map<String, List<UUID>> presetSubCategoryConfig = config.getPresetSubCategoryConfig() == null
+                            ? Map.of()
+                            : config.getPresetSubCategoryConfig();
+
+                    List<StudentRoundPresetConfigResponse> presets = config.getSelectedPresets() == null
+                            ? List.of()
+                            : config.getSelectedPresets().stream()
+                            .map(preset -> {
+                                List<StudentPresetLevelConfigResponse> items = preset.getItems() == null
+                                        ? List.of()
+                                        : preset.getItems().stream()
+                                        .map(item -> StudentPresetLevelConfigResponse.builder()
+                                                .levelNumber(item.getLevelNumber())
+                                                .itemCount(item.getItemCount())
+                                                .timeLimitSeconds(item.getTimeLimitSeconds())
+                                                .scorePerCorrect(item.getScorePerCorrect())
+                                                .lives(item.getLives())
+                                                .wasteCategories(item.getWasteCategories() == null ? Set.of() : item.getWasteCategories())
+                                                .configJson(item.getConfigJson() == null ? Map.of() : item.getConfigJson())
+                                            .coinReceived(campaign.getCampaignType() == CampaignType.SCHOOL_INTERNAL
+                                                ? gameSessionRepository.existsByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndCoinAwardedGreaterThan(
+                                                participant.getId(),
+                                                config.getId(),
+                                                item.getLevelNumber(),
+                                                0)
+                                                : null)
+                                                .build())
+                                        .toList();
+
+                                List<UUID> configuredSubCategoryIds = presetSubCategoryConfig.getOrDefault(
+                                        preset.getId().toString(),
+                                        List.of()
+                                );
+
+                                return StudentRoundPresetConfigResponse.builder()
+                                        .presetId(preset.getId())
+                                        .difficulty(preset.getDifficulty())
+                                        .configuredSubCategoryIds(configuredSubCategoryIds)
+                                        .items(items)
+                                        .build();
+                            })
+                            .toList();
+
+                    return StudentRoundGameConfigResponse.builder()
+                            .roundGameConfigId(config.getId())
+                            .gameTypeId(config.getGameType().getId())
+                            .gameTypeName(config.getGameType().getName())
+                            .resolvedDifficulty(config.getResolvedDifficulty())
+                            .coinPerSession(coinPerSession)
+                            .presets(presets)
+                            .build();
+                })
+                .toList();
+
+        List<RoundQuizBriefResponse> quizzes = campaignRoundQuizRepository
+                .findByCampaignRoundIdOrderByDisplayOrderAsc(currentRound.getId())
+                .stream()
+                .map(rq -> RoundQuizBriefResponse.builder()
+                        .quizId(rq.getQuiz().getId())
+                        .title(rq.getQuiz().getTitle())
+                        .difficulty(rq.getQuiz().getDifficulty())
+                        .displayOrder(rq.getDisplayOrder())
+                        .maxAttempts(rq.getMaxAttempts())
+                        .isRequired(rq.isRequired())
+                        .build())
+                .toList();
+
+        List<CampaignRound> rounds = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId());
+        LocalDateTime now = LocalDateTime.now();
+        CampaignRound nextRound = rounds.stream()
+                .filter(r -> r.getStatus() != RoundStatus.CANCELLED)
+                .filter(r -> r.getStartTime() != null && r.getStartTime().isAfter(now))
+                .findFirst()
+                .orElse(null);
+
+        Long secondsToNextRound = nextRound == null ? null : secondsUntil(nextRound.getStartTime());
+        Long secondsToCampaignEnd = secondsToNextRound == null ? secondsUntil(campaign.getEndDate()) : null;
+
+        return StudentCurrentRoundContentResponse.builder()
+                .campaignId(campaign.getId())
+                .roundId(currentRound.getId())
+                .roundNumber(currentRound.getRoundNumber())
+                .roundName(currentRound.getRoundName())
+                .roundStartTime(currentRound.getStartTime())
+                .roundEndTime(currentRound.getEndTime())
+                .secondsToNextRound(secondsToNextRound)
+                .secondsToCampaignEnd(secondsToCampaignEnd)
+                .games(games)
+                .quizzes(quizzes)
+                .build();
+    }
+
+    @Override
     public PlayConfigResponse getPlayConfig(UUID campaignId, UUID roundId) {
         Student student = getCurrentStudent();
         CampaignParticipant participant = campaignParticipantRepository.findByCampaignIdAndStudentIdAndIsActiveTrue(campaignId, student.getId())
                 .orElseThrow(() -> new BadRequestException("Student không có quyền vào campaign này"));
 
-        if (participant.getParentApprovalStatus() != ParticipationStatus.APPROVED) {
-            throw new BadRequestException("Student chưa được parent duyệt tham gia campaign");
-        }
+        ensureStudentInOnGoingCampaign(participant, participant.getCampaign());
 
         CampaignRound round = campaignRoundRepository.findByIdAndCampaignId(roundId, campaignId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy round trong campaign"));
+        ensurePartnershipRoundAccess(participant, round);
+
+        if (round.getStatus() != RoundStatus.ACTIVE || LocalDateTime.now().isBefore(round.getStartTime())
+                || LocalDateTime.now().isAfter(round.getEndTime())) {
+            throw new BadRequestException("Round hiện không ở trạng thái ACTIVE");
+        }
 
         RoundGameConfig config = roundGameConfigRepository.findFirstByCampaignRoundIdOrderByDisplayOrderAsc(round.getId())
                 .orElseThrow(() -> new NotFoundException("Round chưa được cấu hình game"));
@@ -1014,10 +1142,87 @@ public class CampaignServiceImpl implements ICampaignService {
                 .build();
     }
 
+    private void ensureStudentInOnGoingCampaign(CampaignParticipant participant, Campaign campaign) {
+        if (!participant.isActive()) {
+            throw new BadRequestException("Bạn không còn hoạt động trong campaign này");
+        }
+        if (participant.getParentApprovalStatus() != ParticipationStatus.APPROVED) {
+            throw new BadRequestException("Student chưa được parent duyệt tham gia campaign");
+        }
+        if (!"ON_GOING".equals(statusOf(campaign))) {
+            throw new BadRequestException("Campaign chưa ở trạng thái ON_GOING");
+        }
+    }
+
+    private CampaignRound findCurrentRound(Campaign campaign) {
+        LocalDateTime now = LocalDateTime.now();
+        List<CampaignRound> rounds = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId());
+
+        return rounds.stream()
+                .filter(round -> round.getStatus() == RoundStatus.ACTIVE
+                        && !now.isBefore(round.getStartTime())
+                        && !now.isAfter(round.getEndTime()))
+                .findFirst()
+                .orElseThrow(() -> new NotFoundException("Hiện tại không có round nào đang diễn ra"));
+    }
+
+    private void ensurePartnershipRoundAccess(CampaignParticipant participant, CampaignRound requestedRound) {
+        Campaign campaign = participant.getCampaign();
+        if (campaign.getCampaignType() != CampaignType.PARTNERSHIP_EVENT) {
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        CampaignRound activeRound = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId()).stream()
+                .filter(r -> r.getStatus() == RoundStatus.ACTIVE)
+                .filter(r -> r.getStartTime() != null && r.getEndTime() != null)
+                .filter(r -> !now.isBefore(r.getStartTime()) && !now.isAfter(r.getEndTime()))
+                .findFirst()
+                .orElseThrow(() -> new BadRequestException("Hiện tại không có round hợp lệ để tham gia"));
+
+        if (!activeRound.getId().equals(requestedRound.getId())) {
+            throw new BadRequestException("Round cũ đã kết thúc, bạn chỉ có thể tham gia round hiện tại");
+        }
+
+        Integer roundNumber = requestedRound.getRoundNumber();
+        if (roundNumber == null || roundNumber <= 1) {
+            return;
+        }
+
+        CampaignRound previousRound = campaignRoundRepository
+                .findByCampaignIdAndRoundNumber(campaign.getId(), roundNumber - 1)
+                .orElseThrow(() -> new BadRequestException("Không tìm thấy round trước để kiểm tra điều kiện"));
+
+        boolean advanced = roundLeaderboardRepository.existsByCampaignRoundIdAndStudentIdAndIsAdvancedTrue(
+                previousRound.getId(),
+                participant.getStudent().getId()
+        ) || campaignRoundParticipantRepository.existsByCampaignRoundIdAndCampaignParticipantIdAndIsAdvancedTrue(
+                previousRound.getId(),
+                participant.getId()
+        );
+
+        if (!advanced) {
+            throw new BadRequestException("Bạn không đủ điều kiện tham gia round này");
+        }
+    }
+
+    private long secondsUntil(LocalDateTime target) {
+        long seconds = ChronoUnit.SECONDS.between(LocalDateTime.now(), target);
+        return Math.max(seconds, 0);
+    }
+
     @Override
     public List<LeaderboardEntryResponse> getCampaignLeaderboard(UUID campaignId) {
         Campaign campaign = campaignRepository.findById(campaignId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy campaign"));
+
+        if (campaign.getCampaignType() == CampaignType.PARTNERSHIP_EVENT && shouldUseCurrentRoundLeaderboardForRole(getCurrentUser().getRole())) {
+            return resolvePartnershipDefaultRound(campaign)
+                    .map(round -> mapRoundLeaderboard(roundLeaderboardRepository
+                            .findByCampaignRoundIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(round.getId())))
+                    .orElse(List.of());
+        }
+
         if (campaign.getCampaignType() == CampaignType.SCHOOL_INTERNAL) {
             return schoolLeaderboardRepository.findByCampaignIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(campaignId)
                     .stream()
@@ -1033,8 +1238,19 @@ public class CampaignServiceImpl implements ICampaignService {
                             .build())
                     .toList();
         }
-        return roundLeaderboardRepository.findByCampaignIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(campaignId)
-                .stream()
+        return mapRoundLeaderboard(roundLeaderboardRepository
+                .findByCampaignIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(campaignId));
+    }
+
+    @Override
+    public List<LeaderboardEntryResponse> getCampaignRoundLeaderboard(UUID roundId) {
+        campaignRoundRepository.findById(roundId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy round"));
+        return mapRoundLeaderboard(roundLeaderboardRepository.findByCampaignRoundIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(roundId));
+        }
+
+        private List<LeaderboardEntryResponse> mapRoundLeaderboard(List<RoundLeaderboard> entries) {
+        return entries.stream()
                 .map(e -> LeaderboardEntryResponse.builder()
                         .studentId(e.getStudent().getId())
                         .studentName(e.getStudent().getFullName())
@@ -1048,23 +1264,27 @@ public class CampaignServiceImpl implements ICampaignService {
                 .toList();
     }
 
-    @Override
-    public List<LeaderboardEntryResponse> getCampaignRoundLeaderboard(UUID roundId) {
-        campaignRoundRepository.findById(roundId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy round"));
-        return roundLeaderboardRepository.findByCampaignRoundIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(roundId)
-                .stream()
-                .map(e -> LeaderboardEntryResponse.builder()
-                        .studentId(e.getStudent().getId())
-                        .studentName(e.getStudent().getFullName())
-                        .schoolId(e.getSchool().getId())
-                        .schoolName(e.getSchool().getSchoolName())
-                        .combinedAccuracyPercentage(e.getCombinedAccuracyPercentage())
-                        .avgTimeSeconds(e.getAvgTimeSeconds())
-                        .rank(e.getOverallRankInRound())
-                        .totalCoinsEarned(e.getTotalCoinsEarned())
-                        .build())
-                .toList();
+    private boolean shouldUseCurrentRoundLeaderboardForRole(Role role) {
+        return role == Role.STUDENT || role == Role.PARENT || role == Role.PARTNERSHIP_SCHOOL;
+    }
+
+    private Optional<CampaignRound> resolvePartnershipDefaultRound(Campaign campaign) {
+        LocalDateTime now = LocalDateTime.now();
+        List<CampaignRound> rounds = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId());
+
+        Optional<CampaignRound> current = rounds.stream()
+                .filter(r -> r.getStatus() == RoundStatus.ACTIVE)
+                .filter(r -> r.getStartTime() != null && r.getEndTime() != null)
+                .filter(r -> !now.isBefore(r.getStartTime()) && !now.isAfter(r.getEndTime()))
+                .findFirst();
+        if (current.isPresent()) {
+            return current;
+        }
+
+        return rounds.stream()
+                .filter(r -> r.getStatus() != RoundStatus.CANCELLED)
+                .filter(r -> r.getStartTime() != null && !r.getStartTime().isAfter(now))
+                .reduce((first, second) -> second);
     }
 
     @Override

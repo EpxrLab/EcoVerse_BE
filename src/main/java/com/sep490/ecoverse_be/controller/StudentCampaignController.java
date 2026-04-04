@@ -31,6 +31,15 @@ public class StudentCampaignController {
         return ResponseEntity.ok(ResponseDto.success(campaignService.getStudentCampaignDetail(campaignId), "Lấy chi tiết campaign thành công"));
     }
 
+    @GetMapping("/student/campaigns/{campaignId}/current-round-content")
+    @PreAuthorize("hasAuthority('STUDENT')")
+    public ResponseEntity<ResponseDto<StudentCurrentRoundContentResponse>> getStudentCurrentRoundContent(@PathVariable UUID campaignId) {
+        return ResponseEntity.ok(ResponseDto.success(
+                campaignService.getStudentCurrentRoundContent(campaignId),
+                "Lấy nội dung round hiện tại thành công"
+        ));
+    }
+
     @GetMapping("/campaigns/{campaignId}/rounds/{roundId}/play-config")
     @PreAuthorize("hasAuthority('STUDENT')")
     public ResponseEntity<ResponseDto<PlayConfigResponse>> getPlayConfig(@PathVariable UUID campaignId,
