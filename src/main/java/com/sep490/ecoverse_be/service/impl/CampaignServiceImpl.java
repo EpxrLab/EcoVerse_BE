@@ -405,6 +405,23 @@ public class CampaignServiceImpl implements ICampaignService {
         round.setEndTime(campaign.getEndDate());
         campaignRoundRepository.save(round);
 
+        // Mời học sinh ngay khi tạo campaign nếu có danh sách studentIds
+        if (request.getStudentIds() != null && !request.getStudentIds().isEmpty()) {
+            List<Student> students = studentRepository.findAllById(request.getStudentIds());
+            for (Student student : students) {
+                if (!student.getSchool().getId().equals(school.getId())) {
+                    continue;
+                }
+                CampaignParticipant participant = new CampaignParticipant();
+                participant.setCampaign(campaign);
+                participant.setStudent(student);
+                participant.setSchool(school);
+                participant.setEnrollmentDate(LocalDateTime.now());
+                participant.setParentApprovalStatus(ParticipationStatus.PENDING_PARENT_APPROVAL);
+                campaignParticipantRepository.save(participant);
+            }
+        }
+
         return mapCampaignDetail(campaign);
     }
 
@@ -909,32 +926,51 @@ public class CampaignServiceImpl implements ICampaignService {
         School school = isSchool ? getCurrentSchool() : null;
         Partnership partnership = isSchool ? null : getCurrentPartnership();
 
-        // Validate trước khi xóa — tránh xóa dữ liệu cũ rồi mới báo lỗi
-        record QuizWithConfig(Quiz quiz, BindRoundQuizRequest config) {}
-        List<QuizWithConfig> validated = new ArrayList<>();
+        // Mỗi phần tử request: cùng maxAttempts + isRequired cho toàn bộ quizIds trong phần tử đó
+        record ValidatedQuiz(Quiz quiz, Integer maxAttempts, Boolean isRequired) {}
+        List<ValidatedQuiz> validated = new ArrayList<>();
+        Set<UUID> uniqueQuizIds = new HashSet<>();
         for (BindRoundQuizRequest req : requests) {
-            if (req.getQuizIds() == null || req.getQuizIds().isEmpty()) continue;
-            for (UUID quizId : req.getQuizIds()) {
+            if (req.getQuizIds() == null || req.getQuizIds().isEmpty()) {
+                continue;
+            }
+            List<UUID> idsInBlock = req.getQuizIds();
+
+            int maxAttempts = req.getMaxAttempts() != null ? req.getMaxAttempts() : 3;
+            boolean required = req.getIsRequired() != null ? req.getIsRequired() : true;
+
+            for (UUID quizId : idsInBlock) {
+                if (!uniqueQuizIds.add(quizId)) {
+                    throw new BadRequestException("Quiz bị trùng: " + quizId);
+                }
+
                 Quiz quiz = isSchool
-                        ? quizRepository.findByIdAndSchoolIdAndIsDeleteFalse(quizId, school.getId())
-                                .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz " + quizId + " thuộc quyền sở hữu"))
-                        : quizRepository.findByIdAndPartnershipIdAndIsDeleteFalse(quizId, partnership.getId())
-                                .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz " + quizId + " thuộc quyền sở hữu"));
-                validated.add(new QuizWithConfig(quiz, req));
+                        ? quizRepository.findByIdAndSchoolIdAndIsActiveTrue(quizId, school.getId())
+                                .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz " + quizId))
+                        : quizRepository.findByIdAndPartnershipIdAndIsActiveTrue(quizId, partnership.getId())
+                                .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz " + quizId));
+
+                validated.add(new ValidatedQuiz(quiz, maxAttempts, required));
             }
         }
 
-        // Overwrite: xóa toàn bộ quiz cũ, thay bằng danh sách mới
-        campaignRoundQuizRepository.deleteByCampaignRoundId(roundId);
+        if (validated.isEmpty()) {
+            throw new BadRequestException("Cần cung cấp ít nhất 1 quiz hợp lệ");
+        }
 
+        // Xóa toàn bộ quiz cũ và flush ngay để tránh duplicate key khi insert lại
+        campaignRoundQuizRepository.deleteByCampaignRoundId(roundId);
+        campaignRoundQuizRepository.flush();
+
+        // Insert danh sách mới, displayOrder tự động tăng theo thứ tự truyền vào
         for (int i = 0; i < validated.size(); i++) {
-            QuizWithConfig entry = validated.get(i);
+            ValidatedQuiz entry = validated.get(i);
             CampaignRoundQuiz roundQuiz = new CampaignRoundQuiz();
             roundQuiz.setCampaignRound(round);
             roundQuiz.setQuiz(entry.quiz());
-            roundQuiz.setMaxAttempts(entry.config().getMaxAttempts() != null ? entry.config().getMaxAttempts() : 3);
+            roundQuiz.setMaxAttempts(entry.maxAttempts() != null ? entry.maxAttempts() : 3);
             roundQuiz.setDisplayOrder(i + 1);
-            roundQuiz.setRequired(entry.config().getIsRequired() != null ? entry.config().getIsRequired() : true);
+            roundQuiz.setRequired(entry.isRequired() != null ? entry.isRequired() : true);
             campaignRoundQuizRepository.save(roundQuiz);
         }
     }
