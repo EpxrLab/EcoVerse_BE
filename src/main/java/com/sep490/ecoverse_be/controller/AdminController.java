@@ -390,11 +390,13 @@ public class AdminController {
     }
 
     @GetMapping("/game-types")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ResponseDto<List<AdminGameTypeResponse>>> getGameTypes() {
         return ResponseEntity.ok(ResponseDto.success(adminService.getGameTypes(), "Lấy danh sách game type thành công"));
     }
 
     @GetMapping("/game-types/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ResponseDto<AdminGameTypeResponse>> getGameType(@PathVariable UUID id) {
         return ResponseEntity.ok(ResponseDto.success(adminService.getGameTypeById(id), "Lấy chi tiết game type thành công"));
     }
