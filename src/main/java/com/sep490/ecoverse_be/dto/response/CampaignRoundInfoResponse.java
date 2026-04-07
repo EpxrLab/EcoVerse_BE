@@ -1,6 +1,5 @@
 package com.sep490.ecoverse_be.dto.response;
 
-import com.sep490.ecoverse_be.enums.QuizDifficulty;
 import com.sep490.ecoverse_be.enums.RoundStatus;
 import lombok.Builder;
 
@@ -20,8 +19,6 @@ public record CampaignRoundInfoResponse(
         // Game config
         UUID gameTypeId,
         String gameTypeName,
-        QuizDifficulty difficultyOverride,
-        QuizDifficulty resolvedDifficulty,
         Integer coinPerSession,
         List<UUID> selectedPresetIds,
         Map<String, List<UUID>> presetSubCategoryConfig,

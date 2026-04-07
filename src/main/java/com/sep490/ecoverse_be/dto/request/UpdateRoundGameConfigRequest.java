@@ -1,6 +1,5 @@
 package com.sep490.ecoverse_be.dto.request;
 
-import com.sep490.ecoverse_be.enums.QuizDifficulty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -17,8 +16,6 @@ public class UpdateRoundGameConfigRequest {
     @NotNull
     private UUID gameTypeId;
 
-    private QuizDifficulty difficultyOverride;
-
     @NotEmpty
     private List<UUID> selectedPresetIds;
 
@@ -28,4 +25,3 @@ public class UpdateRoundGameConfigRequest {
 
     private Integer coinPerSession;
 }
-

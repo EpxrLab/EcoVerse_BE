@@ -216,8 +216,6 @@ public class CampaignServiceImpl implements ICampaignService {
                             .endTime(r.getEndTime())
                             .gameTypeId(gameTypeId)
                             .gameTypeName(gameTypeName)
-                            .difficultyOverride(configOpt.map(RoundGameConfig::getDifficultyOverride).orElse(null))
-                            .resolvedDifficulty(configOpt.map(RoundGameConfig::getResolvedDifficulty).orElse(null))
                             .coinPerSession(configOpt.map(RoundGameConfig::getCoinPerSession).orElse(null))
                             .selectedPresetIds(selectedPresetIds)
                             .presetSubCategoryConfig(presetSubCategoryConfig)
@@ -912,18 +910,13 @@ public class CampaignServiceImpl implements ICampaignService {
             normalizedPresetSubCategoryConfig.put(preset.getId().toString(), configuredSubCategoryIds);
         }
 
-        RoundGameConfig config = roundGameConfigRepository.findFirstByCampaignRoundIdOrderByDisplayOrderAsc(roundId)
-                .orElseGet(RoundGameConfig::new);
+        // Xóa config cũ rồi tạo mới để tránh lỗi unique constraint trên (campaign_round_id, display_order)
+        roundGameConfigRepository.deleteByCampaignRoundId(roundId);
+        roundGameConfigRepository.flush();
+
+        RoundGameConfig config = new RoundGameConfig();
         config.setCampaignRound(round);
         config.setGameType(gameType);
-        config.setDifficultyOverride(request.getDifficultyOverride());
-        GameLevelPreset resolvedPreset = selectedPresets.stream()
-                .filter(preset -> request.getDifficultyOverride() == null
-                        || preset.getDifficulty() == request.getDifficultyOverride())
-                .findFirst()
-                .orElse(selectedPresets.get(0));
-        config.setResolvedPreset(resolvedPreset);
-        config.setResolvedDifficulty(resolvedPreset.getDifficulty());
         config.setSelectedPresets(selectedPresets);
         config.setPresetSubCategoryConfig(normalizedPresetSubCategoryConfig);
         if (campaign.getCampaignType() == CampaignType.PARTNERSHIP_EVENT) {

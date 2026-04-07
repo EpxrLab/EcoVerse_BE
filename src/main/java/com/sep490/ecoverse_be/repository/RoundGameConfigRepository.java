@@ -14,5 +14,7 @@ public interface RoundGameConfigRepository extends JpaRepository<RoundGameConfig
     Optional<RoundGameConfig> findFirstByCampaignRoundIdOrderByDisplayOrderAsc(UUID campaignRoundId);
 
     Optional<RoundGameConfig> findByIdAndCampaignRoundId(UUID id, UUID campaignRoundId);
+
+    void deleteByCampaignRoundId(UUID campaignRoundId);
 }
 
