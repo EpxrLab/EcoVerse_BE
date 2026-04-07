@@ -13,7 +13,7 @@ public record ParentCampaignInvitationResponse(
         UUID studentId,
         String studentName,
         ParticipationStatus parentApprovalStatus,
+        String rejectionReason,
         LocalDateTime invitationDeadline
 ) {
 }
-

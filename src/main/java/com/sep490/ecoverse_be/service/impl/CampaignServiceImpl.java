@@ -108,12 +108,14 @@ public class CampaignServiceImpl implements ICampaignService {
 
     private void ensureRoundEditableByCurrentUser(Campaign campaign, User user) {
         if (campaign.getCampaignType() == CampaignType.PARTNERSHIP_EVENT) {
-            if (campaign.getCreatorPartnership() == null || !campaign.getCreatorPartnership().getUser().getId().equals(user.getId())) {
+            if (campaign.getCreatorPartnership() == null
+                    || !campaign.getCreatorPartnership().getUser().getId().equals(user.getId())) {
                 throw new BadRequestException("Bạn không có quyền sửa round này");
             }
             return;
         }
-        if (campaign.getCreatorSchool() == null || !campaign.getCreatorSchool().getUser().getId().equals(user.getId())) {
+        if (campaign.getCreatorSchool() == null
+                || !campaign.getCreatorSchool().getUser().getId().equals(user.getId())) {
             throw new BadRequestException("Bạn không có quyền sửa round này");
         }
     }
@@ -163,17 +165,20 @@ public class CampaignServiceImpl implements ICampaignService {
     private Campaign getPartnershipCampaignOwned(UUID campaignId, UUID partnershipId) {
         Campaign campaign = campaignRepository.findById(campaignId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy campaign"));
-        if (campaign.getCreatorPartnership() == null || !campaign.getCreatorPartnership().getId().equals(partnershipId)) {
+        if (campaign.getCreatorPartnership() == null
+                || !campaign.getCreatorPartnership().getId().equals(partnershipId)) {
             throw new BadRequestException("Bạn không có quyền truy cập campaign này");
         }
         return campaign;
     }
 
     private CampaignDetailResponse mapCampaignDetail(Campaign campaign) {
-        List<CampaignRoundInfoResponse> rounds = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId())
+        List<CampaignRoundInfoResponse> rounds = campaignRoundRepository
+                .findByCampaignIdOrderByRoundNumberAsc(campaign.getId())
                 .stream()
                 .map(r -> {
-                    Optional<RoundGameConfig> configOpt = roundGameConfigRepository.findFirstByCampaignRoundIdOrderByDisplayOrderAsc(r.getId());
+                    Optional<RoundGameConfig> configOpt = roundGameConfigRepository
+                            .findFirstByCampaignRoundIdOrderByDisplayOrderAsc(r.getId());
 
                     UUID gameTypeId = configOpt.map(cfg -> cfg.getGameType().getId()).orElse(null);
                     String gameTypeName = configOpt.map(cfg -> cfg.getGameType().getName()).orElse(null);
@@ -221,7 +226,8 @@ public class CampaignServiceImpl implements ICampaignService {
                 })
                 .toList();
 
-        // Lấy tất cả học sinh đã được mời (không lọc isActive) để UI hiển thị đầy đủ trạng thái
+        // Lấy tất cả học sinh đã được mời (không lọc isActive) để UI hiển thị đầy đủ
+        // trạng thái
         List<CampaignParticipantInfoResponse> participants = campaignParticipantRepository
                 .findByCampaignIdOrderByCreatedAtAsc(campaign.getId())
                 .stream()
@@ -232,6 +238,7 @@ public class CampaignServiceImpl implements ICampaignService {
                         .gradeLevel(p.getStudent().getGradeLevel())
                         .className(p.getStudent().getClassName())
                         .parentApprovalStatus(p.getParentApprovalStatus())
+                        .rejectionReason(p.getRejectionReason())
                         .build())
                 .toList();
 
@@ -256,11 +263,11 @@ public class CampaignServiceImpl implements ICampaignService {
     private CampaignSummaryResponse mapCampaignSummary(Campaign campaign) {
         List<CampaignRound> rounds = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId());
 
-        boolean hasQuiz = rounds.stream().anyMatch(r ->
-                campaignRoundQuizRepository.countByCampaignRoundId(r.getId()) > 0);
+        boolean hasQuiz = rounds.stream()
+                .anyMatch(r -> campaignRoundQuizRepository.countByCampaignRoundId(r.getId()) > 0);
 
-        boolean hasGame = rounds.stream().anyMatch(r ->
-                roundGameConfigRepository.findFirstByCampaignRoundIdOrderByDisplayOrderAsc(r.getId())
+        boolean hasGame = rounds.stream()
+                .anyMatch(r -> roundGameConfigRepository.findFirstByCampaignRoundIdOrderByDisplayOrderAsc(r.getId())
                         .map(cfg -> cfg.getSelectedPresets() != null && !cfg.getSelectedPresets().isEmpty())
                         .orElse(false));
 
@@ -290,7 +297,8 @@ public class CampaignServiceImpl implements ICampaignService {
                 .orElse(false));
 
         if (!hasAtLeastOneGame || !hasAtLeastOneQuiz) {
-            throw new BadRequestException("Campaign cần add ít nhất 1 game preset và 1 quiz trước khi chuyển khỏi DRAFT");
+            throw new BadRequestException(
+                    "Campaign cần add ít nhất 1 game preset và 1 quiz trước khi chuyển khỏi DRAFT");
         }
     }
 
@@ -313,7 +321,8 @@ public class CampaignServiceImpl implements ICampaignService {
     }
 
     @Override
-    public List<PresetAvailableSubCategoriesResponse> getAvailableSubCategoriesForPresets(UUID roundId, UUID gameTypeId, List<UUID> presetIds) {
+    public List<PresetAvailableSubCategoriesResponse> getAvailableSubCategoriesForPresets(UUID roundId, UUID gameTypeId,
+            List<UUID> presetIds) {
         User user = getCurrentUser();
         CampaignRound round = campaignRoundRepository.findById(roundId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy round"));
@@ -327,7 +336,8 @@ public class CampaignServiceImpl implements ICampaignService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy game type"));
 
         List<UUID> orderedPresetIds = new ArrayList<>(new LinkedHashSet<>(presetIds));
-        List<GameLevelPreset> presets = gameLevelPresetRepository.findByIdInAndGameTypeId(orderedPresetIds, gameType.getId());
+        List<GameLevelPreset> presets = gameLevelPresetRepository.findByIdInAndGameTypeId(orderedPresetIds,
+                gameType.getId());
         if (presets.size() != orderedPresetIds.size()) {
             throw new BadRequestException("presetIds chứa preset không hợp lệ");
         }
@@ -348,9 +358,9 @@ public class CampaignServiceImpl implements ICampaignService {
         List<WasteSubCategory> activeSubCategories = allCategories.isEmpty()
                 ? List.of()
                 : wasteSubCategoryRepository.findByCategoryInAndIsDeleteFalse(new ArrayList<>(allCategories)).stream()
-                .sorted(Comparator.comparingInt(WasteSubCategory::getDisplayOrder)
-                        .thenComparing(WasteSubCategory::getDisplayName, String.CASE_INSENSITIVE_ORDER))
-                .toList();
+                        .sorted(Comparator.comparingInt(WasteSubCategory::getDisplayOrder)
+                                .thenComparing(WasteSubCategory::getDisplayName, String.CASE_INSENSITIVE_ORDER))
+                        .toList();
 
         return presets.stream()
                 .map(preset -> {
@@ -362,10 +372,8 @@ public class CampaignServiceImpl implements ICampaignService {
                                             WasteSubCategory::getId,
                                             this::mapWasteSubCategoryOption,
                                             (left, right) -> left,
-                                            LinkedHashMap::new
-                                    ),
-                                    map -> new ArrayList<>(map.values())
-                            ));
+                                            LinkedHashMap::new),
+                                    map -> new ArrayList<>(map.values())));
 
                     return PresetAvailableSubCategoriesResponse.builder()
                             .presetId(preset.getId())
@@ -456,7 +464,8 @@ public class CampaignServiceImpl implements ICampaignService {
         campaign.setEndDate(request.getEndDate());
         campaign.setInvitationDate(request.getInvitationDate());
         campaign.setInvitationDeadline(request.getInvitationDeadline());
-        campaign.setTopRankingCount(request.getTopRankingCount() != null ? request.getTopRankingCount() : campaign.getTopRankingCount());
+        campaign.setTopRankingCount(
+                request.getTopRankingCount() != null ? request.getTopRankingCount() : campaign.getTopRankingCount());
         campaign.setBannerImageUrl(request.getBannerImageUrl());
         campaignRepository.save(campaign);
 
@@ -481,7 +490,8 @@ public class CampaignServiceImpl implements ICampaignService {
         campaign.setSchoolStatus(SchoolCampaignStatus.SCHEDULED);
         campaignRepository.save(campaign);
 
-        // Tự động tạo bản ghi tham gia cho chính trường tạo campaign (school tự mời mình)
+        // Tự động tạo bản ghi tham gia cho chính trường tạo campaign (school tự mời
+        // mình)
         boolean alreadyParticipating = campaignSchoolParticipateRepository
                 .findByCampaignIdAndSchoolId(campaignId, school.getId()).isPresent();
         if (!alreadyParticipating) {
@@ -574,7 +584,8 @@ public class CampaignServiceImpl implements ICampaignService {
         School school = getCurrentSchool();
         Campaign campaign = getSchoolCampaignOwned(campaignId, school.getId());
 
-        // Cho phép chọn học sinh ở trạng thái DRAFT hoặc SCHEDULED (trước khi scheduler chuyển sang INVITING)
+        // Cho phép chọn học sinh ở trạng thái DRAFT hoặc SCHEDULED (trước khi scheduler
+        // chuyển sang INVITING)
         if (campaign.getSchoolStatus() != SchoolCampaignStatus.DRAFT
                 && campaign.getSchoolStatus() != SchoolCampaignStatus.SCHEDULED) {
             throw new BadRequestException("Chỉ được mời học sinh khi campaign đang ở trạng thái DRAFT hoặc SCHEDULED");
@@ -690,7 +701,8 @@ public class CampaignServiceImpl implements ICampaignService {
         campaign.setInvitationDeadline(request.getInvitationDeadline());
         campaign.setMaxStudentsPerSchool(request.getMaxStudentsPerSchool());
         campaign.setTotalStudentQuota(request.getTotalStudentQuota());
-        campaign.setTopRankingCount(request.getTopRankingCount() != null ? request.getTopRankingCount() : campaign.getTopRankingCount());
+        campaign.setTopRankingCount(
+                request.getTopRankingCount() != null ? request.getTopRankingCount() : campaign.getTopRankingCount());
         campaign.setBannerImageUrl(request.getBannerImageUrl());
         campaignRepository.save(campaign);
         return mapCampaignDetail(campaign);
@@ -773,7 +785,8 @@ public class CampaignServiceImpl implements ICampaignService {
     @Transactional
     public void acceptPartnershipInvitation(UUID invitationId) {
         School school = getCurrentSchool();
-        CampaignSchoolParticipate invitation = campaignSchoolParticipateRepository.findByIdAndSchoolId(invitationId, school.getId())
+        CampaignSchoolParticipate invitation = campaignSchoolParticipateRepository
+                .findByIdAndSchoolId(invitationId, school.getId())
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy lời mời"));
         if (invitation.getStatus() != ParticipationStatus.INVITED) {
             throw new BadRequestException("Lời mời đã được xử lý");
@@ -787,7 +800,8 @@ public class CampaignServiceImpl implements ICampaignService {
     @Transactional
     public void rejectPartnershipInvitation(UUID invitationId) {
         School school = getCurrentSchool();
-        CampaignSchoolParticipate invitation = campaignSchoolParticipateRepository.findByIdAndSchoolId(invitationId, school.getId())
+        CampaignSchoolParticipate invitation = campaignSchoolParticipateRepository
+                .findByIdAndSchoolId(invitationId, school.getId())
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy lời mời"));
         if (invitation.getStatus() != ParticipationStatus.INVITED) {
             throw new BadRequestException("Lời mời đã được xử lý");
@@ -800,7 +814,8 @@ public class CampaignServiceImpl implements ICampaignService {
     @Transactional
     public void assignStudentsToPartnershipInvitation(UUID invitationId, AssignStudentsRequest request) {
         School school = getCurrentSchool();
-        CampaignSchoolParticipate invitation = campaignSchoolParticipateRepository.findByIdAndSchoolId(invitationId, school.getId())
+        CampaignSchoolParticipate invitation = campaignSchoolParticipateRepository
+                .findByIdAndSchoolId(invitationId, school.getId())
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy lời mời"));
         if (invitation.getStatus() != ParticipationStatus.APPROVED) {
             throw new BadRequestException("School phải accept lời mời trước khi phân công học sinh");
@@ -865,7 +880,8 @@ public class CampaignServiceImpl implements ICampaignService {
         Set<UUID> requestedSubCategoryIds = presetSubCategoryRequests.values().stream()
                 .flatMap(Collection::stream)
                 .collect(java.util.stream.Collectors.toSet());
-        List<WasteSubCategory> activeSubCategories = wasteSubCategoryRepository.findByIdInAndIsDeleteFalse(new ArrayList<>(requestedSubCategoryIds));
+        List<WasteSubCategory> activeSubCategories = wasteSubCategoryRepository
+                .findByIdInAndIsDeleteFalse(new ArrayList<>(requestedSubCategoryIds));
         if (activeSubCategories.size() != requestedSubCategoryIds.size()) {
             throw new BadRequestException("Có sub-category không hợp lệ hoặc đã bị xóa mềm");
         }
@@ -889,7 +905,8 @@ public class CampaignServiceImpl implements ICampaignService {
             for (UUID subCategoryId : configuredSubCategoryIds) {
                 WasteSubCategory subCategory = subCategoryById.get(subCategoryId);
                 if (subCategory == null || !allowedCategories.contains(subCategory.getCategory())) {
-                    throw new BadRequestException("Sub-category không thuộc wasteCategory admin đã cấu hình cho preset: " + preset.getId());
+                    throw new BadRequestException(
+                            "Sub-category không thuộc wasteCategory admin đã cấu hình cho preset: " + preset.getId());
                 }
             }
             normalizedPresetSubCategoryConfig.put(preset.getId().toString(), configuredSubCategoryIds);
@@ -901,7 +918,8 @@ public class CampaignServiceImpl implements ICampaignService {
         config.setGameType(gameType);
         config.setDifficultyOverride(request.getDifficultyOverride());
         GameLevelPreset resolvedPreset = selectedPresets.stream()
-                .filter(preset -> request.getDifficultyOverride() == null || preset.getDifficulty() == request.getDifficultyOverride())
+                .filter(preset -> request.getDifficultyOverride() == null
+                        || preset.getDifficulty() == request.getDifficultyOverride())
                 .findFirst()
                 .orElse(selectedPresets.get(0));
         config.setResolvedPreset(resolvedPreset);
@@ -929,8 +947,10 @@ public class CampaignServiceImpl implements ICampaignService {
         School school = isSchool ? getCurrentSchool() : null;
         Partnership partnership = isSchool ? null : getCurrentPartnership();
 
-        // Mỗi phần tử request: cùng maxAttempts + isRequired cho toàn bộ quizIds trong phần tử đó
-        record ValidatedQuiz(Quiz quiz, Integer maxAttempts, Boolean isRequired) {}
+        // Mỗi phần tử request: cùng maxAttempts + isRequired cho toàn bộ quizIds trong
+        // phần tử đó
+        record ValidatedQuiz(Quiz quiz, Integer maxAttempts, Boolean isRequired) {
+        }
         List<ValidatedQuiz> validated = new ArrayList<>();
         Set<UUID> uniqueQuizIds = new HashSet<>();
         for (BindRoundQuizRequest req : requests) {
@@ -978,19 +998,23 @@ public class CampaignServiceImpl implements ICampaignService {
         }
     }
 
-    private boolean campaignMatchStudentStatus(Campaign campaign, CampaignParticipant participant, StudentCampaignStatusFilter status) {
+    private boolean campaignMatchStudentStatus(Campaign campaign, CampaignParticipant participant,
+            StudentCampaignStatusFilter status) {
         String campaignStatus = statusOf(campaign);
         return switch (status) {
             case INVITED -> participant.getParentApprovalStatus() == ParticipationStatus.PENDING_PARENT_APPROVAL;
-            case ON_GOING -> "ON_GOING".equals(campaignStatus) && participant.getParentApprovalStatus() == ParticipationStatus.APPROVED;
-            case COMPLETED -> "COMPLETED".equals(campaignStatus) && participant.getParentApprovalStatus() == ParticipationStatus.APPROVED;
+            case ON_GOING -> "ON_GOING".equals(campaignStatus)
+                    && participant.getParentApprovalStatus() == ParticipationStatus.APPROVED;
+            case COMPLETED -> "COMPLETED".equals(campaignStatus)
+                    && participant.getParentApprovalStatus() == ParticipationStatus.APPROVED;
         };
     }
 
     @Override
     public List<CampaignSummaryResponse> getStudentCampaigns(StudentCampaignStatusFilter status) {
         Student student = getCurrentStudent();
-        List<CampaignParticipant> participants = campaignParticipantRepository.findByStudentIdAndIsActiveTrueOrderByCreatedAtDesc(student.getId());
+        List<CampaignParticipant> participants = campaignParticipantRepository
+                .findByStudentIdAndIsActiveTrueOrderByCreatedAtDesc(student.getId());
         if (status == null) {
             return participants.stream().map(CampaignParticipant::getCampaign).map(this::mapCampaignSummary).toList();
         }
@@ -1034,7 +1058,8 @@ public class CampaignServiceImpl implements ICampaignService {
                             coinPerSession = config.getCoinPerSession();
                         } else if (config.getResolvedDifficulty() != null) {
                             coinPerSession = defaultCoinConfigRepository
-                                    .findByGameTypeIdAndDifficulty(config.getGameType().getId(), config.getResolvedDifficulty())
+                                    .findByGameTypeIdAndDifficulty(config.getGameType().getId(),
+                                            config.getResolvedDifficulty())
                                     .map(DefaultCoinConfig::getDefaultCoin)
                                     .orElse(0);
                         }
@@ -1047,41 +1072,45 @@ public class CampaignServiceImpl implements ICampaignService {
                     List<StudentRoundPresetConfigResponse> presets = config.getSelectedPresets() == null
                             ? List.of()
                             : config.getSelectedPresets().stream()
-                            .map(preset -> {
-                                List<StudentPresetLevelConfigResponse> items = preset.getItems() == null
-                                        ? List.of()
-                                        : preset.getItems().stream()
-                                        .map(item -> StudentPresetLevelConfigResponse.builder()
-                                                .levelNumber(item.getLevelNumber())
-                                                .itemCount(item.getItemCount())
-                                                .timeLimitSeconds(item.getTimeLimitSeconds())
-                                                .scorePerCorrect(item.getScorePerCorrect())
-                                                .lives(item.getLives())
-                                                .wasteCategories(item.getWasteCategories() == null ? Set.of() : item.getWasteCategories())
-                                                .configJson(item.getConfigJson() == null ? Map.of() : item.getConfigJson())
-                                            .coinReceived(campaign.getCampaignType() == CampaignType.SCHOOL_INTERNAL
-                                                ? gameSessionRepository.existsByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndCoinAwardedGreaterThan(
-                                                participant.getId(),
-                                                config.getId(),
-                                                item.getLevelNumber(),
-                                                0)
-                                                : null)
-                                                .build())
-                                        .toList();
+                                    .map(preset -> {
+                                        List<StudentPresetLevelConfigResponse> items = preset.getItems() == null
+                                                ? List.of()
+                                                : preset.getItems().stream()
+                                                        .map(item -> StudentPresetLevelConfigResponse.builder()
+                                                                .levelNumber(item.getLevelNumber())
+                                                                .itemCount(item.getItemCount())
+                                                                .timeLimitSeconds(item.getTimeLimitSeconds())
+                                                                .scorePerCorrect(item.getScorePerCorrect())
+                                                                .lives(item.getLives())
+                                                                .wasteCategories(
+                                                                        item.getWasteCategories() == null ? Set.of()
+                                                                                : item.getWasteCategories())
+                                                                .configJson(item.getConfigJson() == null ? Map.of()
+                                                                        : item.getConfigJson())
+                                                                .coinReceived(campaign
+                                                                        .getCampaignType() == CampaignType.SCHOOL_INTERNAL
+                                                                                ? gameSessionRepository
+                                                                                        .existsByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndCoinAwardedGreaterThan(
+                                                                                                participant.getId(),
+                                                                                                config.getId(),
+                                                                                                item.getLevelNumber(),
+                                                                                                0)
+                                                                                : null)
+                                                                .build())
+                                                        .toList();
 
-                                List<UUID> configuredSubCategoryIds = presetSubCategoryConfig.getOrDefault(
-                                        preset.getId().toString(),
-                                        List.of()
-                                );
+                                        List<UUID> configuredSubCategoryIds = presetSubCategoryConfig.getOrDefault(
+                                                preset.getId().toString(),
+                                                List.of());
 
-                                return StudentRoundPresetConfigResponse.builder()
-                                        .presetId(preset.getId())
-                                        .difficulty(preset.getDifficulty())
-                                        .configuredSubCategoryIds(configuredSubCategoryIds)
-                                        .items(items)
-                                        .build();
-                            })
-                            .toList();
+                                        return StudentRoundPresetConfigResponse.builder()
+                                                .presetId(preset.getId())
+                                                .difficulty(preset.getDifficulty())
+                                                .configuredSubCategoryIds(configuredSubCategoryIds)
+                                                .items(items)
+                                                .build();
+                                    })
+                                    .toList();
 
                     return StudentRoundGameConfigResponse.builder()
                             .roundGameConfigId(config.getId())
@@ -1135,7 +1164,8 @@ public class CampaignServiceImpl implements ICampaignService {
     @Override
     public PlayConfigResponse getPlayConfig(UUID campaignId, UUID roundId) {
         Student student = getCurrentStudent();
-        CampaignParticipant participant = campaignParticipantRepository.findByCampaignIdAndStudentIdAndIsActiveTrue(campaignId, student.getId())
+        CampaignParticipant participant = campaignParticipantRepository
+                .findByCampaignIdAndStudentIdAndIsActiveTrue(campaignId, student.getId())
                 .orElseThrow(() -> new BadRequestException("Student không có quyền vào campaign này"));
 
         ensureStudentInOnGoingCampaign(participant, participant.getCampaign());
@@ -1149,7 +1179,8 @@ public class CampaignServiceImpl implements ICampaignService {
             throw new BadRequestException("Round hiện không ở trạng thái ACTIVE");
         }
 
-        RoundGameConfig config = roundGameConfigRepository.findFirstByCampaignRoundIdOrderByDisplayOrderAsc(round.getId())
+        RoundGameConfig config = roundGameConfigRepository
+                .findFirstByCampaignRoundIdOrderByDisplayOrderAsc(round.getId())
                 .orElseThrow(() -> new NotFoundException("Round chưa được cấu hình game"));
 
         Integer coinPerSession = null;
@@ -1172,9 +1203,12 @@ public class CampaignServiceImpl implements ICampaignService {
                 .resolvedDifficulty(config.getResolvedDifficulty())
                 .coinPerSession(coinPerSession)
                 .quizId(round.getQuiz() != null ? round.getQuiz().getId() : null)
-                .quizIds(round.getSelectedQuizzes() == null ? List.of() : round.getSelectedQuizzes().stream().map(BaseEntity::getId).toList())
-                .selectedPresetIds(config.getSelectedPresets() == null ? List.of() : config.getSelectedPresets().stream().map(BaseEntity::getId).toList())
-                .presetSubCategoryConfig(config.getPresetSubCategoryConfig() == null ? Map.of() : config.getPresetSubCategoryConfig())
+                .quizIds(round.getSelectedQuizzes() == null ? List.of()
+                        : round.getSelectedQuizzes().stream().map(BaseEntity::getId).toList())
+                .selectedPresetIds(config.getSelectedPresets() == null ? List.of()
+                        : config.getSelectedPresets().stream().map(BaseEntity::getId).toList())
+                .presetSubCategoryConfig(
+                        config.getPresetSubCategoryConfig() == null ? Map.of() : config.getPresetSubCategoryConfig())
                 .build();
     }
 
@@ -1209,7 +1243,8 @@ public class CampaignServiceImpl implements ICampaignService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        CampaignRound activeRound = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId()).stream()
+        CampaignRound activeRound = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId())
+                .stream()
                 .filter(r -> r.getStatus() == RoundStatus.ACTIVE)
                 .filter(r -> r.getStartTime() != null && r.getEndTime() != null)
                 .filter(r -> !now.isBefore(r.getStartTime()) && !now.isAfter(r.getEndTime()))
@@ -1231,11 +1266,10 @@ public class CampaignServiceImpl implements ICampaignService {
 
         boolean advanced = roundLeaderboardRepository.existsByCampaignRoundIdAndStudentIdAndIsAdvancedTrue(
                 previousRound.getId(),
-                participant.getStudent().getId()
-        ) || campaignRoundParticipantRepository.existsByCampaignRoundIdAndCampaignParticipantIdAndIsAdvancedTrue(
-                previousRound.getId(),
-                participant.getId()
-        );
+                participant.getStudent().getId())
+                || campaignRoundParticipantRepository.existsByCampaignRoundIdAndCampaignParticipantIdAndIsAdvancedTrue(
+                        previousRound.getId(),
+                        participant.getId());
 
         if (!advanced) {
             throw new BadRequestException("Bạn không đủ điều kiện tham gia round này");
@@ -1252,15 +1286,18 @@ public class CampaignServiceImpl implements ICampaignService {
         Campaign campaign = campaignRepository.findById(campaignId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy campaign"));
 
-        if (campaign.getCampaignType() == CampaignType.PARTNERSHIP_EVENT && shouldUseCurrentRoundLeaderboardForRole(getCurrentUser().getRole())) {
+        if (campaign.getCampaignType() == CampaignType.PARTNERSHIP_EVENT
+                && shouldUseCurrentRoundLeaderboardForRole(getCurrentUser().getRole())) {
             return resolvePartnershipDefaultRound(campaign)
                     .map(round -> mapRoundLeaderboard(roundLeaderboardRepository
-                            .findByCampaignRoundIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(round.getId())))
+                            .findByCampaignRoundIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(
+                                    round.getId())))
                     .orElse(List.of());
         }
 
         if (campaign.getCampaignType() == CampaignType.SCHOOL_INTERNAL) {
-            return schoolLeaderboardRepository.findByCampaignIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(campaignId)
+            return schoolLeaderboardRepository
+                    .findByCampaignIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(campaignId)
                     .stream()
                     .map(e -> LeaderboardEntryResponse.builder()
                             .studentId(e.getStudent().getId())
@@ -1282,10 +1319,11 @@ public class CampaignServiceImpl implements ICampaignService {
     public List<LeaderboardEntryResponse> getCampaignRoundLeaderboard(UUID roundId) {
         campaignRoundRepository.findById(roundId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy round"));
-        return mapRoundLeaderboard(roundLeaderboardRepository.findByCampaignRoundIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(roundId));
-        }
+        return mapRoundLeaderboard(roundLeaderboardRepository
+                .findByCampaignRoundIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(roundId));
+    }
 
-        private List<LeaderboardEntryResponse> mapRoundLeaderboard(List<RoundLeaderboard> entries) {
+    private List<LeaderboardEntryResponse> mapRoundLeaderboard(List<RoundLeaderboard> entries) {
         return entries.stream()
                 .map(e -> LeaderboardEntryResponse.builder()
                         .studentId(e.getStudent().getId())
@@ -1324,18 +1362,29 @@ public class CampaignServiceImpl implements ICampaignService {
     }
 
     @Override
-    public List<ParentCampaignInvitationResponse> getParentCampaignInvitations() {
+    public List<ParentCampaignInvitationResponse> getParentCampaignInvitations(ParticipationStatus status) {
         Parent parent = getCurrentParent();
         List<StudentParentLink> links = studentParentLinkRepository.findByParentId(parent.getId());
         List<UUID> studentIds = links.stream().map(link -> link.getStudent().getId()).toList();
         if (studentIds.isEmpty()) {
             return List.of();
         }
-        List<CampaignParticipant> participants = campaignParticipantRepository
-                .findByStudentIdInAndParentApprovalStatusAndIsActiveTrue(
-                        studentIds,
-                        ParticipationStatus.PENDING_PARENT_APPROVAL
-                );
+
+        List<CampaignParticipant> participants;
+        if (status != null) {
+            participants = campaignParticipantRepository
+                    .findByStudentIdInAndParentApprovalStatusAndIsActiveTrue(studentIds, status);
+        } else {
+            participants = campaignParticipantRepository
+                    .findByStudentIdInAndIsActiveTrue(studentIds);
+        }
+
+        participants = participants.stream()
+                .filter(p -> {
+                    String campaignStatus = statusOf(p.getCampaign());
+                    return "INVITING".equals(campaignStatus) || "EXTENDED".equals(campaignStatus);
+                })
+                .toList();
 
         return participants.stream()
                 .map(p -> ParentCampaignInvitationResponse.builder()
@@ -1344,6 +1393,7 @@ public class CampaignServiceImpl implements ICampaignService {
                         .studentId(p.getStudent().getId())
                         .studentName(p.getStudent().getFullName())
                         .parentApprovalStatus(p.getParentApprovalStatus())
+                        .rejectionReason(p.getRejectionReason())
                         .invitationDeadline(p.getCampaign().getInvitationDeadline())
                         .build())
                 .toList();
@@ -1355,14 +1405,20 @@ public class CampaignServiceImpl implements ICampaignService {
             throw new BadRequestException("Phụ huynh không có liên kết hợp lệ với học sinh");
         }
 
+        // Bắt buộc nhập reason khi reject
+        if (status == ParticipationStatus.REJECTED
+                && (request.getReason() == null || request.getReason().isBlank())) {
+            throw new BadRequestException("Vui lòng nhập lý do từ chối");
+        }
+
         CampaignParticipant participant = campaignParticipantRepository
                 .findByCampaignIdAndStudentIdAndIsActiveTrue(campaignId, request.getStudentId())
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy lời mời tham gia campaign"));
 
         Campaign campaign = participant.getCampaign();
-        // Dùng && thay vì || để kiểm tra đúng: chỉ reject khi status KHÔNG phải INVITING VÀ KHÔNG phải EXTENDED/JOINING
         String campaignStatus = statusOf(campaign);
-        if (!"INVITING".equals(campaignStatus) && !"EXTENDED".equals(campaignStatus) && !"JOINING".equals(campaignStatus)) {
+        if (!"INVITING".equals(campaignStatus) && !"EXTENDED".equals(campaignStatus)
+                && !"JOINING".equals(campaignStatus)) {
             throw new BadRequestException("Chỉ xử lý duyệt khi campaign đang INVITING hoặc EXTENDED");
         }
         if (participant.getParentApprovalStatus() != ParticipationStatus.PENDING_PARENT_APPROVAL) {
@@ -1372,6 +1428,9 @@ public class CampaignServiceImpl implements ICampaignService {
         participant.setParentApprovalStatus(status);
         participant.setParentApprovedBy(parent);
         participant.setParentApprovedAt(LocalDateTime.now());
+        if (status == ParticipationStatus.REJECTED) {
+            participant.setRejectionReason(request.getReason());
+        }
         campaignParticipantRepository.save(participant);
 
         // Thong bao cho hoc sinh sau khi phu huynh xu ly duyet
@@ -1420,7 +1479,8 @@ public class CampaignServiceImpl implements ICampaignService {
             throw new BadRequestException("Phụ huynh không có quyền xem tiến độ của học sinh này");
         }
 
-        List<CampaignParticipant> participants = campaignParticipantRepository.findByStudentIdAndIsActiveTrue(studentId);
+        List<CampaignParticipant> participants = campaignParticipantRepository
+                .findByStudentIdAndIsActiveTrue(studentId);
         return participants.stream()
                 .map(p -> {
                     int completedRounds = campaignRoundParticipantRepository
@@ -1437,5 +1497,3 @@ public class CampaignServiceImpl implements ICampaignService {
                 .toList();
     }
 }
-
-

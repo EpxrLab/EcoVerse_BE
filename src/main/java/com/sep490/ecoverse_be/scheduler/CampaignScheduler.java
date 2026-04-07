@@ -1,8 +1,11 @@
 package com.sep490.ecoverse_be.scheduler;
 
 import com.sep490.ecoverse_be.entity.Campaign;
+import com.sep490.ecoverse_be.entity.CampaignParticipant;
 import com.sep490.ecoverse_be.enums.NotificationType;
+import com.sep490.ecoverse_be.enums.ParticipationStatus;
 import com.sep490.ecoverse_be.enums.SchoolCampaignStatus;
+import com.sep490.ecoverse_be.repository.CampaignParticipantRepository;
 import com.sep490.ecoverse_be.repository.CampaignRepository;
 import com.sep490.ecoverse_be.service.INotificationService;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +23,7 @@ import java.util.List;
 public class CampaignScheduler {
 
     private final CampaignRepository campaignRepository;
+    private final CampaignParticipantRepository campaignParticipantRepository;
     private final INotificationService notificationService;
 
     /**
@@ -60,6 +64,9 @@ public class CampaignScheduler {
             campaignRepository.save(campaign);
             log.info("[CampaignScheduler] Campaign '{}' ({}): {} → ON_GOING",
                     campaign.getCampaignName(), campaign.getCampaignCode(), campaign.getSchoolStatus());
+
+            // Tự động reject các invitation chưa được APPROVED
+            autoRejectPendingInvitations(campaign);
 
             // Broadcast toi tat ca hoc sinh tham gia
             notificationService.notifyCampaignParticipants(
@@ -120,5 +127,28 @@ public class CampaignScheduler {
             );
         }
         log.info("[CampaignScheduler] {} campaign(s) transitioned to COMPLETED", campaigns.size());
+    }
+
+    /**
+     * Tự động reject tất cả invitation chưa được APPROVED khi campaign chuyển sang ON_GOING.
+     * Lý do: phụ huynh không phản hồi trong thời gian được mời.
+     */
+    private void autoRejectPendingInvitations(Campaign campaign) {
+        List<CampaignParticipant> pendingParticipants = campaignParticipantRepository
+                .findByCampaignIdAndParentApprovalStatusNotAndIsActiveTrue(
+                        campaign.getId(), ParticipationStatus.APPROVED);
+
+        if (pendingParticipants.isEmpty()) return;
+
+        LocalDateTime now = LocalDateTime.now();
+        for (CampaignParticipant participant : pendingParticipants) {
+            participant.setParentApprovalStatus(ParticipationStatus.REJECTED);
+            participant.setRejectionReason("Tự động từ chối vì không phản hồi trong thời gian được mời");
+            participant.setParentApprovedAt(now);
+            campaignParticipantRepository.save(participant);
+        }
+
+        log.info("[CampaignScheduler] Auto-rejected {} pending invitation(s) for campaign '{}'",
+                pendingParticipants.size(), campaign.getCampaignName());
     }
 }
