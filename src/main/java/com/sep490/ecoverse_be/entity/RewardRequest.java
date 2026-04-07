@@ -78,4 +78,7 @@ public class RewardRequest extends BaseEntity {
 
     @Column(columnDefinition = "text")
     private String notes;
+
+    @Column(length = 500)
+    private String deliveryImageUrl;
 }

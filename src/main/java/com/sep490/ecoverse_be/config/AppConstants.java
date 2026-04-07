@@ -10,6 +10,7 @@ public final class AppConstants {
             "/api/auth/register",
             "/api/auth/refresh",
             "/api/auth/forgot-password",
+            "/api/auth/verify-reset-password",
             "/api/loginByGoogle",
             "/oauth2/authorization/**",
             "/login/oauth2/code/**",

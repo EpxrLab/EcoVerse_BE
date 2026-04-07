@@ -15,4 +15,8 @@ public interface SchoolRepository extends JpaRepository<School, UUID>,
     List<School> findByApprovalStatus(ApprovalStatus approvalStatus);
 
     Optional<School> findByUserId(UUID userId);
+
+    List<School> findByWardAndApprovalStatus(String ward, ApprovalStatus approvalStatus);
+
+    List<School> findByProvinceAndApprovalStatus(String province, ApprovalStatus approvalStatus);
 }

@@ -3,9 +3,13 @@ package com.sep490.ecoverse_be.controller;
 import com.sep490.ecoverse_be.dto.request.CreatePartnershipCampaignRequest;
 import com.sep490.ecoverse_be.dto.request.InviteSchoolsRequest;
 import com.sep490.ecoverse_be.dto.response.CampaignDetailResponse;
+import com.sep490.ecoverse_be.dto.response.CampaignRewardResponse;
 import com.sep490.ecoverse_be.dto.response.CampaignSummaryResponse;
+import com.sep490.ecoverse_be.dto.response.EligibleSchoolResponse;
 import com.sep490.ecoverse_be.dto.response.ResponseDto;
+import com.sep490.ecoverse_be.service.ICampaignRewardService;
 import com.sep490.ecoverse_be.service.ICampaignService;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -23,7 +27,20 @@ public class PartnershipCampaignController {
     @Autowired
     private ICampaignService campaignService;
 
+    @Autowired
+    private ICampaignRewardService campaignRewardService;
+
+    @GetMapping("/campaigns/eligible-schools")
+    @Operation(
+            summary = "Lấy danh sách trường đủ điều kiện mời",
+            description = "Trả về các trường có cùng ward (ưu tiên) hoặc cùng province với khu vực hoạt động đã đăng ký của partnership."
+    )
+    public ResponseEntity<ResponseDto<List<EligibleSchoolResponse>>> getEligibleSchools() {
+        return ResponseEntity.ok(ResponseDto.success(campaignService.getEligibleSchools(), "Lấy danh sách trường thành công"));
+    }
+
     @PostMapping("/campaigns")
+    @Operation(summary = "Tạo partnership campaign", description = "Tạo campaign và mời trường ngay trong cùng request nếu truyền `schoolIds`.")
     public ResponseEntity<ResponseDto<CampaignDetailResponse>> createCampaign(@Valid @RequestBody CreatePartnershipCampaignRequest request) {
         return ResponseEntity.status(201).body(ResponseDto.created(campaignService.createPartnershipCampaign(request), "Tạo campaign thành công"));
     }
@@ -64,6 +81,25 @@ public class PartnershipCampaignController {
     @PutMapping("/campaigns/{id}/cancel")
     public ResponseEntity<ResponseDto<CampaignDetailResponse>> cancelCampaign(@PathVariable UUID id) {
         return ResponseEntity.ok(ResponseDto.success(campaignService.cancelPartnershipCampaign(id), "Hủy campaign thành công"));
+    }
+
+    @DeleteMapping("/campaigns/{id}")
+    @Operation(
+            summary = "Xóa partnership campaign (soft delete)",
+            description = "Chỉ xóa được khi campaign đang ở trạng thái **DRAFT**. Dữ liệu không bị xóa vật lý."
+    )
+    public ResponseEntity<ResponseDto<Void>> deleteCampaign(@PathVariable UUID id) {
+        campaignService.deletePartnershipCampaign(id);
+        return ResponseEntity.ok(ResponseDto.success(null, "Xóa campaign thành công"));
+    }
+
+    @GetMapping("/campaigns/{id}/rewards")
+    @Operation(
+            summary = "Xem danh sách quà thưởng của campaign",
+            description = "Trả về danh sách rewards đã cấu hình, sắp xếp theo rankPosition tăng dần."
+    )
+    public ResponseEntity<ResponseDto<List<CampaignRewardResponse>>> getRewards(@PathVariable UUID id) {
+        return ResponseEntity.ok(ResponseDto.success(campaignRewardService.getRewards(id), "Lấy danh sách quà thưởng thành công"));
     }
 }
 

@@ -41,6 +41,8 @@ public class CampaignParticipant extends BaseEntity {
 
     private LocalDateTime enrollmentDate;
 
+    private LocalDateTime invitationSentAt;
+
     @Enumerated(EnumType.STRING)
         private ParticipationStatus parentApprovalStatus = ParticipationStatus.PENDING_PARENT_APPROVAL;
 
