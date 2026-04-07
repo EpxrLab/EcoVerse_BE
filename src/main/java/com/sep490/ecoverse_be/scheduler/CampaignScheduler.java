@@ -22,7 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Stream;
 
 @Component
 @RequiredArgsConstructor
@@ -108,6 +107,10 @@ public class CampaignScheduler {
             log.info("[CampaignScheduler] Campaign '{}' ({}): → ON_GOING",
                     campaign.getCampaignName(), campaign.getCampaignCode());
 
+            // Tự động reject các invitation chưa được APPROVED
+            autoRejectPendingInvitations(campaign);
+
+            // Broadcast toi tat ca hoc sinh tham gia
             notificationService.notifyCampaignParticipants(
                     campaign.getId(),
                     NotificationType.CAMPAIGN_START,
@@ -412,5 +415,28 @@ public class CampaignScheduler {
 
         log.info("[CampaignScheduler] Auto-rejected {} pending parent approval(s) for campaign '{}'",
                 pendingParents.size(), campaign.getCampaignCode());
+    }
+
+    /**
+     * Tự động reject tất cả invitation chưa được APPROVED khi campaign chuyển sang ON_GOING.
+     * Lý do: phụ huynh không phản hồi trong thời gian được mời.
+     */
+    private void autoRejectPendingInvitations(Campaign campaign) {
+        List<CampaignParticipant> pendingParticipants = campaignParticipantRepository
+                .findByCampaignIdAndParentApprovalStatusNotAndIsActiveTrue(
+                        campaign.getId(), ParticipationStatus.APPROVED);
+
+        if (pendingParticipants.isEmpty()) return;
+
+        LocalDateTime now = LocalDateTime.now();
+        for (CampaignParticipant participant : pendingParticipants) {
+            participant.setParentApprovalStatus(ParticipationStatus.REJECTED);
+            participant.setRejectionReason("Tự động từ chối vì không phản hồi trong thời gian được mời");
+            participant.setParentApprovedAt(now);
+            campaignParticipantRepository.save(participant);
+        }
+
+        log.info("[CampaignScheduler] Auto-rejected {} pending invitation(s) for campaign '{}'",
+                pendingParticipants.size(), campaign.getCampaignName());
     }
 }

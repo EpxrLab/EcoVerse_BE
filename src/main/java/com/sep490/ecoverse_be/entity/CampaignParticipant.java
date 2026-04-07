@@ -52,6 +52,8 @@ public class CampaignParticipant extends BaseEntity {
 
     private LocalDateTime parentApprovedAt;
 
+    private String rejectionReason;
+
     @Column(nullable = false)
     private boolean isActive = true;
 }

@@ -14,6 +14,7 @@ public record CampaignParticipantInfoResponse(
         String gradeLevel,
         String className,
         ParticipationStatus parentApprovalStatus,
-        LocalDateTime invitationSentAt
+        LocalDateTime invitationSentAt,
+        String rejectionReason
 ) {
 }
