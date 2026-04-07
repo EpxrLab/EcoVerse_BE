@@ -27,6 +27,11 @@ public interface CampaignParticipantRepository extends JpaRepository<CampaignPar
 
     List<CampaignParticipant> findByCampaignIdAndIsActiveTrueOrderByCreatedAtAsc(UUID campaignId);
 
+    List<CampaignParticipant> findByStudentIdInAndIsActiveTrue(List<UUID> studentIds);
+
+    List<CampaignParticipant> findByCampaignIdAndParentApprovalStatusNotAndIsActiveTrue(
+            UUID campaignId, ParticipationStatus status);
+
     // Lay tat ca hoc sinh duoc moi (khong loc isActive) de hien thi toan bo trang thai
     List<CampaignParticipant> findByCampaignIdOrderByCreatedAtAsc(UUID campaignId);
 }

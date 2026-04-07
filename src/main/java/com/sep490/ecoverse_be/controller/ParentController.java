@@ -5,9 +5,9 @@ import com.sep490.ecoverse_be.dto.response.StudentAccountInfo;
 import com.sep490.ecoverse_be.dto.request.ParentCampaignApprovalRequest;
 import com.sep490.ecoverse_be.dto.response.CampaignProgressResponse;
 import com.sep490.ecoverse_be.dto.response.ParentCampaignInvitationResponse;
+import com.sep490.ecoverse_be.enums.ParticipationStatus;
 import com.sep490.ecoverse_be.service.ICampaignService;
 import com.sep490.ecoverse_be.service.ParentService;
-import com.sep490.ecoverse_be.exception.BadRequestException;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -38,17 +38,16 @@ public class ParentController {
 
     @GetMapping("/children")
     public ResponseEntity<ResponseDto<List<StudentAccountInfo>>> getChildren() {
-        List<StudentAccountInfo> studentAccountInfoList =  parentService.getChildren();
-        return ResponseEntity.ok(ResponseDto.success(studentAccountInfoList, "Danh sách các con của phụ huynh thành công"));
+        List<StudentAccountInfo> studentAccountInfoList = parentService.getChildren();
+        return ResponseEntity.ok(ResponseDto.success(studentAccountInfoList, "Danh sách các con của phụ huynh thành công"));
     }
 
     @GetMapping("/campaign-invitations")
     public ResponseEntity<ResponseDto<List<ParentCampaignInvitationResponse>>> getCampaignInvitations(
-            @RequestParam(required = false) String status) {
-        if (status != null && !"PENDING_APPROVAL".equalsIgnoreCase(status)) {
-            throw new BadRequestException("status chỉ hỗ trợ giá trị PENDING_APPROVAL");
-        }
-        return ResponseEntity.ok(ResponseDto.success(campaignService.getParentCampaignInvitations(), "Danh sách lời mời campaign thành công"));
+            @RequestParam(required = false) ParticipationStatus status) {
+        return ResponseEntity.ok(ResponseDto.success(
+                campaignService.getParentCampaignInvitations(status),
+                "Danh sách lời mời campaign thành công"));
     }
 
     @PostMapping("/campaigns/{campaignId}/approve-join")

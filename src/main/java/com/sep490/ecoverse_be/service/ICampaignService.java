@@ -2,6 +2,7 @@ package com.sep490.ecoverse_be.service;
 
 import com.sep490.ecoverse_be.dto.request.*;
 import com.sep490.ecoverse_be.dto.response.*;
+import com.sep490.ecoverse_be.enums.ParticipationStatus;
 
 import java.util.List;
 import java.util.UUID;
@@ -43,7 +44,7 @@ public interface ICampaignService {
     List<LeaderboardEntryResponse> getCampaignLeaderboard(UUID campaignId);
     List<LeaderboardEntryResponse> getCampaignRoundLeaderboard(UUID roundId);
 
-    List<ParentCampaignInvitationResponse> getParentCampaignInvitations();
+    List<ParentCampaignInvitationResponse> getParentCampaignInvitations(ParticipationStatus status);
     void parentApproveJoin(UUID campaignId, ParentCampaignApprovalRequest request);
     void parentRejectJoin(UUID campaignId, ParentCampaignApprovalRequest request);
     List<CampaignProgressResponse> getParentStudentProgress(UUID studentId);

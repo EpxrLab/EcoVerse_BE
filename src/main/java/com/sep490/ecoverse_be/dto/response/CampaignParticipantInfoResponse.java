@@ -12,6 +12,7 @@ public record CampaignParticipantInfoResponse(
         String fullName,
         String gradeLevel,
         String className,
-        ParticipationStatus parentApprovalStatus
+        ParticipationStatus parentApprovalStatus,
+        String rejectionReason
 ) {
 }
