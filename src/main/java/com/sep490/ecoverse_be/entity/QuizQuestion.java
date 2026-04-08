@@ -34,7 +34,4 @@ public class QuizQuestion extends BaseEntity {
 
     @Column(nullable = false)
     private boolean isActive = true;
-
-    @Column(name = "is_delete", nullable = false)
-    private boolean isDelete = false;
 }

@@ -43,7 +43,7 @@ public class CreateQuizRequest {
     @Max(value = 100, message = "Tỉ lệ đạt phải <= 100%")
     private Integer passScorePercentage = 70;
 
-    @NotEmpty(message = "Quiz phải có ít nhất một câu hỏi")
+    // Tùy chọn: có thể tạo quiz trước, import câu hỏi sau qua POST /{quizId}/questions/import
     @Valid
     private List<QuizQuestionRequest> questions;
 }

@@ -119,7 +119,7 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
 
         // Lay danh sach cau hoi
         List<QuizQuestion> questions = quizQuestionRepository
-                .findByQuizIdAndIsDeleteFalseOrderByQuestionOrder(quizId);
+                .findByQuizIdAndIsActiveTrueOrderByQuestionOrder(quizId);
         if (questions.isEmpty()) {
             throw new BadRequestException("Quiz chưa có câu hỏi");
         }
@@ -206,7 +206,7 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
 
         // Lay danh sach cau hoi cua quiz
         List<QuizQuestion> questions = quizQuestionRepository
-                .findByQuizIdAndIsDeleteFalseOrderByQuestionOrder(quiz.getId());
+                .findByQuizIdAndIsActiveTrueOrderByQuestionOrder(quiz.getId());
 
         // Lay tat ca dap an cho cac cau hoi
         List<QuizAnswer> allAnswers = quizAnswerRepository.findByQuestionIn(questions);
@@ -428,7 +428,7 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
 
         // Lay tat ca cau hoi de biet dap an dung
         List<QuizQuestion> questions = quizQuestionRepository
-                .findByQuizIdAndIsDeleteFalseOrderByQuestionOrder(attempt.getQuiz().getId());
+                .findByQuizIdAndIsActiveTrueOrderByQuestionOrder(attempt.getQuiz().getId());
         List<QuizAnswer> allAnswers = quizAnswerRepository.findByQuestionIn(questions);
         Map<UUID, QuizAnswer> correctAnswerByQuestion = allAnswers.stream()
                 .filter(QuizAnswer::isCorrect)

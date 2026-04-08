@@ -9,6 +9,7 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -40,6 +41,11 @@ public class CreatePartnershipCampaignRequest {
     private Integer topRankingCount;
 
     private String bannerImageUrl;
+
+    private List<UUID> schoolIds;
+
+    @Valid
+    private List<CampaignRewardRequest> rewards;
 
     @NotEmpty
     @Valid

@@ -21,7 +21,7 @@ public interface IRewardRequestService {
 
     RewardRequestResponse approveOrRejectRequest(UUID requestId, RejectRewardRequestDto dto);
 
-    RewardRequestResponse markDelivered(UUID requestId);
+    RewardRequestResponse markDelivered(UUID requestId, String imageUrl);
 
     RewardRequestResponse confirmReceived(UUID requestId);
 }

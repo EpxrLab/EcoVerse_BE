@@ -19,6 +19,7 @@ public interface ICampaignService {
     CampaignDetailResponse cancelSchoolCampaign(UUID campaignId);
     void deleteSchoolCampaign(UUID campaignId);
 
+    List<EligibleSchoolResponse> getEligibleSchools();
     CampaignDetailResponse createPartnershipCampaign(CreatePartnershipCampaignRequest request);
     List<CampaignSummaryResponse> getMyPartnershipCampaigns();
     CampaignDetailResponse getPartnershipCampaignById(UUID campaignId);
@@ -27,6 +28,7 @@ public interface ICampaignService {
     CampaignDetailResponse activatePartnershipCampaign(UUID campaignId);
     CampaignDetailResponse setPartnershipCampaignDraft(UUID campaignId);
     CampaignDetailResponse cancelPartnershipCampaign(UUID campaignId);
+    void deletePartnershipCampaign(UUID campaignId);
 
     List<PartnershipInvitationResponse> getPartnershipInvitationsForSchool();
     void acceptPartnershipInvitation(UUID invitationId);

@@ -71,6 +71,9 @@ public class CampaignServiceImpl implements ICampaignService {
     @Autowired
     private S3PresignedUrlService s3PresignedUrlService;
 
+    @Autowired
+    private com.sep490.ecoverse_be.service.ICampaignRewardService campaignRewardService;
+
     private User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !(auth.getPrincipal() instanceof UserPrincipal principal)) {
@@ -224,8 +227,7 @@ public class CampaignServiceImpl implements ICampaignService {
                 })
                 .toList();
 
-        // Lấy tất cả học sinh đã được mời (không lọc isActive) để UI hiển thị đầy đủ
-        // trạng thái
+        // Lấy tất cả học sinh đã được mời (không lọc isActive) để UI hiển thị đầy đủ trạng thái
         List<CampaignParticipantInfoResponse> participants = campaignParticipantRepository
                 .findByCampaignIdOrderByCreatedAtAsc(campaign.getId())
                 .stream()
@@ -236,9 +238,27 @@ public class CampaignServiceImpl implements ICampaignService {
                         .gradeLevel(p.getStudent().getGradeLevel())
                         .className(p.getStudent().getClassName())
                         .parentApprovalStatus(p.getParentApprovalStatus())
+                        .invitationSentAt(p.getInvitationSentAt())
                         .rejectionReason(p.getRejectionReason())
                         .build())
                 .toList();
+
+        // Lấy danh sách trường đã được mời (chỉ có với PARTNERSHIP_EVENT)
+        List<InvitedSchoolInfoResponse> invitedSchools = null;
+        if (campaign.getCampaignType() == CampaignType.PARTNERSHIP_EVENT) {
+            invitedSchools = campaignSchoolParticipateRepository.findByCampaignId(campaign.getId())
+                    .stream()
+                    .map(sp -> InvitedSchoolInfoResponse.builder()
+                            .invitationId(sp.getId())
+                            .schoolId(sp.getSchool().getId())
+                            .schoolName(sp.getSchool().getSchoolName())
+                            .status(sp.getStatus())
+                            .studentsEnrolled(sp.getStudentsEnrolled())
+                            .invitationSentAt(sp.getInvitationSentAt())
+                            .participationConfirmedAt(sp.getParticipationConfirmedAt())
+                            .build())
+                    .toList();
+        }
 
         return CampaignDetailResponse.builder()
                 .id(campaign.getId())
@@ -249,12 +269,19 @@ public class CampaignServiceImpl implements ICampaignService {
                 .status(statusOf(campaign))
                 .startDate(campaign.getStartDate())
                 .endDate(campaign.getEndDate())
+                .registrationDate(campaign.getRegistrationDate())
+                .registrationDeadline(campaign.getRegistrationDeadline())
                 .invitationDate(campaign.getInvitationDate())
                 .invitationDeadline(campaign.getInvitationDeadline())
+                .maxStudentsPerSchool(campaign.getMaxStudentsPerSchool())
+                .totalStudentQuota(campaign.getTotalStudentQuota())
                 .topRankingCount(campaign.getTopRankingCount())
                 .totalRounds(campaign.getTotalRounds())
+                .bannerImageUrl(campaign.getBannerImageUrl())
+                .bannerImagePresignedUrl(s3PresignedUrlService.generatePresignedUrl(campaign.getBannerImageUrl()))
                 .rounds(rounds)
                 .participants(participants)
+                .invitedSchools(invitedSchools)
                 .build();
     }
 
@@ -277,6 +304,8 @@ public class CampaignServiceImpl implements ICampaignService {
                 .status(statusOf(campaign))
                 .startDate(campaign.getStartDate())
                 .endDate(campaign.getEndDate())
+                .registrationDate(campaign.getRegistrationDate())
+                .registrationDateDeadline(campaign.getRegistrationDeadline())
                 .invitationDate(campaign.getInvitationDate())
                 .invitationDeadline(campaign.getInvitationDeadline())
                 .description(campaign.getDescription())
@@ -497,7 +526,6 @@ public class CampaignServiceImpl implements ICampaignService {
             selfParticipate.setCampaign(campaign);
             selfParticipate.setSchool(school);
             selfParticipate.setStatus(ParticipationStatus.APPROVED);
-            selfParticipate.setInvitationSentAt(LocalDateTime.now());
             selfParticipate.setParticipationConfirmedAt(LocalDateTime.now());
             campaignSchoolParticipateRepository.save(selfParticipate);
         }
@@ -547,6 +575,7 @@ public class CampaignServiceImpl implements ICampaignService {
                 participant.setStudent(student);
                 participant.setEnrollmentDate(LocalDateTime.now());
                 participant.setParentApprovalStatus(ParticipationStatus.PENDING_PARENT_APPROVAL);
+                participant.setInvitationSentAt(LocalDateTime.now());
                 campaignParticipantRepository.save(participant);
             }
         }
@@ -619,6 +648,29 @@ public class CampaignServiceImpl implements ICampaignService {
     }
 
     @Override
+    public List<EligibleSchoolResponse> getEligibleSchools() {
+        Partnership partnership = getCurrentPartnership();
+        List<School> schools;
+        if (partnership.getGeographicScopeWard() != null && !partnership.getGeographicScopeWard().isBlank()) {
+            schools = schoolRepository.findByWardAndApprovalStatus(
+                    partnership.getGeographicScopeWard(), ApprovalStatus.APPROVED);
+        } else if (partnership.getGeographicScopeProvince() != null && !partnership.getGeographicScopeProvince().isBlank()) {
+            schools = schoolRepository.findByProvinceAndApprovalStatus(
+                    partnership.getGeographicScopeProvince(), ApprovalStatus.APPROVED);
+        } else {
+            schools = List.of();
+        }
+        return schools.stream()
+                .map(s -> EligibleSchoolResponse.builder()
+                        .schoolId(s.getId())
+                        .schoolName(s.getSchoolName())
+                        .ward(s.getWard())
+                        .province(s.getProvince())
+                        .build())
+                .toList();
+    }
+
+    @Override
     @Transactional
     public CampaignDetailResponse createPartnershipCampaign(CreatePartnershipCampaignRequest request) {
         Partnership partnership = getCurrentPartnership();
@@ -664,6 +716,20 @@ public class CampaignServiceImpl implements ICampaignService {
             campaignRoundRepository.save(round);
         }
 
+        if (request.getSchoolIds() != null && !request.getSchoolIds().isEmpty()) {
+            final Campaign savedCampaign = campaign;
+            List<School> schools = schoolRepository.findAllById(request.getSchoolIds());
+            for (School school : schools) {
+                CampaignSchoolParticipate invitation = new CampaignSchoolParticipate();
+                invitation.setCampaign(savedCampaign);
+                invitation.setSchool(school);
+                invitation.setStatus(ParticipationStatus.PENDING_SCHOOL_APPROVAL);
+                campaignSchoolParticipateRepository.save(invitation);
+            }
+        }
+
+        campaignRewardService.saveRewards(campaign, partnership, request.getRewards());
+
         return mapCampaignDetail(campaign);
     }
 
@@ -703,6 +769,11 @@ public class CampaignServiceImpl implements ICampaignService {
                 request.getTopRankingCount() != null ? request.getTopRankingCount() : campaign.getTopRankingCount());
         campaign.setBannerImageUrl(request.getBannerImageUrl());
         campaignRepository.save(campaign);
+
+        if (request.getRewards() != null) {
+            campaignRewardService.saveRewards(campaign, campaign.getCreatorPartnership(), request.getRewards());
+        }
+
         return mapCampaignDetail(campaign);
     }
 
@@ -721,7 +792,6 @@ public class CampaignServiceImpl implements ICampaignService {
             invitation.setCampaign(campaign);
             invitation.setSchool(school);
             invitation.setStatus(ParticipationStatus.INVITED);
-            invitation.setInvitationSentAt(LocalDateTime.now());
             campaignSchoolParticipateRepository.save(invitation);
         }
     }
@@ -734,7 +804,7 @@ public class CampaignServiceImpl implements ICampaignService {
             throw new BadRequestException("Chỉ được kích hoạt campaign ở trạng thái DRAFT");
         }
         ensureHasAtLeastOneGameAndQuiz(campaign);
-        campaign.setPartnershipStatus(PartnershipCampaignStatus.JOINING);
+        campaign.setPartnershipStatus(PartnershipCampaignStatus.SCHEDULED);
         campaignRepository.save(campaign);
         return mapCampaignDetail(campaign);
     }
@@ -743,8 +813,8 @@ public class CampaignServiceImpl implements ICampaignService {
     @Transactional
     public CampaignDetailResponse setPartnershipCampaignDraft(UUID campaignId) {
         Campaign campaign = getPartnershipCampaignOwned(campaignId, getCurrentPartnership().getId());
-        if (campaign.getPartnershipStatus() != PartnershipCampaignStatus.JOINING) {
-            throw new BadRequestException("Chỉ được chuyển về DRAFT khi campaign ở trạng thái JOINING");
+        if (campaign.getPartnershipStatus() != PartnershipCampaignStatus.SCHEDULED) {
+            throw new BadRequestException("Chỉ được chuyển về DRAFT khi campaign ở trạng thái SCHEDULED");
         }
         campaign.setPartnershipStatus(PartnershipCampaignStatus.DRAFT);
         campaignRepository.save(campaign);
@@ -755,8 +825,10 @@ public class CampaignServiceImpl implements ICampaignService {
     @Transactional
     public CampaignDetailResponse cancelPartnershipCampaign(UUID campaignId) {
         Campaign campaign = getPartnershipCampaignOwned(campaignId, getCurrentPartnership().getId());
-        if (campaign.getPartnershipStatus() != PartnershipCampaignStatus.JOINING) {
-            throw new BadRequestException("Chỉ được hủy campaign ở trạng thái JOINING");
+        PartnershipCampaignStatus ps = campaign.getPartnershipStatus();
+        if (ps != PartnershipCampaignStatus.SCHEDULED
+                && ps != PartnershipCampaignStatus.JOINING) {
+            throw new BadRequestException("Chỉ được hủy campaign ở trạng thái SCHEDULED, JOINING");
         }
         campaign.setPartnershipStatus(PartnershipCampaignStatus.CANCELLED);
         campaignRepository.save(campaign);
@@ -764,18 +836,49 @@ public class CampaignServiceImpl implements ICampaignService {
     }
 
     @Override
+    @Transactional
+    public void deletePartnershipCampaign(UUID campaignId) {
+        Campaign campaign = getPartnershipCampaignOwned(campaignId, getCurrentPartnership().getId());
+        if (campaign.getPartnershipStatus() != PartnershipCampaignStatus.DRAFT) {
+            throw new BadRequestException("Chỉ được xóa campaign ở trạng thái DRAFT");
+        }
+        campaign.setActive(false);
+        campaignRepository.save(campaign);
+    }
+
+    @Override
     public List<PartnershipInvitationResponse> getPartnershipInvitationsForSchool() {
         School school = getCurrentSchool();
         return campaignSchoolParticipateRepository.findBySchoolIdOrderByCreatedAtDesc(school.getId())
                 .stream()
-                .map(i -> PartnershipInvitationResponse.builder()
-                        .invitationId(i.getId())
-                        .campaignId(i.getCampaign().getId())
-                        .campaignName(i.getCampaign().getCampaignName())
-                        .status(i.getStatus())
-                        .invitationSentAt(i.getInvitationSentAt())
-                        .studentsEnrolled(i.getStudentsEnrolled())
-                        .build())
+                .filter(i -> i.getCampaign().getCampaignType() == CampaignType.PARTNERSHIP_EVENT)
+                .filter(i -> i.getInvitationSentAt() != null)
+                .map(i -> {
+                    Campaign c = i.getCampaign();
+                    return PartnershipInvitationResponse.builder()
+                            .invitationId(i.getId())
+                            .campaignId(c.getId())
+                            .campaignCode(c.getCampaignCode())
+                            .campaignName(c.getCampaignName())
+                            .description(c.getDescription())
+                            .bannerImageUrl(c.getBannerImageUrl())
+                            .status(i.getStatus())
+                            .invitationSentAt(i.getInvitationSentAt())
+                            .participationConfirmedAt(i.getParticipationConfirmedAt())
+                            .registrationDate(c.getRegistrationDate())
+                            .registrationDeadline(c.getRegistrationDeadline())
+                            .invitationDate(c.getInvitationDate())
+                            .invitationDeadline(c.getInvitationDeadline())
+                            .startDate(c.getStartDate())
+                            .endDate(c.getEndDate())
+                            .maxStudentsPerSchool(c.getMaxStudentsPerSchool())
+                            .totalStudentQuota(c.getTotalStudentQuota())
+                            .totalRounds(c.getTotalRounds())
+                            .studentsEnrolled(i.getStudentsEnrolled())
+                            .partnershipName(c.getCreatorPartnership() != null
+                                    ? c.getCreatorPartnership().getOrganizationName() : null)
+                            .build();
+                })
                 .toList();
     }
 
@@ -788,6 +891,9 @@ public class CampaignServiceImpl implements ICampaignService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy lời mời"));
         if (invitation.getStatus() != ParticipationStatus.INVITED) {
             throw new BadRequestException("Lời mời đã được xử lý");
+        }
+        if (invitation.getInvitationSentAt() == null) {
+            throw new BadRequestException("Lời mời chưa được gửi");
         }
         invitation.setStatus(ParticipationStatus.APPROVED);
         invitation.setParticipationConfirmedAt(LocalDateTime.now());
@@ -803,6 +909,9 @@ public class CampaignServiceImpl implements ICampaignService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy lời mời"));
         if (invitation.getStatus() != ParticipationStatus.INVITED) {
             throw new BadRequestException("Lời mời đã được xử lý");
+        }
+        if (invitation.getInvitationSentAt() == null) {
+            throw new BadRequestException("Lời mời chưa được gửi");
         }
         invitation.setStatus(ParticipationStatus.REJECTED);
         campaignSchoolParticipateRepository.save(invitation);
@@ -824,7 +933,6 @@ public class CampaignServiceImpl implements ICampaignService {
         }
 
         List<Student> students = studentRepository.findAllById(request.getStudentIds());
-        int added = 0;
         for (Student student : students) {
             if (!student.getSchool().getId().equals(school.getId())) {
                 continue;
@@ -839,10 +947,7 @@ public class CampaignServiceImpl implements ICampaignService {
             participant.setEnrollmentDate(LocalDateTime.now());
             participant.setParentApprovalStatus(ParticipationStatus.PENDING_PARENT_APPROVAL);
             campaignParticipantRepository.save(participant);
-            added++;
         }
-        invitation.setStudentsEnrolled(invitation.getStudentsEnrolled() + added);
-        campaignSchoolParticipateRepository.save(invitation);
     }
 
     @Override
@@ -995,11 +1100,10 @@ public class CampaignServiceImpl implements ICampaignService {
             StudentCampaignStatusFilter status) {
         String campaignStatus = statusOf(campaign);
         return switch (status) {
-            case INVITED -> participant.getParentApprovalStatus() == ParticipationStatus.PENDING_PARENT_APPROVAL;
-            case ON_GOING -> "ON_GOING".equals(campaignStatus)
-                    && participant.getParentApprovalStatus() == ParticipationStatus.APPROVED;
-            case COMPLETED -> "COMPLETED".equals(campaignStatus)
-                    && participant.getParentApprovalStatus() == ParticipationStatus.APPROVED;
+            case INVITED -> participant.getInvitationSentAt() != null
+                    && participant.getParentApprovalStatus() == ParticipationStatus.PENDING_PARENT_APPROVAL;
+            case ON_GOING -> "ON_GOING".equals(campaignStatus) && participant.getParentApprovalStatus() == ParticipationStatus.APPROVED;
+            case COMPLETED -> "COMPLETED".equals(campaignStatus) && participant.getParentApprovalStatus() == ParticipationStatus.APPROVED;
         };
     }
 
@@ -1408,6 +1512,10 @@ public class CampaignServiceImpl implements ICampaignService {
                 .findByCampaignIdAndStudentIdAndIsActiveTrue(campaignId, request.getStudentId())
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy lời mời tham gia campaign"));
 
+        if (participant.getInvitationSentAt() == null) {
+            throw new BadRequestException("Lời mời chưa được gửi");
+        }
+
         Campaign campaign = participant.getCampaign();
         String campaignStatus = statusOf(campaign);
         if (!"INVITING".equals(campaignStatus) && !"EXTENDED".equals(campaignStatus)
@@ -1425,6 +1533,16 @@ public class CampaignServiceImpl implements ICampaignService {
             participant.setRejectionReason(request.getReason());
         }
         campaignParticipantRepository.save(participant);
+
+        // Khi parent APPROVED: tang studentsEnrolled tren CampaignSchoolParticipate cua truong
+        if (status == ParticipationStatus.APPROVED) {
+            campaignSchoolParticipateRepository
+                    .findByCampaignIdAndSchoolId(campaign.getId(), participant.getSchool().getId())
+                    .ifPresent(sp -> {
+                        sp.setStudentsEnrolled(sp.getStudentsEnrolled() + 1);
+                        campaignSchoolParticipateRepository.save(sp);
+                    });
+        }
 
         // Thong bao cho hoc sinh sau khi phu huynh xu ly duyet
         User studentUser = participant.getStudent().getUser();
