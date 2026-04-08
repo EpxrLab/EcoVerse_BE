@@ -910,7 +910,8 @@ public class CampaignServiceImpl implements ICampaignService {
             normalizedPresetSubCategoryConfig.put(preset.getId().toString(), configuredSubCategoryIds);
         }
 
-        // Xóa config cũ rồi tạo mới để tránh lỗi unique constraint trên (campaign_round_id, display_order)
+        // Xóa config cũ rồi tạo mới để tránh lỗi unique constraint trên
+        // (campaign_round_id, display_order)
         roundGameConfigRepository.deleteByCampaignRoundId(roundId);
         roundGameConfigRepository.flush();
 
@@ -1108,6 +1109,7 @@ public class CampaignServiceImpl implements ICampaignService {
                     return StudentRoundGameConfigResponse.builder()
                             .roundGameConfigId(config.getId())
                             .gameTypeId(config.getGameType().getId())
+                            .typeCode(config.getGameType().getTypeCode().name())
                             .gameTypeName(config.getGameType().getName())
                             .resolvedDifficulty(config.getResolvedDifficulty())
                             .coinPerSession(coinPerSession)
