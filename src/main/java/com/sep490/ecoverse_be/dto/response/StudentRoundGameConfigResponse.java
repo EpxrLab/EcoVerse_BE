@@ -8,11 +8,11 @@ import java.util.UUID;
 
 @Builder
 public record StudentRoundGameConfigResponse(
-        UUID roundGameConfigId,
-        UUID gameTypeId,
-        String gameTypeName,
-        QuizDifficulty resolvedDifficulty,
-        Integer coinPerSession,
-        List<StudentRoundPresetConfigResponse> presets
-) {
+                UUID roundGameConfigId,
+                UUID gameTypeId,
+                String typeCode,
+                String gameTypeName,
+                QuizDifficulty resolvedDifficulty,
+                Integer coinPerSession,
+                List<StudentRoundPresetConfigResponse> presets) {
 }
