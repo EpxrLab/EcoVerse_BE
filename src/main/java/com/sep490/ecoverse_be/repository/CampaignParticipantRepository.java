@@ -34,6 +34,19 @@ public interface CampaignParticipantRepository extends JpaRepository<CampaignPar
 
     // Lay tat ca hoc sinh duoc moi (khong loc isActive) de hien thi toan bo trang thai
     List<CampaignParticipant> findByCampaignIdOrderByCreatedAtAsc(UUID campaignId);
+
+    List<CampaignParticipant> findByCampaignIdAndInvitationSentAtIsNullAndIsActiveTrue(UUID campaignId);
+
+    List<CampaignParticipant> findByCampaignIdAndSchoolIdAndIsActiveTrueOrderByCreatedAtAsc(
+            UUID campaignId, UUID schoolId);
+
+    List<CampaignParticipant> findByStudentIdInAndParentApprovalStatusAndIsActiveTrueAndInvitationSentAtIsNotNull(
+            List<UUID> studentIds,
+            ParticipationStatus status);
+
+    // Lay tat ca participant theo parent_approval_status trong 1 campaign (dung cho auto-reject khi het han)
+    List<CampaignParticipant> findByCampaignIdAndParentApprovalStatusAndIsActiveTrue(
+            UUID campaignId, ParticipationStatus parentApprovalStatus);
 }
 
 

@@ -100,26 +100,25 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
                 .findByCampaignRoundIdAndQuizId(roundId, quizId)
                 .orElseThrow(() -> new NotFoundException("Quiz không thuộc round này"));
 
+        // Neu co attempt dang mo (chua nop) thi RESUME attempt do thay vi bao loi
+        QuizAttempt openAttempt = quizAttemptRepository
+                .findByCampaignParticipantIdAndCampaignRoundIdAndQuizIdAndIsCompletedFalse(
+                        participant.getId(), roundId, quizId)
+                .orElse(null);
+
         // Kiem tra so lan da lam
         int usedAttempts = quizAttemptRepository
                 .countByCampaignParticipantIdAndCampaignRoundIdAndQuizId(participant.getId(), roundId, quizId);
-        if (usedAttempts >= roundQuiz.getMaxAttempts()) {
+        if (openAttempt == null && usedAttempts >= roundQuiz.getMaxAttempts()) {
             throw new BadRequestException("Bạn đã dùng hết " + roundQuiz.getMaxAttempts() + " lần làm quiz này");
         }
-
-        // Kiem tra khong co attempt dang mo (chua nop)
-        quizAttemptRepository.findByCampaignParticipantIdAndCampaignRoundIdAndQuizIdAndIsCompletedFalse(
-                participant.getId(), roundId, quizId)
-                .ifPresent(a -> {
-                    throw new BadRequestException("Bạn đang có bài làm chưa nộp. Hãy nộp bài trước khi bắt đầu lại");
-                });
 
         Quiz quiz = quizRepository.findByIdAndIsActiveTrue(quizId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy quiz"));
 
         // Lay danh sach cau hoi
         List<QuizQuestion> questions = quizQuestionRepository
-                .findByQuizIdAndIsDeleteFalseOrderByQuestionOrder(quizId);
+                .findByQuizIdAndIsActiveTrueOrderByQuestionOrder(quizId);
         if (questions.isEmpty()) {
             throw new BadRequestException("Quiz chưa có câu hỏi");
         }
@@ -129,17 +128,22 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
         Map<UUID, List<QuizAnswer>> answersByQuestion = allAnswers.stream()
                 .collect(Collectors.groupingBy(a -> a.getQuestion().getId()));
 
-        // Tao attempt moi
-        QuizAttempt attempt = new QuizAttempt();
-        attempt.setCampaignParticipant(participant);
-        attempt.setCampaignRound(round);
-        attempt.setQuiz(quiz);
-        attempt.setAttemptNumber(usedAttempts + 1);
-        attempt.setStartTime(now);
-        attempt.setTotalQuestions(questions.size());
-        attempt.setCompleted(false);
-        attempt.setPassed(false);
-        quizAttemptRepository.save(attempt);
+        // Tao attempt moi neu chua co attempt dang mo, con neu co thi dung attempt do de resume
+        QuizAttempt attempt;
+        if (openAttempt != null) {
+            attempt = openAttempt;
+        } else {
+            attempt = new QuizAttempt();
+            attempt.setCampaignParticipant(participant);
+            attempt.setCampaignRound(round);
+            attempt.setQuiz(quiz);
+            attempt.setAttemptNumber(usedAttempts + 1);
+            attempt.setStartTime(now);
+            attempt.setTotalQuestions(questions.size());
+            attempt.setCompleted(false);
+            attempt.setPassed(false);
+            quizAttemptRepository.save(attempt);
+        }
 
         // Map cau hoi -> response (xao tron thu tu dap an, khong lo isCorrect)
         List<StudentQuestionResponse> questionResponses = questions.stream()
@@ -206,7 +210,7 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
 
         // Lay danh sach cau hoi cua quiz
         List<QuizQuestion> questions = quizQuestionRepository
-                .findByQuizIdAndIsDeleteFalseOrderByQuestionOrder(quiz.getId());
+                .findByQuizIdAndIsActiveTrueOrderByQuestionOrder(quiz.getId());
 
         // Lay tat ca dap an cho cac cau hoi
         List<QuizAnswer> allAnswers = quizAnswerRepository.findByQuestionIn(questions);
@@ -428,7 +432,7 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
 
         // Lay tat ca cau hoi de biet dap an dung
         List<QuizQuestion> questions = quizQuestionRepository
-                .findByQuizIdAndIsDeleteFalseOrderByQuestionOrder(attempt.getQuiz().getId());
+                .findByQuizIdAndIsActiveTrueOrderByQuestionOrder(attempt.getQuiz().getId());
         List<QuizAnswer> allAnswers = quizAnswerRepository.findByQuestionIn(questions);
         Map<UUID, QuizAnswer> correctAnswerByQuestion = allAnswers.stream()
                 .filter(QuizAnswer::isCorrect)

@@ -3,7 +3,6 @@ package com.sep490.ecoverse_be.service;
 import com.sep490.ecoverse_be.dto.request.CreateQuizRequest;
 import com.sep490.ecoverse_be.dto.request.QuizQuestionRequest;
 import com.sep490.ecoverse_be.dto.request.UpdateQuizRequest;
-import com.sep490.ecoverse_be.dto.response.ImportResultResponse;
 import com.sep490.ecoverse_be.dto.response.QuizResponse;
 import com.sep490.ecoverse_be.dto.response.QuizSummaryResponse;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,7 +14,7 @@ public interface IQuizService {
 
     QuizResponse createQuizManual(CreateQuizRequest request);
 
-    ImportResultResponse importQuizFromExcel(MultipartFile file);
+    List<QuizQuestionRequest> previewQuestionsFromExcel(MultipartFile file);
 
     List<QuizSummaryResponse> getMyQuizzes();
 

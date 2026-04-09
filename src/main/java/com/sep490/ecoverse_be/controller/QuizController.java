@@ -21,7 +21,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/quiz")
 @PreAuthorize("hasAnyAuthority('PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
-@Tag(name = "Quiz Management", description = "APIs quản lý quiz dành cho School và Partnership")
+@Tag(name = "Quiz Management", description = "APIs quản lý quiz dành cho School và Partnership")
 public class QuizController {
 
     @Autowired
@@ -29,14 +29,18 @@ public class QuizController {
 
     @PostMapping("/manual")
     @Operation(
-            summary = "Tạo quiz thủ công",
+            summary = "Tạo quiz thủ công",
             description = """
-                    Tạo quiz mới cùng danh sách câu hỏi và đáp án
+                    Tạo quiz mới với metadata và danh sách câu hỏi.
                     
-                    - Mỗi câu hỏi phải có ít nhất 2 đáp án (tối đa 4), trong đó phải có ít nhất 1 đáp án đúng.
-                    - `questionOrder` trong danh sách không được trùng nhau.
-                    - `source` sẽ tự động đặt là MANUAL `MANUAL`.
-                    - Quiz sau khi tạo sẽ ở trạng thái **chưa publish** (`isPublished = false`).
+                    **Flow khuyến nghị:**
+                    1. (Tuỳ chọn) Upload file Excel qua `POST /preview-questions` để lấy preview câu hỏi
+                    2. Gọi API này với metadata + `questions` (nhập tay hoặc từ kết quả preview)
+                    
+                    - `questions` là optional: để trống nếu muốn thêm câu hỏi sau.
+                    - Mỗi câu hỏi phải có ít nhất 2 đáp án, trong đó ít nhất 1 đúng.
+                    - `questionOrder` trong danh sách không được trùng nhau.
+                    - Quiz sau khi tạo sẽ ở trạng thái **chưa publish** (`isPublished = false`).
                     
                     **Header:**
                     ```
@@ -48,24 +52,23 @@ public class QuizController {
     public ResponseEntity<ResponseDto<QuizResponse>> createQuizManual(
             @Valid @RequestBody CreateQuizRequest request) {
         QuizResponse response = quizService.createQuizManual(request);
-        return ResponseEntity.status(201).body(ResponseDto.created(response, "Tạo quiz thành công"));
+        return ResponseEntity.status(201).body(ResponseDto.created(response, "Tạo quiz thành công"));
     }
 
-    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/preview-questions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(
-            summary = "Import quiz từ file Excel",
+            summary = "Preview câu hỏi từ file Excel (không ghi DB)",
             description = """
-                    Upload file Excel (.xlsx) để tạo hàng loạt quiz câu hỏi và đáp án.
+                    Upload file Excel (.xlsx) để backend parse và trả về danh sách câu hỏi dưới dạng JSON.
+                    Không ghi vào database — dùng để UI hiển thị preview trước khi user xác nhận tạo quiz.
                     
-                    **Cấu trúc file Excel** (header row bắt buộc):
-                    | quiz_title | description | difficulty | target_grade | quiz_type | question_order | question_text |
-                    | answer_A | answer_B | answer_C | answer_D | correct_answer | coins_on_pass |
-                    | time_per_question | pass_score_percentage |
+                    **Cấu trúc file Excel** (header row bắt buộc, 7 cột theo đúng thứ tự):
+                    | question_type | question_text | answer_A | answer_B | answer_C | answer_D | correct_answer |
                     
-                    - Nhiều dòng có cùng `quiz_title` sẽ được nhóm lại thành **một quiz**.
-                    - `difficulty`: EASY / MEDIUM / HARD
-                    - `quiz_type`: MULTIPLE_CHOICE / TRUE_FALSE / DRAG_DROP
-                    - `correct_answer`: A / B / C / D
+                    - `answer_C`, `answer_D`: không bắt buộc, để trống nếu không có
+                    - `correct_answer`: **A / B / C / D**
+                    
+                    **Sau khi preview:** Gọi `POST /manual` với metadata + questions list đã xác nhận.
                     
                     **Header:**
                     ```
@@ -74,12 +77,11 @@ public class QuizController {
                     ```
                     """
     )
-    public ResponseEntity<ResponseDto<ImportResultResponse>> importQuiz(
+    public ResponseEntity<ResponseDto<List<QuizQuestionRequest>>> previewQuestions(
             @RequestParam("file") MultipartFile file) {
-        ImportResultResponse result = quizService.importQuizFromExcel(file);
-        return ResponseEntity.ok(ResponseDto.success(result,
-                "Import hoàn tất: " + result.getSuccessCount() + " quiz thành công, "
-                        + result.getFailCount() + " thất bại"));
+        List<QuizQuestionRequest> questions = quizService.previewQuestionsFromExcel(file);
+        return ResponseEntity.ok(ResponseDto.success(questions,
+                "Parse thành công " + questions.size() + " câu hỏi từ file Excel"));
     }
 
     @GetMapping
@@ -134,14 +136,14 @@ public class QuizController {
             @PathVariable UUID quizId,
             @Valid @RequestBody UpdateQuizRequest request) {
         return ResponseEntity.ok(
-                ResponseDto.success(quizService.updateQuiz(quizId, request), "Cập nhật quiz thành công"));
+                ResponseDto.success(quizService.updateQuiz(quizId, request), "Cập nhật quiz thành công"));
     }
 
     @DeleteMapping("/{quizId}")
     @Operation(
             summary = "Xóa quiz",
             description = """
-                Xóa vĩnh viễn một quiz cùng toàn bộ câu hỏi và đáp án liên quan.
+                Soft-delete một quiz cùng toàn bộ câu hỏi và đáp án liên quan.
                 Chỉ có thể xóa quiz do chính tài khoản tạo.
                 
                 **Lỗi có thể xảy ra:**
@@ -170,7 +172,7 @@ public class QuizController {
     )
     public ResponseEntity<ResponseDto<QuizResponse>> togglePublish(@PathVariable UUID quizId) {
         return ResponseEntity.ok(
-                ResponseDto.success(quizService.togglePublish(quizId), "Cập nhật trạng thái publish thành công"));
+                ResponseDto.success(quizService.togglePublish(quizId), "Cập nhật trạng thái publish thành công"));
     }
 
     @PostMapping("/{quizId}/questions")
@@ -192,7 +194,7 @@ public class QuizController {
             @PathVariable UUID quizId,
             @Valid @RequestBody List<@Valid QuizQuestionRequest> questions) {
         return ResponseEntity.ok(
-                ResponseDto.success(quizService.addQuestions(quizId, questions), "Thêm câu hỏi thành công"));
+                ResponseDto.success(quizService.addQuestions(quizId, questions), "Thêm câu hỏi thành công"));
     }
 
     @PutMapping("/{quizId}/questions/{questionId}")
@@ -214,23 +216,23 @@ public class QuizController {
         return ResponseEntity.ok(
                 ResponseDto.success(
                         quizService.updateQuestion(quizId, questionId, request),
-                        "Cập nhật câu hỏi thành công"));
+                        "Cập nhật câu hỏi thành công"));
     }
 
     @DeleteMapping("/{quizId}/questions/{questionId}")
     @Operation(
-            summary = "Xoa mot cau hoi khoi quiz",
+            summary = "Xóa một câu hỏi khỏi quiz",
             description = """
-                    Xoa vinh vien mot cau hoi va tat ca dap an cua no khoi quiz.
+                    Xóa một câu hỏi và tất cả đáp án của nó khỏi quiz.
                     
-                    **Loi co the xay ra:**
-                    - `404` — Khong tim thay cau hoi trong quiz nay
+                    **Lỗi có thể xảy ra:**
+                    - `404` — Không tìm thấy câu hỏi trong quiz này
                     """
     )
     public ResponseEntity<ResponseDto<Void>> deleteQuestion(
             @PathVariable UUID quizId,
             @PathVariable UUID questionId) {
         quizService.deleteQuestion(quizId, questionId);
-        return ResponseEntity.ok(ResponseDto.success(null, "Xoa cau hoi thanh cong"));
+        return ResponseEntity.ok(ResponseDto.success(null, "Xóa câu hỏi thành công"));
     }
 }

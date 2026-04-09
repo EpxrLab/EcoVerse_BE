@@ -19,6 +19,7 @@ public interface ICampaignService {
     CampaignDetailResponse cancelSchoolCampaign(UUID campaignId);
     void deleteSchoolCampaign(UUID campaignId);
 
+    List<EligibleSchoolResponse> getEligibleSchools();
     CampaignDetailResponse createPartnershipCampaign(CreatePartnershipCampaignRequest request);
     List<CampaignSummaryResponse> getMyPartnershipCampaigns();
     CampaignDetailResponse getPartnershipCampaignById(UUID campaignId);
@@ -27,11 +28,15 @@ public interface ICampaignService {
     CampaignDetailResponse activatePartnershipCampaign(UUID campaignId);
     CampaignDetailResponse setPartnershipCampaignDraft(UUID campaignId);
     CampaignDetailResponse cancelPartnershipCampaign(UUID campaignId);
+    void deletePartnershipCampaign(UUID campaignId);
 
-    List<PartnershipInvitationResponse> getPartnershipInvitationsForSchool();
+    List<PartnershipInvitationSummaryResponse> getPartnershipInvitationSummariesForSchool();
+
+    PartnershipInvitationDetailResponse getPartnershipInvitationDetailForSchool(UUID invitationId);
     void acceptPartnershipInvitation(UUID invitationId);
     void rejectPartnershipInvitation(UUID invitationId);
-    void assignStudentsToPartnershipInvitation(UUID invitationId, AssignStudentsRequest request);
+    PartnershipInvitationAssignedStudentsResponse getAssignedStudentsForPartnershipInvitation(UUID invitationId);
+    void replaceAssignedStudentsForPartnershipInvitation(UUID invitationId, AssignStudentsRequest request);
 
     void updateRoundGameConfig(UUID roundId, UpdateRoundGameConfigRequest request);
     List<PresetAvailableSubCategoriesResponse> getAvailableSubCategoriesForPresets(UUID roundId, UUID gameTypeId, List<UUID> presetIds);

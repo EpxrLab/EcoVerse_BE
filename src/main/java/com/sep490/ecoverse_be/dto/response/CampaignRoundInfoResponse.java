@@ -16,6 +16,9 @@ public record CampaignRoundInfoResponse(
         RoundStatus status,
         LocalDateTime startTime,
         LocalDateTime endTime,
+        Integer maxParticipants,
+        Integer advanceCount,
+        Boolean isFinalRound,
         // Game config
         UUID gameTypeId,
         String gameTypeName,

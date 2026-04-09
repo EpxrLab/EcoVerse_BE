@@ -17,12 +17,17 @@ public record CampaignDetailResponse(
         String status,
         LocalDateTime startDate,
         LocalDateTime endDate,
+        LocalDateTime registrationDate,
+        LocalDateTime registrationDeadline,
         LocalDateTime invitationDate,
         LocalDateTime invitationDeadline,
+        Integer maxStudentsPerSchool,
+        Integer totalStudentQuota,
         Integer topRankingCount,
         Integer totalRounds,
+        String bannerImageUrl,
+        String bannerImagePresignedUrl,
         List<CampaignRoundInfoResponse> rounds,
-        List<CampaignParticipantInfoResponse> participants
-) {
-}
-
+        List<CampaignParticipantInfoResponse> participants,
+        List<InvitedSchoolInfoResponse> invitedSchools
+) {}

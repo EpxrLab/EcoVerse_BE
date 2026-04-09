@@ -1,8 +1,9 @@
 package com.sep490.ecoverse_be.enums;
 
 public enum ParticipationStatus {
+    PREPARED,
     INVITED,
-    PENDING_PARENT_APPROVAL,
     APPROVED,
-    REJECTED
+    REJECTED,
+    CANCELLED,
 }

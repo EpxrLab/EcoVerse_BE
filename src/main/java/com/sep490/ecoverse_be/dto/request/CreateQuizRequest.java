@@ -1,7 +1,6 @@
 package com.sep490.ecoverse_be.dto.request;
 
 import com.sep490.ecoverse_be.enums.QuizDifficulty;
-import com.sep490.ecoverse_be.enums.QuizType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -24,9 +23,6 @@ public class CreateQuizRequest {
     @NotNull(message = "Độ khó không được rỗng")
     private QuizDifficulty difficulty;
 
-    @NotNull(message = "Loại quiz không được rỗng")
-    private QuizType quizType;
-
     @Min(value = 1, message = "Khối lớp phải >= 1")
     @Max(value = 5, message = "Khối lớp phải <= 5")
     private Integer targetGrade;
@@ -43,7 +39,7 @@ public class CreateQuizRequest {
     @Max(value = 100, message = "Tỉ lệ đạt phải <= 100%")
     private Integer passScorePercentage = 70;
 
-    @NotEmpty(message = "Quiz phải có ít nhất một câu hỏi")
+    // Tùy chọn: có thể tạo quiz trước, import câu hỏi sau qua POST /{quizId}/questions/import
     @Valid
     private List<QuizQuestionRequest> questions;
 }

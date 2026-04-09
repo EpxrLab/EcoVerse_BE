@@ -44,9 +44,6 @@ public class CampaignReward extends BaseEntity {
     @Column(length = 500)
     private String imageUrl;
 
-    @Column(precision = 12, scale = 2)
-    private BigDecimal rewardValue;
-
     private String sponsorName;
 
     @Enumerated(EnumType.STRING)

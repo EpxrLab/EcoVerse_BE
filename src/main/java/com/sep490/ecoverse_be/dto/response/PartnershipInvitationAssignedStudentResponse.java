@@ -7,14 +7,13 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Builder
-public record CampaignParticipantInfoResponse(
+public record PartnershipInvitationAssignedStudentResponse(
         UUID studentId,
         String studentCode,
         String fullName,
         String gradeLevel,
         String className,
         ParticipationStatus parentApprovalStatus,
-        LocalDateTime invitationSentAt,
-        String rejectionReason
+        LocalDateTime invitationSentAt
 ) {
 }

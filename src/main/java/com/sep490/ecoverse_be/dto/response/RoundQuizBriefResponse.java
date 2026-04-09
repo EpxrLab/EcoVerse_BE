@@ -11,6 +11,8 @@ public record RoundQuizBriefResponse(
         String title,
         QuizDifficulty difficulty,
         int displayOrder,
+        int attemptsUsed,
+        boolean isPassed,
         int maxAttempts,
         boolean isRequired
 ) {

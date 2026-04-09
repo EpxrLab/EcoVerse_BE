@@ -3,7 +3,6 @@ package com.sep490.ecoverse_be.entity;
 import com.sep490.ecoverse_be.enums.QuizCreated;
 import com.sep490.ecoverse_be.enums.QuizDifficulty;
 import com.sep490.ecoverse_be.enums.QuizSource;
-import com.sep490.ecoverse_be.enums.QuizType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -18,7 +17,6 @@ import java.util.List;
                 @Index(name = "idx_quizzes_school_id", columnList = "school_id"),
                 @Index(name = "idx_quizzes_partnership_id", columnList = "partnership_id"),
                 @Index(name = "idx_quizzes_difficulty", columnList = "difficulty"),
-                @Index(name = "idx_quizzes_quiz_type", columnList = "quiz_type"),
                 @Index(name = "idx_quizzes_source", columnList = "source"),
                 @Index(name = "idx_quizzes_is_published", columnList = "is_published"),
                 @Index(name = "idx_quizzes_target_grade", columnList = "target_grade")
@@ -46,10 +44,6 @@ public class Quiz extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private QuizDifficulty difficulty;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private QuizType quizType;
 
     /**
      * MANUAL = created manually (direct input or CSV import).

@@ -15,9 +15,11 @@ public record CampaignSummaryResponse(
         String status,
         LocalDateTime startDate,
         LocalDateTime endDate,
+        LocalDateTime registrationDate,
+        LocalDateTime registrationDateDeadline,
         LocalDateTime invitationDate,
-        String description,
         LocalDateTime invitationDeadline,
+        String description,
         boolean hasQuiz,
         boolean hasGame
 ) {
