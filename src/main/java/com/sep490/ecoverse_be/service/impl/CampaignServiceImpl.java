@@ -24,6 +24,8 @@ import java.util.*;
 @Service
 public class CampaignServiceImpl implements ICampaignService {
 
+    private static final int MAX_PLAYS_PER_LEVEL_PER_DAY = 100;
+
     @Autowired
     private CampaignRepository campaignRepository;
     @Autowired
@@ -1067,10 +1069,23 @@ public class CampaignServiceImpl implements ICampaignService {
                             ? List.of()
                             : config.getSelectedPresets().stream()
                                     .map(preset -> {
+                                        LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
+                                        LocalDateTime endOfDay = startOfDay.plusDays(1);
+                                        final UUID configId = config.getId();
+                                        final UUID participantIdFinal = participant.getId();
+
                                         List<StudentPresetLevelConfigResponse> items = preset.getItems() == null
                                                 ? List.of()
                                                 : preset.getItems().stream()
-                                                        .map(item -> StudentPresetLevelConfigResponse.builder()
+                                                        .map(item -> {
+                                                            long todayAttempts = gameSessionRepository
+                                                                    .countByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndSessionStartBetween(
+                                                                            participantIdFinal,
+                                                                            configId,
+                                                                            item.getLevelNumber(),
+                                                                            startOfDay,
+                                                                            endOfDay);
+                                                            return StudentPresetLevelConfigResponse.builder()
                                                                 .levelNumber(item.getLevelNumber())
                                                                 .itemCount(item.getItemCount())
                                                                 .timeLimitSeconds(item.getTimeLimitSeconds())
@@ -1085,12 +1100,15 @@ public class CampaignServiceImpl implements ICampaignService {
                                                                         .getCampaignType() == CampaignType.SCHOOL_INTERNAL
                                                                                 ? gameSessionRepository
                                                                                         .existsByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndCoinAwardedGreaterThan(
-                                                                                                participant.getId(),
-                                                                                                config.getId(),
+                                                                                                participantIdFinal,
+                                                                                                configId,
                                                                                                 item.getLevelNumber(),
                                                                                                 0)
                                                                                 : null)
-                                                                .build())
+                                                                .maxDailyAttempts(MAX_PLAYS_PER_LEVEL_PER_DAY)
+                                                                .todayAttempts(todayAttempts)
+                                                                .build();
+                                                        })
                                                         .toList();
 
                                         List<UUID> configuredSubCategoryIds = presetSubCategoryConfig.getOrDefault(
