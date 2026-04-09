@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
 public class StudentGameServiceImpl implements IStudentGameService {
 
     private static final BigDecimal PASS_THRESHOLD = new BigDecimal("75.00");
-    private static final int MAX_PLAYS_PER_LEVEL_PER_DAY = 3;
+    private static final int MAX_PLAYS_PER_LEVEL_PER_DAY = 100;
 
     private final StudentRepository studentRepository;
     private final CampaignParticipantRepository campaignParticipantRepository;
@@ -391,7 +391,7 @@ public class StudentGameServiceImpl implements IStudentGameService {
                         endOfDay
                 );
         if (todayPlays >= MAX_PLAYS_PER_LEVEL_PER_DAY) {
-            throw new BadRequestException("Level này đã chơi đủ 3 lần hôm nay. Vui lòng quay lại vào ngày mai");
+            throw new BadRequestException("Level này đã chơi đủ " + MAX_PLAYS_PER_LEVEL_PER_DAY + " lần hôm nay. Vui lòng quay lại vào ngày mai");
         }
     }
 
