@@ -49,6 +49,7 @@ public class StudentGameServiceImpl implements IStudentGameService {
     private final SchoolLeaderboardRepository schoolLeaderboardRepository;
     private final CampaignRoundQuizRepository campaignRoundQuizRepository;
     private final QuizAttemptRepository quizAttemptRepository;
+    private final S3PresignedUrlService s3PresignedUrlService;
 
     private Student getCurrentStudent() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -321,6 +322,7 @@ public class StudentGameServiceImpl implements IStudentGameService {
                         .subCategoryCode(item.getSubCategory().getSubCategoryCode())
                         .subCategoryDisplayName(item.getSubCategory().getDisplayName())
                         .imageUrl(item.getImageUrl())
+                        .imagePresignedUrl(s3PresignedUrlService.generatePresignedUrl(item.getImageUrl()))
                         .build())
                 .toList();
     }

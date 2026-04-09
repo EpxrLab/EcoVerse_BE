@@ -13,6 +13,7 @@ public record GameLevelWasteItemResponse(
         UUID subCategoryId,
         String subCategoryCode,
         String subCategoryDisplayName,
-        String imageUrl
+        String imageUrl,
+        String imagePresignedUrl
 ) {
 }
