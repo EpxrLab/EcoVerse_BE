@@ -30,10 +30,13 @@ public interface ICampaignService {
     CampaignDetailResponse cancelPartnershipCampaign(UUID campaignId);
     void deletePartnershipCampaign(UUID campaignId);
 
-    List<PartnershipInvitationResponse> getPartnershipInvitationsForSchool();
+    List<PartnershipInvitationSummaryResponse> getPartnershipInvitationSummariesForSchool();
+
+    PartnershipInvitationDetailResponse getPartnershipInvitationDetailForSchool(UUID invitationId);
     void acceptPartnershipInvitation(UUID invitationId);
     void rejectPartnershipInvitation(UUID invitationId);
-    void assignStudentsToPartnershipInvitation(UUID invitationId, AssignStudentsRequest request);
+    PartnershipInvitationAssignedStudentsResponse getAssignedStudentsForPartnershipInvitation(UUID invitationId);
+    void replaceAssignedStudentsForPartnershipInvitation(UUID invitationId, AssignStudentsRequest request);
 
     void updateRoundGameConfig(UUID roundId, UpdateRoundGameConfigRequest request);
     List<PresetAvailableSubCategoriesResponse> getAvailableSubCategoriesForPresets(UUID roundId, UUID gameTypeId, List<UUID> presetIds);

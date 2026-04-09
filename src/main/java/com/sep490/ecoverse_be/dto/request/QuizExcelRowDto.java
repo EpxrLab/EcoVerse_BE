@@ -10,7 +10,7 @@ import lombok.*;
 public class QuizExcelRowDto {
 
     private int rowNumber;
-    private String quizType;
+    private String questionType;
     private String questionText;
     private String answerA;
     private String answerB;

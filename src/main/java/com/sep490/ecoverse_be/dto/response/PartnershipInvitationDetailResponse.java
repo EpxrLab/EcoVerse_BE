@@ -1,14 +1,17 @@
 package com.sep490.ecoverse_be.dto.response;
 
-import com.sep490.ecoverse_be.enums.PartnershipCampaignStatus;
 import com.sep490.ecoverse_be.enums.ParticipationStatus;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
+/**
+ * Chi tiết lời mời + thông tin campaign (không gồm trạng thái lifecycle partnership của campaign).
+ */
 @Builder
-public record PartnershipInvitationResponse(
+public record PartnershipInvitationDetailResponse(
         UUID invitationId,
 
         UUID campaignId,
@@ -33,7 +36,10 @@ public record PartnershipInvitationResponse(
         Integer totalRounds,
         Integer studentsEnrolled,
 
-        String partnershipName
+        String partnershipName,
+
+        Integer topRankingCount,
+        List<PartnershipInvitationRoundBriefResponse> rounds,
+        List<CampaignRewardResponse> rewards
 ) {
 }
-

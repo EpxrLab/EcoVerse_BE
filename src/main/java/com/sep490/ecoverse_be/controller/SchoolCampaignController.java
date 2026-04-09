@@ -3,7 +3,9 @@ package com.sep490.ecoverse_be.controller;
 import com.sep490.ecoverse_be.dto.request.*;
 import com.sep490.ecoverse_be.dto.response.CampaignDetailResponse;
 import com.sep490.ecoverse_be.dto.response.CampaignSummaryResponse;
-import com.sep490.ecoverse_be.dto.response.PartnershipInvitationResponse;
+import com.sep490.ecoverse_be.dto.response.PartnershipInvitationAssignedStudentsResponse;
+import com.sep490.ecoverse_be.dto.response.PartnershipInvitationDetailResponse;
+import com.sep490.ecoverse_be.dto.response.PartnershipInvitationSummaryResponse;
 import com.sep490.ecoverse_be.dto.response.ResponseDto;
 import com.sep490.ecoverse_be.service.ICampaignService;
 import jakarta.validation.Valid;
@@ -79,8 +81,18 @@ public class SchoolCampaignController {
     }
 
     @GetMapping("/partnership-invitations")
-    public ResponseEntity<ResponseDto<List<PartnershipInvitationResponse>>> getPartnershipInvitations() {
-        return ResponseEntity.ok(ResponseDto.success(campaignService.getPartnershipInvitationsForSchool(), "Lấy danh sách lời mời thành công"));
+    public ResponseEntity<ResponseDto<List<PartnershipInvitationSummaryResponse>>> getPartnershipInvitationSummaries() {
+        return ResponseEntity.ok(ResponseDto.success(
+                campaignService.getPartnershipInvitationSummariesForSchool(),
+                "Lấy danh sách lời mời thành công"));
+    }
+
+    @GetMapping("/partnership-invitations/{id}")
+    public ResponseEntity<ResponseDto<PartnershipInvitationDetailResponse>> getPartnershipInvitationDetail(
+            @PathVariable UUID id) {
+        return ResponseEntity.ok(ResponseDto.success(
+                campaignService.getPartnershipInvitationDetailForSchool(id),
+                "Lấy chi tiết lời mời thành công"));
     }
 
     @PutMapping("/partnership-invitations/{id}/accept")
@@ -95,11 +107,19 @@ public class SchoolCampaignController {
         return ResponseEntity.ok(ResponseDto.success(null, "Đã từ chối lời mời"));
     }
 
-    @PostMapping("/partnership-invitations/{id}/assign-students")
-    public ResponseEntity<ResponseDto<Void>> assignStudents(@PathVariable UUID id,
-                                                            @Valid @RequestBody AssignStudentsRequest request) {
-        campaignService.assignStudentsToPartnershipInvitation(id, request);
-        return ResponseEntity.ok(ResponseDto.success(null, "Phân công học sinh thành công"));
+    @GetMapping("/partnership-invitations/{id}/assigned-students")
+    public ResponseEntity<ResponseDto<PartnershipInvitationAssignedStudentsResponse>> getAssignedStudents(
+            @PathVariable UUID id) {
+        return ResponseEntity.ok(ResponseDto.success(
+                campaignService.getAssignedStudentsForPartnershipInvitation(id),
+                "Lấy danh sách học sinh đã chọn thành công"));
+    }
+
+    @PutMapping("/partnership-invitations/{id}/assigned-students")
+    public ResponseEntity<ResponseDto<Void>> replaceAssignedStudents(@PathVariable UUID id,
+                                                                     @Valid @RequestBody AssignStudentsRequest request) {
+        campaignService.replaceAssignedStudentsForPartnershipInvitation(id, request);
+        return ResponseEntity.ok(ResponseDto.success(null, "Cập nhật danh sách học sinh thành công"));
     }
 }
 

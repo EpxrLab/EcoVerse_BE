@@ -8,6 +8,7 @@ import com.sep490.ecoverse_be.dto.response.ParentCampaignInvitationResponse;
 import com.sep490.ecoverse_be.enums.ParticipationStatus;
 import com.sep490.ecoverse_be.service.ICampaignService;
 import com.sep490.ecoverse_be.service.ParentService;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -44,6 +45,8 @@ public class ParentController {
 
     @GetMapping("/campaign-invitations")
     public ResponseEntity<ResponseDto<List<ParentCampaignInvitationResponse>>> getCampaignInvitations(
+            @Parameter(description = "Lọc theo parentApprovalStatus. Bỏ qua = mặc định chỉ lời mời PREPARED đã gửi (invitationSentAt). "
+                    + "Giá trị: PREPARED | INVITED | APPROVED | REJECTED | CANCELLED")
             @RequestParam(required = false) ParticipationStatus status) {
         return ResponseEntity.ok(ResponseDto.success(
                 campaignService.getParentCampaignInvitations(status),
