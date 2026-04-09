@@ -1,7 +1,6 @@
 package com.sep490.ecoverse_be.dto.request;
 
 import com.sep490.ecoverse_be.enums.QuizDifficulty;
-import com.sep490.ecoverse_be.enums.QuizType;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
@@ -18,8 +17,6 @@ public class UpdateQuizRequest {
     private String description;
 
     private QuizDifficulty difficulty;
-
-    private QuizType quizType;
 
     @Min(value = 1, message = "Khối lớp phải >= 1")
     @Max(value = 5, message = "Khối lớp phải <= 5")

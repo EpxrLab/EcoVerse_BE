@@ -73,6 +73,9 @@ public class CampaignScheduler {
             List<CampaignParticipant> pending = campaignParticipantRepository
                     .findByCampaignIdAndInvitationSentAtIsNullAndIsActiveTrue(campaign.getId());
             for (CampaignParticipant p : pending) {
+                if (p.getParentApprovalStatus() == ParticipationStatus.PREPARED) {
+                    p.setParentApprovalStatus(ParticipationStatus.INVITED);
+                }
                 p.setInvitationSentAt(now);
                 campaignParticipantRepository.save(p);
             }
@@ -99,7 +102,7 @@ public class CampaignScheduler {
         if (campaigns.isEmpty()) return;
 
         for (Campaign campaign : campaigns) {
-            // Truoc khi chuyen ON_GOING: tu dong tu choi tat ca PENDING_PARENT_APPROVAL con lai
+            // Truoc khi chuyen ON_GOING: tu dong tu choi tat ca PREPARED (cho phu huynh duyet) con lai
             autoRejectPendingParentApprovals(campaign);
 
             campaign.setSchoolStatus(SchoolCampaignStatus.ON_GOING);
@@ -246,7 +249,7 @@ public class CampaignScheduler {
         if (campaigns.isEmpty()) return;
 
         for (Campaign campaign : campaigns) {
-            // Truoc khi chuyen ON_GOING: tu dong tu choi tat ca PENDING_PARENT_APPROVAL con lai
+            // Truoc khi chuyen ON_GOING: tu dong tu choi tat ca PREPARED (cho phu huynh duyet) con lai
             autoRejectPendingParentApprovals(campaign);
 
             campaign.setPartnershipStatus(PartnershipCampaignStatus.ON_GOING);
@@ -353,12 +356,12 @@ public class CampaignScheduler {
                 pendingInvited.size(), campaign.getCampaignCode());
     }
 
-    // Tu dong tu choi tat ca parent PENDING_PARENT_APPROVAL truoc khi campaign chuyen ON_GOING
+    // Tu dong tu choi tat ca participant PREPARED (cho phu huynh duyet) truoc khi campaign chuyen ON_GOING
     // Dung cho: School INVITING/EXTENDED → ON_GOING va Partnership INVITING → ON_GOING
     private void autoRejectPendingParentApprovals(Campaign campaign) {
         List<CampaignParticipant> pendingParents = campaignParticipantRepository
                 .findByCampaignIdAndParentApprovalStatusAndIsActiveTrue(
-                        campaign.getId(), ParticipationStatus.PENDING_PARENT_APPROVAL);
+                        campaign.getId(), ParticipationStatus.PREPARED);
 
         if (pendingParents.isEmpty()) return;
 

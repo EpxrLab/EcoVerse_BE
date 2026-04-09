@@ -63,7 +63,7 @@ public class QuizController {
                     Không ghi vào database — dùng để UI hiển thị preview trước khi user xác nhận tạo quiz.
                     
                     **Cấu trúc file Excel** (header row bắt buộc, 7 cột theo đúng thứ tự):
-                    | question_order | question_text | answer_A | answer_B | answer_C | answer_D | correct_answer |
+                    | question_type | question_text | answer_A | answer_B | answer_C | answer_D | correct_answer |
                     
                     - `answer_C`, `answer_D`: không bắt buộc, để trống nếu không có
                     - `correct_answer`: **A / B / C / D**

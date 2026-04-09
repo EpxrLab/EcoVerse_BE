@@ -3,10 +3,10 @@ package com.sep490.ecoverse_be.service.impl;
 import com.sep490.ecoverse_be.dto.request.*;
 import com.sep490.ecoverse_be.dto.response.*;
 import com.sep490.ecoverse_be.entity.*;
+import com.sep490.ecoverse_be.enums.QuestionType;
 import com.sep490.ecoverse_be.enums.QuizCreated;
 import com.sep490.ecoverse_be.enums.QuizDifficulty;
 import com.sep490.ecoverse_be.enums.QuizSource;
-import com.sep490.ecoverse_be.enums.QuizType;
 import com.sep490.ecoverse_be.enums.Role;
 import com.sep490.ecoverse_be.exception.BadRequestException;
 import com.sep490.ecoverse_be.exception.NotFoundException;
@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 public class QuizServiceImpl implements IQuizService {
 
     private static final String[] QUESTION_EXCEL_HEADERS = {
-            "quiz_type", "question_text",
+            "question_type", "question_text",
             "answer_A", "answer_B", "answer_C", "answer_D",
             "correct_answer"
     };
@@ -111,6 +111,7 @@ public class QuizServiceImpl implements IQuizService {
         return QuizQuestionResponse.builder()
                 .id(question.getId())
                 .questionOrder(question.getQuestionOrder())
+                .questionType(question.getQuestionType())
                 .questionText(question.getQuestionText())
                 .questionImageUrl(question.getQuestionImageUrl())
                 .questionImagePresignedUrl(s3PresignedUrlService.generatePresignedUrl(question.getQuestionImageUrl()))
@@ -134,7 +135,6 @@ public class QuizServiceImpl implements IQuizService {
                 .title(quiz.getTitle())
                 .description(quiz.getDescription())
                 .difficulty(quiz.getDifficulty())
-                .quizType(quiz.getQuizType())
                 .source(quiz.getSource())
                 .createdBy(quiz.getCreatedBy())
                 .targetGrade(quiz.getTargetGrade())
@@ -155,7 +155,6 @@ public class QuizServiceImpl implements IQuizService {
                 .title(quiz.getTitle())
                 .description(quiz.getDescription())
                 .difficulty(quiz.getDifficulty())
-                .quizType(quiz.getQuizType())
                 .source(quiz.getSource())
                 .createdBy(quiz.getCreatedBy())
                 .targetGrade(quiz.getTargetGrade())
@@ -175,14 +174,13 @@ public class QuizServiceImpl implements IQuizService {
      * quizCreated: USER cho tạo thủ công, IMPORT cho import Excel, AI cho AI generate.
      */
     private Quiz buildAndSaveQuiz(String title, String description, QuizDifficulty difficulty,
-                                   QuizType quizType, Integer targetGrade, Integer coinOnPass,
+                                   Integer targetGrade, Integer coinOnPass,
                                    Integer timePerQuestion, Integer passScorePercentage,
                                    QuizCreated quizCreated, School school, Partnership partnership) {
         Quiz quiz = new Quiz();
         quiz.setTitle(title);
         quiz.setDescription(description);
         quiz.setDifficulty(difficulty);
-        quiz.setQuizType(quizType);
         quiz.setSource(QuizSource.MANUAL);
         quiz.setTargetGrade(targetGrade);
         quiz.setCoinsOnPass(coinOnPass != null ? coinOnPass : 0);
@@ -209,6 +207,7 @@ public class QuizServiceImpl implements IQuizService {
             QuizQuestion question = new QuizQuestion();
             question.setQuiz(quiz);
             question.setQuestionOrder(qReq.getQuestionOrder());
+            question.setQuestionType(qReq.getQuestionType());
             question.setQuestionText(qReq.getQuestionText());
             question = quizQuestionRepository.save(question);
 
@@ -249,7 +248,7 @@ public class QuizServiceImpl implements IQuizService {
 
         Quiz quiz = buildAndSaveQuiz(
                 request.getTitle(), request.getDescription(),
-                request.getDifficulty(), request.getQuizType(),
+                request.getDifficulty(),
                 request.getTargetGrade(), request.getCoinOnPass(),
                 request.getTimePerQuestion(), request.getPassScorePercentage(),
                 QuizCreated.USER, school, partnership
@@ -300,7 +299,6 @@ public class QuizServiceImpl implements IQuizService {
         if (request.getTitle() != null) quiz.setTitle(request.getTitle());
         if (request.getDescription() != null) quiz.setDescription(request.getDescription());
         if (request.getDifficulty() != null) quiz.setDifficulty(request.getDifficulty());
-        if (request.getQuizType() != null) quiz.setQuizType(request.getQuizType());
         if (request.getTargetGrade() != null) quiz.setTargetGrade(request.getTargetGrade());
         if (request.getCoinOnPass() != null) quiz.setCoinsOnPass(request.getCoinOnPass());
         if (request.getTimePerQuestion() != null) quiz.setTimePerQuestion(request.getTimePerQuestion());
@@ -395,6 +393,7 @@ public class QuizServiceImpl implements IQuizService {
         }
 
         question.setQuestionOrder(request.getQuestionOrder());
+        question.setQuestionType(request.getQuestionType());
         question.setQuestionText(request.getQuestionText());
         quizQuestionRepository.save(question);
 
@@ -429,7 +428,7 @@ public class QuizServiceImpl implements IQuizService {
     /**
      * Parse file Excel và trả về danh sách câu hỏi dưới dạng QuizQuestionRequest.
      * Không ghi DB — chỉ dùng để UI hiển thị preview trước khi user xác nhận tạo quiz.
-     * Excel format: quiz_type | question_text | answer_A | answer_B | answer_C | answer_D | correct_answer
+     * Excel format: question_type | question_text | answer_A | answer_B | answer_C | answer_D | correct_answer
      * questionOrder được tự động gán theo vị trí dòng trong file (1-based).
      */
     @Override
@@ -467,7 +466,7 @@ public class QuizServiceImpl implements IQuizService {
 
                 QuizExcelRowDto dto = QuizExcelRowDto.builder()
                         .rowNumber(i + 1)
-                        .quizType(ExcelUtil.getCellStringValue(row.getCell(0)))
+                        .questionType(ExcelUtil.getCellStringValue(row.getCell(0)))
                         .questionText(ExcelUtil.getCellStringValue(row.getCell(1)))
                         .answerA(ExcelUtil.getCellStringValue(row.getCell(2)))
                         .answerB(ExcelUtil.getCellStringValue(row.getCell(3)))
@@ -487,7 +486,7 @@ public class QuizServiceImpl implements IQuizService {
         return rows;
     }
 
-    private static final Set<String> VALID_QUIZ_TYPES = Arrays.stream(QuizType.values())
+    private static final Set<String> VALID_QUESTION_TYPES = Arrays.stream(QuestionType.values())
             .map(Enum::name)
             .collect(Collectors.toSet());
 
@@ -497,10 +496,10 @@ public class QuizServiceImpl implements IQuizService {
         for (QuizExcelRowDto row : rows) {
             String prefix = "Dòng " + row.getRowNumber() + ": ";
 
-            if (ExcelUtil.isBlank(row.getQuizType())) {
-                errors.add(prefix + "quiz_type không được rỗng");
-            } else if (!VALID_QUIZ_TYPES.contains(row.getQuizType().toUpperCase().trim())) {
-                errors.add(prefix + "quiz_type không hợp lệ (hợp lệ: MULTIPLE_CHOICE, TRUE_FALSE, DRAG_DROP)");
+            if (ExcelUtil.isBlank(row.getQuestionType())) {
+                errors.add(prefix + "question_type không được rỗng");
+            } else if (!VALID_QUESTION_TYPES.contains(row.getQuestionType().toUpperCase().trim())) {
+                errors.add(prefix + "question_type không hợp lệ (hợp lệ: MULTIPLE_CHOICE, TRUE_FALSE, DRAG_DROP)");
             }
 
             if (ExcelUtil.isBlank(row.getQuestionText())) {
@@ -547,6 +546,7 @@ public class QuizServiceImpl implements IQuizService {
 
         return QuizQuestionRequest.builder()
                 .questionOrder(rowIndex)
+                .questionType(QuestionType.valueOf(row.getQuestionType().toUpperCase().trim()))
                 .questionText(row.getQuestionText())
                 .answers(answers)
                 .build();

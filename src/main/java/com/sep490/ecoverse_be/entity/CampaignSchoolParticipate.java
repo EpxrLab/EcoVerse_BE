@@ -48,7 +48,10 @@ public class CampaignSchoolParticipate {
     private LocalDateTime participationConfirmedAt;
 
     @Enumerated(EnumType.STRING)
-    private ParticipationStatus status = ParticipationStatus.INVITED;
+    private ParticipationStatus status = ParticipationStatus.PREPARED;
+
+    @Column(columnDefinition = "text")
+    private String rejectionReason;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
