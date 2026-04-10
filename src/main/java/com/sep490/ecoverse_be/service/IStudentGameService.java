@@ -17,4 +17,6 @@ public interface IStudentGameService {
     StudentGameSessionResultResponse getGameSessionResult(UUID sessionId);
 
     List<StudentGameSessionSummaryResponse> getGameSessionHistory(UUID campaignId, UUID roundId, UUID roundGameConfigId);
+
+    List<StudentGameSessionSummaryResponse> getOpenSessionsByStudentId(UUID studentId);
 }

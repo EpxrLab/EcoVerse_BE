@@ -17,6 +17,7 @@ import com.sep490.ecoverse_be.model.UserPrincipal;
 import com.sep490.ecoverse_be.repository.*;
 import com.sep490.ecoverse_be.service.IStudentGameService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class StudentGameServiceImpl implements IStudentGameService {
@@ -65,7 +67,8 @@ public class StudentGameServiceImpl implements IStudentGameService {
 
     @Override
     @Transactional
-    public StudentGameSessionStartResponse startGameSession(UUID campaignId, UUID roundId, UUID roundGameConfigId, Integer levelNumber) {
+    public StudentGameSessionStartResponse startGameSession(UUID campaignId, UUID roundId, UUID roundGameConfigId,
+            Integer levelNumber) {
         int targetLevel = levelNumber == null ? 1 : levelNumber;
         if (targetLevel < 1) {
             throw new BadRequestException("levelNumber phải >= 1");
@@ -82,10 +85,8 @@ public class StudentGameServiceImpl implements IStudentGameService {
         ensureLevelUnlocked(participant.getId(), config.getId(), targetLevel);
         ensureDailyPlayQuota(participant.getId(), config.getId(), targetLevel);
 
-        gameSessionRepository.findOpenSessionByParticipantAndConfig(participant.getId(), roundGameConfigId)
-                .ifPresent(gs -> {
-                    throw new BadRequestException("Bạn đang có phiên game chưa hoàn thành cho cấu hình này");
-                });
+        // Auto-close tất cả session đang mở của student (ở mọi game round/config)
+        autoCloseOpenSessionsForStudent(student.getId());
 
         GameLevelPreset preset = resolvePreset(config);
         GameLevelPresetItem levelItem = resolveLevelItem(preset, targetLevel);
@@ -180,7 +181,8 @@ public class StudentGameServiceImpl implements IStudentGameService {
             awardGameCoins(session, coinAwarded);
         }
 
-        updateLeaderboardAfterGameSubmit(session.getCampaignParticipant(), session.getRoundGameConfig().getCampaignRound());
+        updateLeaderboardAfterGameSubmit(session.getCampaignParticipant(),
+                session.getRoundGameConfig().getCampaignRound());
         return mapResult(session);
     }
 
@@ -196,7 +198,8 @@ public class StudentGameServiceImpl implements IStudentGameService {
     }
 
     @Override
-    public List<StudentGameSessionSummaryResponse> getGameSessionHistory(UUID campaignId, UUID roundId, UUID roundGameConfigId) {
+    public List<StudentGameSessionSummaryResponse> getGameSessionHistory(UUID campaignId, UUID roundId,
+            UUID roundGameConfigId) {
         Student student = getCurrentStudent();
         CampaignParticipant participant = getValidatedParticipant(campaignId, student.getId());
         getValidatedRound(campaignId, roundId);
@@ -281,8 +284,8 @@ public class StudentGameServiceImpl implements IStudentGameService {
     }
 
     private List<GameLevelWasteItemResponse> resolveLevelWasteItems(RoundGameConfig config,
-                                                                    GameLevelPreset preset,
-                                                                    GameLevelPresetItem levelItem) {
+            GameLevelPreset preset,
+            GameLevelPresetItem levelItem) {
         List<WasteItem> candidates;
 
         List<UUID> configuredSubCategoryIds = config.getPresetSubCategoryConfig() == null
@@ -290,9 +293,11 @@ public class StudentGameServiceImpl implements IStudentGameService {
                 : config.getPresetSubCategoryConfig().getOrDefault(preset.getId().toString(), List.of());
 
         if (!configuredSubCategoryIds.isEmpty()) {
-            candidates = wasteItemRepository.findBySubCategoryIdInAndIsDeleteFalseAndIsActiveTrue(configuredSubCategoryIds);
+            candidates = wasteItemRepository
+                    .findBySubCategoryIdInAndIsDeleteFalseAndIsActiveTrue(configuredSubCategoryIds);
         } else if (levelItem.getWasteCategories() != null && !levelItem.getWasteCategories().isEmpty()) {
-            candidates = wasteItemRepository.findByCategoryInAndIsDeleteFalseAndIsActiveTrue(new ArrayList<>(levelItem.getWasteCategories()));
+            candidates = wasteItemRepository
+                    .findByCategoryInAndIsDeleteFalseAndIsActiveTrue(new ArrayList<>(levelItem.getWasteCategories()));
         } else {
             candidates = wasteItemRepository.findByIsDeleteFalse().stream()
                     .filter(WasteItem::isActive)
@@ -328,18 +333,20 @@ public class StudentGameServiceImpl implements IStudentGameService {
     }
 
     private Map<String, Object> buildPresetSnapshot(RoundGameConfig config,
-                                                    GameLevelPreset preset,
-                                                    GameLevelPresetItem levelItem) {
+            GameLevelPreset preset,
+            GameLevelPresetItem levelItem) {
         Map<String, Object> snapshot = new HashMap<>();
         snapshot.put("gameTypeCode", config.getGameType().getTypeCode());
-        snapshot.put("difficulty", config.getResolvedDifficulty() != null ? config.getResolvedDifficulty().name() : null);
+        snapshot.put("difficulty",
+                config.getResolvedDifficulty() != null ? config.getResolvedDifficulty().name() : null);
         snapshot.put("presetId", preset.getId());
         snapshot.put("levelNumber", levelItem.getLevelNumber());
         snapshot.put("itemCount", levelItem.getItemCount());
         snapshot.put("timeLimitSeconds", levelItem.getTimeLimitSeconds());
         snapshot.put("scorePerCorrect", levelItem.getScorePerCorrect());
         snapshot.put("lives", levelItem.getLives());
-        snapshot.put("wasteCategories", levelItem.getWasteCategories() == null ? Set.of() : levelItem.getWasteCategories());
+        snapshot.put("wasteCategories",
+                levelItem.getWasteCategories() == null ? Set.of() : levelItem.getWasteCategories());
         snapshot.put("configJson", levelItem.getConfigJson() == null ? Map.of() : levelItem.getConfigJson());
 
         List<UUID> configuredSubCategoryIds = config.getPresetSubCategoryConfig() == null
@@ -370,10 +377,10 @@ public class StudentGameServiceImpl implements IStudentGameService {
                 .existsByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndIsCompletedTrueAndIsPassedTrue(
                         participantId,
                         roundGameConfigId,
-                        previousLevel
-                );
+                        previousLevel);
         if (!passedPreviousLevel) {
-            throw new BadRequestException("Bạn cần pass level " + previousLevel + " trước khi chơi level " + targetLevel);
+            throw new BadRequestException(
+                    "Bạn cần pass level " + previousLevel + " trước khi chơi level " + targetLevel);
         }
     }
 
@@ -388,10 +395,10 @@ public class StudentGameServiceImpl implements IStudentGameService {
                         roundGameConfigId,
                         levelNumber,
                         startOfDay,
-                        endOfDay
-                );
+                        endOfDay);
         if (todayPlays >= MAX_PLAYS_PER_LEVEL_PER_DAY) {
-            throw new BadRequestException("Level này đã chơi đủ " + MAX_PLAYS_PER_LEVEL_PER_DAY + " lần hôm nay. Vui lòng quay lại vào ngày mai");
+            throw new BadRequestException("Level này đã chơi đủ " + MAX_PLAYS_PER_LEVEL_PER_DAY
+                    + " lần hôm nay. Vui lòng quay lại vào ngày mai");
         }
     }
 
@@ -402,7 +409,8 @@ public class StudentGameServiceImpl implements IStudentGameService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        CampaignRound activeRound = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId()).stream()
+        CampaignRound activeRound = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId())
+                .stream()
                 .filter(r -> r.getStatus() == RoundStatus.ACTIVE)
                 .filter(r -> r.getStartTime() != null && r.getEndTime() != null)
                 .filter(r -> !now.isBefore(r.getStartTime()) && !now.isAfter(r.getEndTime()))
@@ -424,11 +432,10 @@ public class StudentGameServiceImpl implements IStudentGameService {
 
         boolean advanced = roundLeaderboardRepository.existsByCampaignRoundIdAndStudentIdAndIsAdvancedTrue(
                 previousRound.getId(),
-                participant.getStudent().getId()
-        ) || campaignRoundParticipantRepository.existsByCampaignRoundIdAndCampaignParticipantIdAndIsAdvancedTrue(
-                previousRound.getId(),
-                participant.getId()
-        );
+                participant.getStudent().getId())
+                || campaignRoundParticipantRepository.existsByCampaignRoundIdAndCampaignParticipantIdAndIsAdvancedTrue(
+                        previousRound.getId(),
+                        participant.getId());
 
         if (!advanced) {
             throw new BadRequestException("Bạn không đủ điều kiện tham gia round này");
@@ -441,16 +448,16 @@ public class StudentGameServiceImpl implements IStudentGameService {
             return null;
         }
 
-        boolean alreadyRewarded = gameSessionRepository
-                .existsByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndCoinAwardedIsNotNullAndCoinAwardedGreaterThan(
-                        session.getCampaignParticipant().getId(),
-                        session.getRoundGameConfig().getId(),
-                        session.getCurrentLevel(),
-                        0
-                );
-        if (alreadyRewarded) {
-            return null;
-        }
+        // boolean alreadyRewarded = gameSessionRepository
+        // .existsByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndCoinAwardedIsNotNullAndCoinAwardedGreaterThan(
+        // session.getCampaignParticipant().getId(),
+        // session.getRoundGameConfig().getId(),
+        // session.getCurrentLevel(),
+        // 0
+        // );
+        // if (alreadyRewarded) {
+        // return null;
+        // }
 
         RoundGameConfig config = session.getRoundGameConfig();
         if (config.getCoinPerSession() != null) {
@@ -490,7 +497,8 @@ public class StudentGameServiceImpl implements IStudentGameService {
     }
 
     private void updateLeaderboardAfterGameSubmit(CampaignParticipant participant, CampaignRound round) {
-        List<GameSession> completedSessions = gameSessionRepository.findCompletedByParticipantAndRound(participant.getId(), round.getId());
+        List<GameSession> completedSessions = gameSessionRepository
+                .findCompletedByParticipantAndRound(participant.getId(), round.getId());
 
         BigDecimal gameAccuracy = average(completedSessions.stream()
                 .map(GameSession::getAccuracyPercentage)
@@ -510,7 +518,8 @@ public class StudentGameServiceImpl implements IStudentGameService {
                 .mapToInt(Integer::intValue)
                 .sum();
 
-        List<CampaignRoundQuiz> roundQuizzes = campaignRoundQuizRepository.findByCampaignRoundIdOrderByDisplayOrderAsc(round.getId());
+        List<CampaignRoundQuiz> roundQuizzes = campaignRoundQuizRepository
+                .findByCampaignRoundIdOrderByDisplayOrderAsc(round.getId());
         List<BigDecimal> bestScores = new ArrayList<>();
         List<BigDecimal> bestTimes = new ArrayList<>();
         for (CampaignRoundQuiz rq : roundQuizzes) {
@@ -530,7 +539,7 @@ public class StudentGameServiceImpl implements IStudentGameService {
         int quizzesCompleted = bestScores.size();
 
         int totalQuizCoins = quizAttemptRepository.findByCampaignParticipantIdAndCampaignRoundIdAndIsCompletedTrue(
-                        participant.getId(), round.getId())
+                participant.getId(), round.getId())
                 .stream()
                 .map(QuizAttempt::getCoinsEarned)
                 .filter(Objects::nonNull)
@@ -570,7 +579,8 @@ public class StudentGameServiceImpl implements IStudentGameService {
     }
 
     private void updateSchoolLeaderboard(CampaignParticipant participant, Campaign campaign) {
-        List<GameSession> completedSessions = gameSessionRepository.findCompletedByParticipantAndCampaign(participant.getId(), campaign.getId());
+        List<GameSession> completedSessions = gameSessionRepository
+                .findCompletedByParticipantAndCampaign(participant.getId(), campaign.getId());
         BigDecimal gameAccuracy = average(completedSessions.stream()
                 .map(GameSession::getAccuracyPercentage)
                 .filter(Objects::nonNull)
@@ -589,7 +599,8 @@ public class StudentGameServiceImpl implements IStudentGameService {
                 .mapToInt(Integer::intValue)
                 .sum();
 
-        List<QuizAttempt> completedAttempts = quizAttemptRepository.findCompletedByParticipantAndCampaign(participant.getId(), campaign.getId());
+        List<QuizAttempt> completedAttempts = quizAttemptRepository
+                .findCompletedByParticipantAndCampaign(participant.getId(), campaign.getId());
         Map<UUID, QuizAttempt> bestByQuiz = new HashMap<>();
         for (QuizAttempt attempt : completedAttempts) {
             UUID quizId = attempt.getQuiz().getId();
@@ -604,8 +615,10 @@ public class StudentGameServiceImpl implements IStudentGameService {
                 continue;
             }
             if (scoreCompare == 0) {
-                int currentTime = attempt.getTimeTakenSeconds() == null ? Integer.MAX_VALUE : attempt.getTimeTakenSeconds();
-                int existingTime = existing.getTimeTakenSeconds() == null ? Integer.MAX_VALUE : existing.getTimeTakenSeconds();
+                int currentTime = attempt.getTimeTakenSeconds() == null ? Integer.MAX_VALUE
+                        : attempt.getTimeTakenSeconds();
+                int existingTime = existing.getTimeTakenSeconds() == null ? Integer.MAX_VALUE
+                        : existing.getTimeTakenSeconds();
                 if (currentTime < existingTime) {
                     bestByQuiz.put(quizId, attempt);
                 }
@@ -749,5 +762,56 @@ public class StudentGameServiceImpl implements IStudentGameService {
                 .sessionStart(session.getSessionStart())
                 .sessionEnd(session.getSessionEnd())
                 .build();
+    }
+
+    /**
+     * Auto-close tất cả session đang mở (chưa submit) của student ở mọi game round/config.
+     * Session bị đóng sẽ được đánh dấu completed với 0 điểm (không pass, không nhận xu).
+     */
+    private void autoCloseOpenSessionsForStudent(UUID studentId) {
+        List<GameSession> openSessions = gameSessionRepository.findAllOpenSessionsByStudentId(studentId);
+        if (openSessions.isEmpty()) {
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        for (GameSession gs : openSessions) {
+            int timeTaken = gs.getSessionStart() != null
+                    ? (int) ChronoUnit.SECONDS.between(gs.getSessionStart(), now)
+                    : 0;
+
+            gs.setSessionEnd(now);
+            gs.setTimeTakenSeconds(Math.max(0, timeTaken));
+            gs.setTotalItems(gs.getTotalItems() > 0 ? gs.getTotalItems() : 0);
+            gs.setCorrectItems(0);
+            gs.setIncorrectItems(gs.getTotalItems());
+            gs.setAccuracyPercentage(BigDecimal.ZERO);
+            gs.setPassed(false);
+            gs.setCompleted(true);
+            gs.setCoinAwarded(null);
+
+            log.info("Auto-closed abandoned game session {} for student {}", gs.getId(), studentId);
+        }
+        gameSessionRepository.saveAll(openSessions);
+    }
+
+    @Override
+    public List<StudentGameSessionSummaryResponse> getOpenSessionsByStudentId(UUID studentId) {
+        return gameSessionRepository.findAllOpenSessionsByStudentId(studentId)
+                .stream()
+                .map(gs -> StudentGameSessionSummaryResponse.builder()
+                        .sessionId(gs.getId())
+                        .currentLevel(gs.getCurrentLevel())
+                        .totalItems(gs.getTotalItems())
+                        .correctItems(gs.getCorrectItems())
+                        .incorrectItems(gs.getIncorrectItems())
+                        .accuracyPercentage(gs.getAccuracyPercentage())
+                        .timeTakenSeconds(gs.getTimeTakenSeconds())
+                        .isPassed(gs.isPassed())
+                        .coinAwarded(gs.getCoinAwarded())
+                        .sessionStart(gs.getSessionStart())
+                        .sessionEnd(gs.getSessionEnd())
+                        .build())
+                .toList();
     }
 }
