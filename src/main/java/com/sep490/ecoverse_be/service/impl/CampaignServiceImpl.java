@@ -238,7 +238,8 @@ public class CampaignServiceImpl implements ICampaignService {
                 })
                 .toList();
 
-        // Lấy tất cả học sinh đã được mời (không lọc isActive) để UI hiển thị đầy đủ trạng thái
+        // Lấy tất cả học sinh đã được mời (không lọc isActive) để UI hiển thị đầy đủ
+        // trạng thái
         List<CampaignParticipantInfoResponse> participants = campaignParticipantRepository
                 .findByCampaignIdOrderByCreatedAtAsc(campaign.getId())
                 .stream()
@@ -593,11 +594,11 @@ public class CampaignServiceImpl implements ICampaignService {
         return mapCampaignDetail(campaign);
     }
 
-    private static final String CAMPAIGN_CANCELLED_INVITATION_REASON =
-            "Chiến dịch đã bị hủy bởi người tổ chức.";
+    private static final String CAMPAIGN_CANCELLED_INVITATION_REASON = "Chiến dịch đã bị hủy bởi người tổ chức.";
 
     /**
-     * Gửi trước khi invalidate vì notifyCampaignParents/notifyCampaignParticipants chỉ lấy participant isActive=true.
+     * Gửi trước khi invalidate vì notifyCampaignParents/notifyCampaignParticipants
+     * chỉ lấy participant isActive=true.
      */
     private void notifyStakeholdersOfCampaignCancellation(Campaign campaign) {
         UUID campaignId = campaign.getId();
@@ -649,7 +650,8 @@ public class CampaignServiceImpl implements ICampaignService {
             sp.setRejectionReason(reason);
             campaignSchoolParticipateRepository.save(sp);
         }
-        for (CampaignParticipant p : campaignParticipantRepository.findByCampaignIdOrderByCreatedAtAsc(campaign.getId())) {
+        for (CampaignParticipant p : campaignParticipantRepository
+                .findByCampaignIdOrderByCreatedAtAsc(campaign.getId())) {
             if (p.getParentApprovalStatus() == ParticipationStatus.CANCELLED) {
                 continue;
             }
@@ -691,7 +693,8 @@ public class CampaignServiceImpl implements ICampaignService {
         School school = getCurrentSchool();
         Campaign campaign = getSchoolCampaignOwned(campaignId, school.getId());
 
-        // Cho phép chọn học sinh ở trạng thái DRAFT hoặc SCHEDULED (trước khi scheduler chuyển sang INVITING)
+        // Cho phép chọn học sinh ở trạng thái DRAFT hoặc SCHEDULED (trước khi scheduler
+        // chuyển sang INVITING)
         if (campaign.getSchoolStatus() != SchoolCampaignStatus.DRAFT
                 && campaign.getSchoolStatus() != SchoolCampaignStatus.SCHEDULED) {
             throw new BadRequestException("Chỉ được mời học sinh khi campaign đang ở trạng thái DRAFT hoặc SCHEDULED");
@@ -733,7 +736,8 @@ public class CampaignServiceImpl implements ICampaignService {
         if (partnership.getGeographicScopeWard() != null && !partnership.getGeographicScopeWard().isBlank()) {
             schools = schoolRepository.findByWardAndApprovalStatus(
                     partnership.getGeographicScopeWard(), ApprovalStatus.APPROVED);
-        } else if (partnership.getGeographicScopeProvince() != null && !partnership.getGeographicScopeProvince().isBlank()) {
+        } else if (partnership.getGeographicScopeProvince() != null
+                && !partnership.getGeographicScopeProvince().isBlank()) {
             schools = schoolRepository.findByProvinceAndApprovalStatus(
                     partnership.getGeographicScopeProvince(), ApprovalStatus.APPROVED);
         } else {
@@ -929,8 +933,8 @@ public class CampaignServiceImpl implements ICampaignService {
 
     private record PartnershipInviteExtras(
             List<PartnershipInvitationRoundBriefResponse> rounds,
-            List<CampaignRewardResponse> rewards
-    ) {}
+            List<CampaignRewardResponse> rewards) {
+    }
 
     private PartnershipInviteExtras loadPartnershipInviteExtras(UUID campaignId) {
         List<PartnershipInvitationRoundBriefResponse> rounds = campaignRoundRepository
@@ -968,7 +972,8 @@ public class CampaignServiceImpl implements ICampaignService {
                             .participationConfirmedAt(i.getParticipationConfirmedAt())
                             .studentsEnrolled(i.getStudentsEnrolled())
                             .partnershipName(c.getCreatorPartnership() != null
-                                    ? c.getCreatorPartnership().getOrganizationName() : null)
+                                    ? c.getCreatorPartnership().getOrganizationName()
+                                    : null)
                             .build();
                 })
                 .toList();
@@ -1010,7 +1015,8 @@ public class CampaignServiceImpl implements ICampaignService {
                 .totalRounds(c.getTotalRounds())
                 .studentsEnrolled(i.getStudentsEnrolled())
                 .partnershipName(c.getCreatorPartnership() != null
-                        ? c.getCreatorPartnership().getOrganizationName() : null)
+                        ? c.getCreatorPartnership().getOrganizationName()
+                        : null)
                 .topRankingCount(c.getTopRankingCount())
                 .rounds(ex.rounds())
                 .rewards(ex.rewards())
@@ -1067,7 +1073,8 @@ public class CampaignServiceImpl implements ICampaignService {
     }
 
     @Override
-    public PartnershipInvitationAssignedStudentsResponse getAssignedStudentsForPartnershipInvitation(UUID invitationId) {
+    public PartnershipInvitationAssignedStudentsResponse getAssignedStudentsForPartnershipInvitation(
+            UUID invitationId) {
         School school = getCurrentSchool();
         CampaignSchoolParticipate invitation = getSchoolInvitationForAssign(invitationId, school.getId());
         Campaign campaign = invitation.getCampaign();
@@ -1128,7 +1135,8 @@ public class CampaignServiceImpl implements ICampaignService {
         List<CampaignParticipant> current = campaignParticipantRepository
                 .findByCampaignIdAndSchoolIdAndIsActiveTrueOrderByCreatedAtAsc(campaign.getId(), school.getId());
         Set<UUID> requestedSet = new HashSet<>(requestedStudentIds);
-        Set<UUID> currentSet = current.stream().map(p -> p.getStudent().getId()).collect(java.util.stream.Collectors.toSet());
+        Set<UUID> currentSet = current.stream().map(p -> p.getStudent().getId())
+                .collect(java.util.stream.Collectors.toSet());
 
         List<CampaignParticipant> toRemove = current.stream()
                 .filter(p -> !requestedSet.contains(p.getStudent().getId()))
@@ -1304,8 +1312,10 @@ public class CampaignServiceImpl implements ICampaignService {
         return switch (status) {
             case INVITED -> participant.getInvitationSentAt() != null
                     && participant.getParentApprovalStatus() == ParticipationStatus.PREPARED;
-            case ON_GOING -> "ON_GOING".equals(campaignStatus) && participant.getParentApprovalStatus() == ParticipationStatus.APPROVED;
-            case COMPLETED -> "COMPLETED".equals(campaignStatus) && participant.getParentApprovalStatus() == ParticipationStatus.APPROVED;
+            case ON_GOING -> "ON_GOING".equals(campaignStatus)
+                    && participant.getParentApprovalStatus() == ParticipationStatus.APPROVED;
+            case COMPLETED -> "COMPLETED".equals(campaignStatus)
+                    && participant.getParentApprovalStatus() == ParticipationStatus.APPROVED;
         };
     }
 
@@ -1389,28 +1399,33 @@ public class CampaignServiceImpl implements ICampaignService {
                                                                             startOfDay,
                                                                             endOfDay);
                                                             return StudentPresetLevelConfigResponse.builder()
-                                                                .levelNumber(item.getLevelNumber())
-                                                                .itemCount(item.getItemCount())
-                                                                .timeLimitSeconds(item.getTimeLimitSeconds())
-                                                                .scorePerCorrect(item.getScorePerCorrect())
-                                                                .lives(item.getLives())
-                                                                .wasteCategories(
-                                                                        item.getWasteCategories() == null ? Set.of()
-                                                                                : item.getWasteCategories())
-                                                                .configJson(item.getConfigJson() == null ? Map.of()
-                                                                        : item.getConfigJson())
-                                                                .coinReceived(campaign
-                                                                        .getCampaignType() == CampaignType.SCHOOL_INTERNAL
-                                                                                ? gameSessionRepository
-                                                                                        .existsByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndCoinAwardedGreaterThan(
-                                                                                                participantIdFinal,
-                                                                                                configId,
-                                                                                                item.getLevelNumber(),
-                                                                                                0)
-                                                                                : null)
-                                                                .maxDailyAttempts(MAX_PLAYS_PER_LEVEL_PER_DAY)
-                                                                .todayAttempts(todayAttempts)
-                                                                .build();
+                                                                    .levelNumber(item.getLevelNumber())
+                                                                    .itemCount(item.getItemCount())
+                                                                    .timeLimitSeconds(item.getTimeLimitSeconds())
+                                                                    .scorePerCorrect(item.getScorePerCorrect())
+                                                                    .lives(item.getLives())
+                                                                    .wasteCategories(
+                                                                            item.getWasteCategories() == null ? Set.of()
+                                                                                    : item.getWasteCategories())
+                                                                    .configJson(item.getConfigJson() == null ? Map.of()
+                                                                            : item.getConfigJson())
+                                                                    .coinReceived(campaign
+                                                                            .getCampaignType() == CampaignType.SCHOOL_INTERNAL
+                                                                                    ? gameSessionRepository
+                                                                                            .existsByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndCoinAwardedGreaterThan(
+                                                                                                    participantIdFinal,
+                                                                                                    configId,
+                                                                                                    item.getLevelNumber(),
+                                                                                                    0)
+                                                                                    : gameSessionRepository
+                                                                                            .existsByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndCoinAwardedGreaterThan(
+                                                                                                    participantIdFinal,
+                                                                                                    configId,
+                                                                                                    item.getLevelNumber(),
+                                                                                                    0))
+                                                                    .maxDailyAttempts(MAX_PLAYS_PER_LEVEL_PER_DAY)
+                                                                    .todayAttempts(todayAttempts)
+                                                                    .build();
                                                         })
                                                         .toList();
 
@@ -1769,7 +1784,8 @@ public class CampaignServiceImpl implements ICampaignService {
         }
         campaignParticipantRepository.save(participant);
 
-        // Khi parent APPROVED: tang studentsEnrolled tren CampaignSchoolParticipate cua truong
+        // Khi parent APPROVED: tang studentsEnrolled tren CampaignSchoolParticipate cua
+        // truong
         if (status == ParticipationStatus.APPROVED) {
             campaignSchoolParticipateRepository
                     .findByCampaignIdAndSchoolId(campaign.getId(), participant.getSchool().getId())
