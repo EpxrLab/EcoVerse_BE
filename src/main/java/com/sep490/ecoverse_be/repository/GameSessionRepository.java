@@ -52,30 +52,34 @@ public interface GameSessionRepository extends JpaRepository<GameSession, UUID> 
     Optional<GameSession> findOpenSessionByParticipantAndConfig(@Param("participantId") UUID participantId,
                                                                 @Param("roundGameConfigId") UUID roundGameConfigId);
 
-        boolean existsByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndIsCompletedTrueAndIsPassedTrue(
+        boolean existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndIsCompletedTrueAndIsPassedTrue(
           UUID participantId,
           UUID roundGameConfigId,
+          UUID gameLevelPresetId,
           int currentLevel
         );
 
-        long countByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndSessionStartBetween(
+        long countByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndSessionStartBetween(
           UUID participantId,
           UUID roundGameConfigId,
+          UUID gameLevelPresetId,
           int currentLevel,
           LocalDateTime from,
           LocalDateTime to
         );
 
-        boolean existsByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndCoinAwardedIsNotNullAndCoinAwardedGreaterThan(
+        boolean existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndCoinAwardedIsNotNullAndCoinAwardedGreaterThan(
           UUID participantId,
           UUID roundGameConfigId,
+          UUID gameLevelPresetId,
           int currentLevel,
           Integer minCoin
         );
 
-            boolean existsByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndCoinAwardedGreaterThan(
+            boolean existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndCoinAwardedGreaterThan(
               UUID participantId,
               UUID roundGameConfigId,
+              UUID gameLevelPresetId,
               int currentLevel,
               Integer minCoin
             );

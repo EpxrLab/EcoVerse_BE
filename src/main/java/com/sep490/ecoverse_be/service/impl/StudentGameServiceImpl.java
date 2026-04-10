@@ -68,7 +68,7 @@ public class StudentGameServiceImpl implements IStudentGameService {
     @Override
     @Transactional
     public StudentGameSessionStartResponse startGameSession(UUID campaignId, UUID roundId, UUID roundGameConfigId,
-            Integer levelNumber) {
+            UUID presetId, Integer levelNumber) {
         int targetLevel = levelNumber == null ? 1 : levelNumber;
         if (targetLevel < 1) {
             throw new BadRequestException("levelNumber phải >= 1");
@@ -82,14 +82,11 @@ public class StudentGameServiceImpl implements IStudentGameService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy cấu hình game trong round"));
         ensurePartnershipRoundAccess(participant, config.getCampaignRound());
 
-        ensureLevelUnlocked(participant.getId(), config.getId(), targetLevel);
-        ensureDailyPlayQuota(participant.getId(), config.getId(), targetLevel);
-
-        // Auto-close tất cả session đang mở của student (ở mọi game round/config)
-        autoCloseOpenSessionsForStudent(student.getId());
-
-        GameLevelPreset preset = resolvePreset(config);
+        GameLevelPreset preset = resolvePreset(config, presetId);
         GameLevelPresetItem levelItem = resolveLevelItem(preset, targetLevel);
+
+        ensureLevelUnlocked(participant.getId(), config.getId(), preset.getId(), targetLevel);
+        ensureDailyPlayQuota(participant.getId(), config.getId(), preset.getId(), targetLevel);
 
         List<GameLevelWasteItemResponse> wasteItems = resolveLevelWasteItems(config, preset, levelItem);
         if (wasteItems.isEmpty()) {
@@ -98,9 +95,13 @@ public class StudentGameServiceImpl implements IStudentGameService {
 
         Map<String, Object> presetSnapshot = buildPresetSnapshot(config, preset, levelItem);
 
+        // Auto-close tất cả session đang mở của student (ở mọi game round/config)
+        autoCloseOpenSessionsForStudent(student.getId());
+
         GameSession session = new GameSession();
         session.setCampaignParticipant(participant);
         session.setRoundGameConfig(config);
+        session.setGameLevelPreset(preset);
         session.setCurrentLevel(levelItem.getLevelNumber());
         session.setSessionStart(LocalDateTime.now());
         session.setPresetSnapshot(presetSnapshot);
@@ -211,6 +212,7 @@ public class StudentGameServiceImpl implements IStudentGameService {
                 .filter(gs -> gs.getRoundGameConfig().getId().equals(roundGameConfigId))
                 .map(gs -> StudentGameSessionSummaryResponse.builder()
                         .sessionId(gs.getId())
+                        .presetId(gs.getGameLevelPreset() != null ? gs.getGameLevelPreset().getId() : null)
                         .currentLevel(gs.getCurrentLevel())
                         .totalItems(gs.getTotalItems())
                         .correctItems(gs.getCorrectItems())
@@ -262,11 +264,25 @@ public class StudentGameServiceImpl implements IStudentGameService {
         return round;
     }
 
-    private GameLevelPreset resolvePreset(RoundGameConfig config) {
-        GameLevelPreset preset = config.getResolvedPreset();
-        if (preset == null && config.getSelectedPresets() != null && !config.getSelectedPresets().isEmpty()) {
-            preset = config.getSelectedPresets().get(0);
+    private GameLevelPreset resolvePreset(RoundGameConfig config, UUID presetId) {
+        GameLevelPreset preset = null;
+        
+        // Return exactly the requested preset if provided and it's among the selected ones
+        if (presetId != null && config.getSelectedPresets() != null) {
+             preset = config.getSelectedPresets().stream()
+                     .filter(p -> p.getId().equals(presetId))
+                     .findFirst()
+                     .orElseThrow(() -> new BadRequestException("Cấu hình game không có preset được yêu cầu"));
         }
+        
+        // Fallback backward-compatible resolution if presetId not specifically requested
+        if (preset == null) {
+             preset = config.getResolvedPreset();
+             if (preset == null && config.getSelectedPresets() != null && !config.getSelectedPresets().isEmpty()) {
+                 preset = config.getSelectedPresets().get(0);
+             }
+        }
+        
         if (preset == null) {
             throw new BadRequestException("Cấu hình game chưa có preset khả dụng");
         }
@@ -367,32 +383,34 @@ public class StudentGameServiceImpl implements IStudentGameService {
         }
     }
 
-    private void ensureLevelUnlocked(UUID participantId, UUID roundGameConfigId, int targetLevel) {
+    private void ensureLevelUnlocked(UUID participantId, UUID roundGameConfigId, UUID presetId, int targetLevel) {
         if (targetLevel <= 1) {
             return;
         }
 
         int previousLevel = targetLevel - 1;
         boolean passedPreviousLevel = gameSessionRepository
-                .existsByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndIsCompletedTrueAndIsPassedTrue(
+                .existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndIsCompletedTrueAndIsPassedTrue(
                         participantId,
                         roundGameConfigId,
+                        presetId,
                         previousLevel);
         if (!passedPreviousLevel) {
             throw new BadRequestException(
-                    "Bạn cần pass level " + previousLevel + " trước khi chơi level " + targetLevel);
+                    "Bạn cần pass level " + previousLevel + " của cấu hình này trước khi chơi level " + targetLevel);
         }
     }
 
-    private void ensureDailyPlayQuota(UUID participantId, UUID roundGameConfigId, int levelNumber) {
+    private void ensureDailyPlayQuota(UUID participantId, UUID roundGameConfigId, UUID presetId, int levelNumber) {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
         LocalDateTime endOfDay = startOfDay.plusDays(1);
 
         long todayPlays = gameSessionRepository
-                .countByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndSessionStartBetween(
+                .countByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndSessionStartBetween(
                         participantId,
                         roundGameConfigId,
+                        presetId,
                         levelNumber,
                         startOfDay,
                         endOfDay);
