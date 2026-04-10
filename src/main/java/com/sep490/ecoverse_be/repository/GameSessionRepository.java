@@ -79,4 +79,13 @@ public interface GameSessionRepository extends JpaRepository<GameSession, UUID> 
               int currentLevel,
               Integer minCoin
             );
+
+    @Query("""
+            SELECT gs
+            FROM GameSession gs
+            WHERE gs.campaignParticipant.student.id = :studentId
+              AND gs.isCompleted = false
+            ORDER BY gs.sessionStart ASC
+            """)
+    List<GameSession> findAllOpenSessionsByStudentId(@Param("studentId") UUID studentId);
 }

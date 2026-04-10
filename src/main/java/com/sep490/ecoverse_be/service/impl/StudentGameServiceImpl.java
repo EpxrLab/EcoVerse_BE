@@ -17,6 +17,7 @@ import com.sep490.ecoverse_be.model.UserPrincipal;
 import com.sep490.ecoverse_be.repository.*;
 import com.sep490.ecoverse_be.service.IStudentGameService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class StudentGameServiceImpl implements IStudentGameService {
@@ -83,10 +85,8 @@ public class StudentGameServiceImpl implements IStudentGameService {
         ensureLevelUnlocked(participant.getId(), config.getId(), targetLevel);
         ensureDailyPlayQuota(participant.getId(), config.getId(), targetLevel);
 
-        gameSessionRepository.findOpenSessionByParticipantAndConfig(participant.getId(), roundGameConfigId)
-                .ifPresent(gs -> {
-                    throw new BadRequestException("Bạn đang có phiên game chưa hoàn thành cho cấu hình này");
-                });
+        // Auto-close tất cả session đang mở của student (ở mọi game round/config)
+        autoCloseOpenSessionsForStudent(student.getId());
 
         GameLevelPreset preset = resolvePreset(config);
         GameLevelPresetItem levelItem = resolveLevelItem(preset, targetLevel);
@@ -762,5 +762,56 @@ public class StudentGameServiceImpl implements IStudentGameService {
                 .sessionStart(session.getSessionStart())
                 .sessionEnd(session.getSessionEnd())
                 .build();
+    }
+
+    /**
+     * Auto-close tất cả session đang mở (chưa submit) của student ở mọi game round/config.
+     * Session bị đóng sẽ được đánh dấu completed với 0 điểm (không pass, không nhận xu).
+     */
+    private void autoCloseOpenSessionsForStudent(UUID studentId) {
+        List<GameSession> openSessions = gameSessionRepository.findAllOpenSessionsByStudentId(studentId);
+        if (openSessions.isEmpty()) {
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        for (GameSession gs : openSessions) {
+            int timeTaken = gs.getSessionStart() != null
+                    ? (int) ChronoUnit.SECONDS.between(gs.getSessionStart(), now)
+                    : 0;
+
+            gs.setSessionEnd(now);
+            gs.setTimeTakenSeconds(Math.max(0, timeTaken));
+            gs.setTotalItems(gs.getTotalItems() > 0 ? gs.getTotalItems() : 0);
+            gs.setCorrectItems(0);
+            gs.setIncorrectItems(gs.getTotalItems());
+            gs.setAccuracyPercentage(BigDecimal.ZERO);
+            gs.setPassed(false);
+            gs.setCompleted(true);
+            gs.setCoinAwarded(null);
+
+            log.info("Auto-closed abandoned game session {} for student {}", gs.getId(), studentId);
+        }
+        gameSessionRepository.saveAll(openSessions);
+    }
+
+    @Override
+    public List<StudentGameSessionSummaryResponse> getOpenSessionsByStudentId(UUID studentId) {
+        return gameSessionRepository.findAllOpenSessionsByStudentId(studentId)
+                .stream()
+                .map(gs -> StudentGameSessionSummaryResponse.builder()
+                        .sessionId(gs.getId())
+                        .currentLevel(gs.getCurrentLevel())
+                        .totalItems(gs.getTotalItems())
+                        .correctItems(gs.getCorrectItems())
+                        .incorrectItems(gs.getIncorrectItems())
+                        .accuracyPercentage(gs.getAccuracyPercentage())
+                        .timeTakenSeconds(gs.getTimeTakenSeconds())
+                        .isPassed(gs.isPassed())
+                        .coinAwarded(gs.getCoinAwarded())
+                        .sessionStart(gs.getSessionStart())
+                        .sessionEnd(gs.getSessionEnd())
+                        .build())
+                .toList();
     }
 }
