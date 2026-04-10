@@ -28,8 +28,7 @@ public class CreateQuizRequest {
     private Integer targetGrade;
 
     @Builder.Default
-    @Min(value = 1, message = "Điểm thưởng phải >= 1")
-    private Integer coinOnPass = 10;
+    private Integer coinOnPass = 0;
 
     @Min(value = 5, message = "Thời gian mỗi câu phải >= 5 giây")
     private Integer timePerQuestion;

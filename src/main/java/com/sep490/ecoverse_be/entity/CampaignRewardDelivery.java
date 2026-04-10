@@ -83,6 +83,9 @@ public class CampaignRewardDelivery extends BaseEntity {
     @JoinColumn(name = "confirmed_by")
     private Parent confirmedBy;
 
+    @Column(length = 500)
+    private String deliveryImageUrl;
+
     @Column(columnDefinition = "text")
     private String notes;
 }
