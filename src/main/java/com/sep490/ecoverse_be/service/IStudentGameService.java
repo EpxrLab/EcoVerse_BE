@@ -10,11 +10,13 @@ import java.util.UUID;
 
 public interface IStudentGameService {
 
-    StudentGameSessionStartResponse startGameSession(UUID campaignId, UUID roundId, UUID roundGameConfigId, Integer levelNumber);
+    StudentGameSessionStartResponse startGameSession(UUID campaignId, UUID roundId, UUID roundGameConfigId, UUID presetId, Integer levelNumber);
 
     StudentGameSessionResultResponse submitGameSession(UUID sessionId, SubmitGameSessionRequest request);
 
     StudentGameSessionResultResponse getGameSessionResult(UUID sessionId);
 
     List<StudentGameSessionSummaryResponse> getGameSessionHistory(UUID campaignId, UUID roundId, UUID roundGameConfigId);
+
+    List<StudentGameSessionSummaryResponse> getOpenSessionsByStudentId(UUID studentId);
 }
