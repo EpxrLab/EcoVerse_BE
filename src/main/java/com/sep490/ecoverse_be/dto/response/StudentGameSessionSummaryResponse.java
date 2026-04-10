@@ -9,6 +9,7 @@ import java.util.UUID;
 @Builder
 public record StudentGameSessionSummaryResponse(
         UUID sessionId,
+        UUID presetId,
         int currentLevel,
         Integer totalItems,
         Integer correctItems,

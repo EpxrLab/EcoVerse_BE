@@ -1392,9 +1392,10 @@ public class CampaignServiceImpl implements ICampaignService {
                                                 : preset.getItems().stream()
                                                         .map(item -> {
                                                             long todayAttempts = gameSessionRepository
-                                                                    .countByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndSessionStartBetween(
+                                                                    .countByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndSessionStartBetween(
                                                                             participantIdFinal,
                                                                             configId,
+                                                                            preset.getId(),
                                                                             item.getLevelNumber(),
                                                                             startOfDay,
                                                                             endOfDay);
@@ -1412,17 +1413,13 @@ public class CampaignServiceImpl implements ICampaignService {
                                                                     .coinReceived(campaign
                                                                             .getCampaignType() == CampaignType.SCHOOL_INTERNAL
                                                                                     ? gameSessionRepository
-                                                                                            .existsByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndCoinAwardedGreaterThan(
+                                                                                            .existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndCoinAwardedGreaterThan(
                                                                                                     participantIdFinal,
                                                                                                     configId,
+                                                                                                    preset.getId(),
                                                                                                     item.getLevelNumber(),
                                                                                                     0)
-                                                                                    : gameSessionRepository
-                                                                                            .existsByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndCoinAwardedGreaterThan(
-                                                                                                    participantIdFinal,
-                                                                                                    configId,
-                                                                                                    item.getLevelNumber(),
-                                                                                                    0))
+                                                                                    : null)
                                                                     .maxDailyAttempts(MAX_PLAYS_PER_LEVEL_PER_DAY)
                                                                     .todayAttempts(todayAttempts)
                                                                     .build();
