@@ -179,6 +179,13 @@
             <version>5.2.5</version>
         </dependency>
 
+        <!-- Apache PDFBox — PDF text extraction for AI RAG pipeline -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.1</version>
+        </dependency>
+
         <!-- Source: https://mvnrepository.com/artifact/com.sendgrid/sendgrid-java -->
         <dependency>
             <groupId>com.sendgrid</groupId>
