@@ -11,5 +11,6 @@ public interface CampaignRewardRepository extends JpaRepository<CampaignReward, 
 
     List<CampaignReward> findByCampaignIdOrderByRankPositionAsc(UUID campaignId);
 
+    void deleteByCampaignId(UUID campaignId);
     Optional<CampaignReward> findByCampaignIdAndRankPosition(UUID campaignId, Integer rankPosition);
 }

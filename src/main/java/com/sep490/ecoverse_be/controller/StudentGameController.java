@@ -27,10 +27,11 @@ public class StudentGameController {
     public ResponseEntity<ResponseDto<StudentGameSessionStartResponse>> startGameSession(
             @PathVariable UUID campaignId,
             @PathVariable UUID roundId,
-                        @PathVariable UUID roundGameConfigId,
-                        @RequestParam(required = false, defaultValue = "1") Integer levelNumber) {
+            @PathVariable UUID roundGameConfigId,
+            @RequestParam(required = false) UUID presetId,
+            @RequestParam(required = false, defaultValue = "1") Integer levelNumber) {
         return ResponseEntity.ok(ResponseDto.success(
-                                studentGameService.startGameSession(campaignId, roundId, roundGameConfigId, levelNumber),
+                studentGameService.startGameSession(campaignId, roundId, roundGameConfigId, presetId, levelNumber),
                 "Bắt đầu phiên chơi game thành công"
         ));
     }

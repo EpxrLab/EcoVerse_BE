@@ -3,7 +3,6 @@ package com.sep490.ecoverse_be.dto.response;
 import com.sep490.ecoverse_be.enums.QuizCreated;
 import com.sep490.ecoverse_be.enums.QuizDifficulty;
 import com.sep490.ecoverse_be.enums.QuizSource;
-import com.sep490.ecoverse_be.enums.QuizType;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -20,7 +19,6 @@ public class QuizSummaryResponse {
     private String title;
     private String description;
     private QuizDifficulty difficulty;
-    private QuizType quizType;
     private QuizSource source;
     private QuizCreated createdBy;
     private Integer targetGrade;

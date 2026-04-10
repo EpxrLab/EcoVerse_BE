@@ -48,6 +48,14 @@ public class GameSession {
     @JoinColumn(name = "round_game_config_id", nullable = false)
     private RoundGameConfig roundGameConfig;
 
+    /**
+     * The specific preset used for this session.
+     * Allows per-preset level tracking (unlock, coin, attempts).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "game_level_preset_id")
+    private GameLevelPreset gameLevelPreset;
+
     // ── Level progression ─────────────────────────────────────────────────────
 
     /**

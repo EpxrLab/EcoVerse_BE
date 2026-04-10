@@ -52,31 +52,44 @@ public interface GameSessionRepository extends JpaRepository<GameSession, UUID> 
     Optional<GameSession> findOpenSessionByParticipantAndConfig(@Param("participantId") UUID participantId,
                                                                 @Param("roundGameConfigId") UUID roundGameConfigId);
 
-        boolean existsByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndIsCompletedTrueAndIsPassedTrue(
+        boolean existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndIsCompletedTrueAndIsPassedTrue(
           UUID participantId,
           UUID roundGameConfigId,
+          UUID gameLevelPresetId,
           int currentLevel
         );
 
-        long countByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndSessionStartBetween(
+        long countByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndSessionStartBetween(
           UUID participantId,
           UUID roundGameConfigId,
+          UUID gameLevelPresetId,
           int currentLevel,
           LocalDateTime from,
           LocalDateTime to
         );
 
-        boolean existsByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndCoinAwardedIsNotNullAndCoinAwardedGreaterThan(
+        boolean existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndCoinAwardedIsNotNullAndCoinAwardedGreaterThan(
           UUID participantId,
           UUID roundGameConfigId,
+          UUID gameLevelPresetId,
           int currentLevel,
           Integer minCoin
         );
 
-            boolean existsByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndCoinAwardedGreaterThan(
+            boolean existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndCoinAwardedGreaterThan(
               UUID participantId,
               UUID roundGameConfigId,
+              UUID gameLevelPresetId,
               int currentLevel,
               Integer minCoin
             );
+
+    @Query("""
+            SELECT gs
+            FROM GameSession gs
+            WHERE gs.campaignParticipant.student.id = :studentId
+              AND gs.isCompleted = false
+            ORDER BY gs.sessionStart ASC
+            """)
+    List<GameSession> findAllOpenSessionsByStudentId(@Param("studentId") UUID studentId);
 }

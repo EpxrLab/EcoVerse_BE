@@ -19,6 +19,10 @@ public interface CampaignSchoolParticipateRepository extends JpaRepository<Campa
     Optional<CampaignSchoolParticipate> findByCampaignIdAndSchoolId(UUID campaignId, UUID schoolId);
 
     List<CampaignSchoolParticipate> findByCampaignIdAndStatus(UUID campaignId, ParticipationStatus status);
+
+    List<CampaignSchoolParticipate> findByCampaignId(UUID campaignId);
+
+    List<CampaignSchoolParticipate> findByCampaignIdAndInvitationSentAtIsNull(UUID campaignId);
 }
 
 

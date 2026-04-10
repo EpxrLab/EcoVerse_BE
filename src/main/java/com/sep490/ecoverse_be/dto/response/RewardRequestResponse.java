@@ -36,6 +36,9 @@ public class RewardRequestResponse {
     private String cancelledReason;
     private String notes;
 
+    private String deliveryImageUrl;
+    private String deliveryImagePresignedUrl;
+
     private UUID approvedBy;
     private LocalDateTime approvedAt;
     private LocalDateTime rejectedAt;

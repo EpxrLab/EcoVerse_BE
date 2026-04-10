@@ -3,10 +3,10 @@ package com.sep490.ecoverse_be.service.impl;
 import com.sep490.ecoverse_be.dto.request.*;
 import com.sep490.ecoverse_be.dto.response.*;
 import com.sep490.ecoverse_be.entity.*;
+import com.sep490.ecoverse_be.enums.QuestionType;
 import com.sep490.ecoverse_be.enums.QuizCreated;
 import com.sep490.ecoverse_be.enums.QuizDifficulty;
 import com.sep490.ecoverse_be.enums.QuizSource;
-import com.sep490.ecoverse_be.enums.QuizType;
 import com.sep490.ecoverse_be.enums.Role;
 import com.sep490.ecoverse_be.exception.BadRequestException;
 import com.sep490.ecoverse_be.exception.NotFoundException;
@@ -36,11 +36,10 @@ import java.util.stream.Collectors;
 @Service
 public class QuizServiceImpl implements IQuizService {
 
-    private static final String[] EXCEL_HEADERS = {
-            "quiz_title", "description", "difficulty", "target_grade", "quiz_type",
-            "question_order", "question_text",
+    private static final String[] QUESTION_EXCEL_HEADERS = {
+            "question_type", "question_text",
             "answer_A", "answer_B", "answer_C", "answer_D",
-            "correct_answer", "coins_on_pass", "time_per_question", "pass_score_percentage"
+            "correct_answer"
     };
 
     @Autowired
@@ -112,6 +111,7 @@ public class QuizServiceImpl implements IQuizService {
         return QuizQuestionResponse.builder()
                 .id(question.getId())
                 .questionOrder(question.getQuestionOrder())
+                .questionType(question.getQuestionType())
                 .questionText(question.getQuestionText())
                 .questionImageUrl(question.getQuestionImageUrl())
                 .questionImagePresignedUrl(s3PresignedUrlService.generatePresignedUrl(question.getQuestionImageUrl()))
@@ -120,7 +120,7 @@ public class QuizServiceImpl implements IQuizService {
     }
 
     private QuizResponse mapToQuizResponse(Quiz quiz) {
-        List<QuizQuestion> questions = quizQuestionRepository.findByQuizIdAndIsDeleteFalseOrderByQuestionOrder(quiz.getId());
+        List<QuizQuestion> questions = quizQuestionRepository.findByQuizIdAndIsActiveTrueOrderByQuestionOrder(quiz.getId());
         List<QuizAnswer> allAnswers = quizAnswerRepository.findByQuestionIn(questions);
 
         Map<UUID, List<QuizAnswer>> answersByQuestion = allAnswers.stream()
@@ -135,7 +135,6 @@ public class QuizServiceImpl implements IQuizService {
                 .title(quiz.getTitle())
                 .description(quiz.getDescription())
                 .difficulty(quiz.getDifficulty())
-                .quizType(quiz.getQuizType())
                 .source(quiz.getSource())
                 .createdBy(quiz.getCreatedBy())
                 .targetGrade(quiz.getTargetGrade())
@@ -156,7 +155,6 @@ public class QuizServiceImpl implements IQuizService {
                 .title(quiz.getTitle())
                 .description(quiz.getDescription())
                 .difficulty(quiz.getDifficulty())
-                .quizType(quiz.getQuizType())
                 .source(quiz.getSource())
                 .createdBy(quiz.getCreatedBy())
                 .targetGrade(quiz.getTargetGrade())
@@ -176,17 +174,16 @@ public class QuizServiceImpl implements IQuizService {
      * quizCreated: USER cho tạo thủ công, IMPORT cho import Excel, AI cho AI generate.
      */
     private Quiz buildAndSaveQuiz(String title, String description, QuizDifficulty difficulty,
-                                   QuizType quizType, Integer targetGrade, Integer coinOnPass,
+                                   Integer targetGrade, Integer coinOnPass,
                                    Integer timePerQuestion, Integer passScorePercentage,
                                    QuizCreated quizCreated, School school, Partnership partnership) {
         Quiz quiz = new Quiz();
         quiz.setTitle(title);
         quiz.setDescription(description);
         quiz.setDifficulty(difficulty);
-        quiz.setQuizType(quizType);
         quiz.setSource(QuizSource.MANUAL);
         quiz.setTargetGrade(targetGrade);
-        quiz.setCoinsOnPass(coinOnPass != null ? coinOnPass : 10);
+        quiz.setCoinsOnPass(coinOnPass != null ? coinOnPass : 0);
         quiz.setTimePerQuestion(timePerQuestion);
         quiz.setPassScorePercentage(passScorePercentage != null ? passScorePercentage : 80);
         quiz.setPublished(false);
@@ -210,6 +207,7 @@ public class QuizServiceImpl implements IQuizService {
             QuizQuestion question = new QuizQuestion();
             question.setQuiz(quiz);
             question.setQuestionOrder(qReq.getQuestionOrder());
+            question.setQuestionType(qReq.getQuestionType());
             question.setQuestionText(qReq.getQuestionText());
             question = quizQuestionRepository.save(question);
 
@@ -250,13 +248,15 @@ public class QuizServiceImpl implements IQuizService {
 
         Quiz quiz = buildAndSaveQuiz(
                 request.getTitle(), request.getDescription(),
-                request.getDifficulty(), request.getQuizType(),
+                request.getDifficulty(),
                 request.getTargetGrade(), request.getCoinOnPass(),
                 request.getTimePerQuestion(), request.getPassScorePercentage(),
                 QuizCreated.USER, school, partnership
         );
 
-        saveQuestionsAndAnswers(quiz, request.getQuestions());
+        if (request.getQuestions() != null && !request.getQuestions().isEmpty()) {
+            saveQuestionsAndAnswers(quiz, request.getQuestions());
+        }
 
         return mapToQuizResponse(quiz);
     }
@@ -275,7 +275,7 @@ public class QuizServiceImpl implements IQuizService {
         }
 
         return quizzes.stream()
-                .map(q -> mapToSummary(q, quizQuestionRepository.countByQuizIdAndIsDeleteFalse(q.getId())))
+                .map(q -> mapToSummary(q, quizQuestionRepository.countByQuizIdAndIsActiveTrue(q.getId())))
                 .collect(Collectors.toList());
     }
 
@@ -299,7 +299,6 @@ public class QuizServiceImpl implements IQuizService {
         if (request.getTitle() != null) quiz.setTitle(request.getTitle());
         if (request.getDescription() != null) quiz.setDescription(request.getDescription());
         if (request.getDifficulty() != null) quiz.setDifficulty(request.getDifficulty());
-        if (request.getQuizType() != null) quiz.setQuizType(request.getQuizType());
         if (request.getTargetGrade() != null) quiz.setTargetGrade(request.getTargetGrade());
         if (request.getCoinOnPass() != null) quiz.setCoinsOnPass(request.getCoinOnPass());
         if (request.getTimePerQuestion() != null) quiz.setTimePerQuestion(request.getTimePerQuestion());
@@ -320,9 +319,9 @@ public class QuizServiceImpl implements IQuizService {
         quizRepository.save(quiz);
 
         List<QuizQuestion> activeQuestions = quizQuestionRepository
-                .findByQuizIdAndIsDeleteFalseOrderByQuestionOrder(quiz.getId());
+                .findByQuizIdAndIsActiveTrueOrderByQuestionOrder(quiz.getId());
         for (QuizQuestion question : activeQuestions) {
-            question.setDelete(true);
+            question.setActive(false);
             quizQuestionRepository.save(question);
         }
     }
@@ -334,7 +333,7 @@ public class QuizServiceImpl implements IQuizService {
         Quiz quiz = assertOwnership(quizId, currentUser);
 
         if (!quiz.isPublished()) {
-            int questionCount = quizQuestionRepository.countByQuizIdAndIsDeleteFalse(quiz.getId());
+            int questionCount = quizQuestionRepository.countByQuizIdAndIsActiveTrue(quiz.getId());
             if (questionCount == 0) {
                 throw new BadRequestException("Quiz phải có ít nhất 1 câu hỏi mới được publish");
             }
@@ -357,7 +356,7 @@ public class QuizServiceImpl implements IQuizService {
         }
 
         Set<Integer> existingOrders = quizQuestionRepository
-                .findByQuizIdAndIsDeleteFalseOrderByQuestionOrder(quiz.getId())
+                .findByQuizIdAndIsActiveTrueOrderByQuestionOrder(quiz.getId())
                 .stream()
                 .map(QuizQuestion::getQuestionOrder)
                 .collect(Collectors.toSet());
@@ -379,11 +378,11 @@ public class QuizServiceImpl implements IQuizService {
         User currentUser = getCurrentUser();
         assertOwnership(quizId, currentUser);
 
-        QuizQuestion question = quizQuestionRepository.findByIdAndQuizIdAndIsDeleteFalse(questionId, quizId)
+        QuizQuestion question = quizQuestionRepository.findByIdAndQuizIdAndIsActiveTrue(questionId, quizId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy câu hỏi trong quiz này"));
 
         boolean orderChanged = question.getQuestionOrder() != request.getQuestionOrder();
-        if (orderChanged && quizQuestionRepository.existsByQuizIdAndQuestionOrderAndIsDeleteFalse(quizId, request.getQuestionOrder())) {
+        if (orderChanged && quizQuestionRepository.existsByQuizIdAndQuestionOrderAndIsActiveTrue(quizId, request.getQuestionOrder())) {
             throw new BadRequestException(
                     "Thứ tự câu hỏi " + request.getQuestionOrder() + " đã được sử dụng bởi câu hỏi khác");
         }
@@ -394,6 +393,7 @@ public class QuizServiceImpl implements IQuizService {
         }
 
         question.setQuestionOrder(request.getQuestionOrder());
+        question.setQuestionType(request.getQuestionType());
         question.setQuestionText(request.getQuestionText());
         quizQuestionRepository.save(question);
 
@@ -416,87 +416,38 @@ public class QuizServiceImpl implements IQuizService {
         User currentUser = getCurrentUser();
         assertOwnership(quizId, currentUser);
 
-        QuizQuestion question = quizQuestionRepository.findByIdAndQuizIdAndIsDeleteFalse(questionId, quizId)
+        QuizQuestion question = quizQuestionRepository.findByIdAndQuizIdAndIsActiveTrue(questionId, quizId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy câu hỏi trong quiz này"));
 
         quizAnswerRepository.deleteAllByQuestionId(question.getId());
-        question.setDelete(true);
+        question.setActive(false);
         quizQuestionRepository.save(question);
     }
 
 
+    /**
+     * Parse file Excel và trả về danh sách câu hỏi dưới dạng QuizQuestionRequest.
+     * Không ghi DB — chỉ dùng để UI hiển thị preview trước khi user xác nhận tạo quiz.
+     * Excel format: question_type | question_text | answer_A | answer_B | answer_C | answer_D | correct_answer
+     * questionOrder được tự động gán theo vị trí dòng trong file (1-based).
+     */
     @Override
-    @Transactional
-    public ImportResultResponse importQuizFromExcel(MultipartFile file) {
-        User currentUser = getCurrentUser();
+    public List<QuizQuestionRequest> previewQuestionsFromExcel(MultipartFile file) {
+        List<QuizExcelRowDto> rows = parseQuestionExcelRows(file);
+        List<String> errors = validatePreviewRows(rows);
 
-        School school = null;
-        Partnership partnership = null;
-        if (currentUser.getRole() == Role.PARTNERSHIP_SCHOOL) {
-            school = resolveSchool(currentUser.getId());
-        } else {
-            partnership = resolvePartnership(currentUser.getId());
+        if (!errors.isEmpty()) {
+            throw new BadRequestException("File Excel có lỗi:\n" + String.join("\n", errors));
         }
 
-        List<QuizExcelRowDto> rows = parseExcelRows(file);
-        LinkedHashMap<String, List<QuizExcelRowDto>> grouped = groupByQuizTitle(rows);
-
-        List<ImportErrorDetail> errors = new ArrayList<>();
-        int successCount = 0;
-
-        for (Map.Entry<String, List<QuizExcelRowDto>> entry : grouped.entrySet()) {
-            String quizTitle = entry.getKey();
-            List<QuizExcelRowDto> quizRows = entry.getValue();
-
-            List<ImportErrorDetail> groupErrors = validateQuizGroup(quizTitle, quizRows);
-            if (!groupErrors.isEmpty()) {
-                errors.addAll(groupErrors);
-                continue;
-            }
-
-            try {
-                QuizExcelRowDto firstRow = quizRows.get(0);
-                Quiz quiz = buildAndSaveQuiz(
-                        quizTitle,
-                        firstRow.getDescription(),
-                        QuizDifficulty.valueOf(firstRow.getDifficulty().toUpperCase()),
-                        QuizType.valueOf(firstRow.getQuizType().toUpperCase()),
-                        parseIntOrNull(firstRow.getTargetGrade()),
-                        parseIntOrDefault(firstRow.getCoinsOnPass(), 10),
-                        parseIntOrNull(firstRow.getTimePerQuestion()),
-                        parseIntOrDefault(firstRow.getPassScorePercentage(), 80),
-                        QuizCreated.IMPORT, school, partnership
-                );
-
-                for (QuizExcelRowDto row : quizRows) {
-                    QuizQuestion question = new QuizQuestion();
-                    question.setQuiz(quiz);
-                    question.setQuestionOrder(Integer.parseInt(row.getQuestionOrder()));
-                    question.setQuestionText(row.getQuestionText());
-                    question = quizQuestionRepository.save(question);
-
-                    saveAnswersFromExcelRow(question, row);
-                }
-
-                successCount++;
-            } catch (Exception e) {
-                errors.add(ExcelUtil.buildError(
-                        quizRows.get(0).getRowNumber(), "general",
-                        "Lỗi tạo quiz '" + quizTitle + "': " + e.getMessage()));
-            }
+        List<QuizQuestionRequest> result = new ArrayList<>();
+        for (int i = 0; i < rows.size(); i++) {
+            result.add(convertRowToQuestionRequest(rows.get(i), i + 1));
         }
-
-        return ImportResultResponse.builder()
-                .totalRows(grouped.size())
-                .successCount(successCount)
-                .failCount(errors.stream()
-                        .map(ImportErrorDetail::getRowNumber)
-                        .collect(Collectors.toSet()).size())
-                .errors(errors)
-                .build();
+        return result;
     }
 
-    private List<QuizExcelRowDto> parseExcelRows(MultipartFile file) {
+    private List<QuizExcelRowDto> parseQuestionExcelRows(MultipartFile file) {
         ExcelUtil.validateFile(file);
         List<QuizExcelRowDto> rows = new ArrayList<>();
 
@@ -507,29 +458,21 @@ public class QuizServiceImpl implements IQuizService {
             Row headerRow = sheet.getRow(0);
             if (headerRow == null) throw new BadRequestException("File Excel không có header row");
 
-            ExcelUtil.validateHeaders(headerRow, EXCEL_HEADERS);
+            ExcelUtil.validateHeaders(headerRow, QUESTION_EXCEL_HEADERS);
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
-                if (row == null || ExcelUtil.isRowEmpty(row, EXCEL_HEADERS.length)) continue;
+                if (row == null || ExcelUtil.isRowEmpty(row, QUESTION_EXCEL_HEADERS.length)) continue;
 
                 QuizExcelRowDto dto = QuizExcelRowDto.builder()
                         .rowNumber(i + 1)
-                        .quizTitle(ExcelUtil.getCellStringValue(row.getCell(0)))
-                        .description(ExcelUtil.getCellStringValue(row.getCell(1)))
-                        .difficulty(ExcelUtil.getCellStringValue(row.getCell(2)))
-                        .targetGrade(ExcelUtil.getCellStringValue(row.getCell(3)))
-                        .quizType(ExcelUtil.getCellStringValue(row.getCell(4)))
-                        .questionOrder(ExcelUtil.getCellStringValue(row.getCell(5)))
-                        .questionText(ExcelUtil.getCellStringValue(row.getCell(6)))
-                        .answerA(ExcelUtil.getCellStringValue(row.getCell(7)))
-                        .answerB(ExcelUtil.getCellStringValue(row.getCell(8)))
-                        .answerC(ExcelUtil.getCellStringValue(row.getCell(9)))
-                        .answerD(ExcelUtil.getCellStringValue(row.getCell(10)))
-                        .correctAnswer(ExcelUtil.getCellStringValue(row.getCell(11)))
-                        .coinsOnPass(ExcelUtil.getCellStringValue(row.getCell(12)))
-                        .timePerQuestion(ExcelUtil.getCellStringValue(row.getCell(13)))
-                        .passScorePercentage(ExcelUtil.getCellStringValue(row.getCell(14)))
+                        .questionType(ExcelUtil.getCellStringValue(row.getCell(0)))
+                        .questionText(ExcelUtil.getCellStringValue(row.getCell(1)))
+                        .answerA(ExcelUtil.getCellStringValue(row.getCell(2)))
+                        .answerB(ExcelUtil.getCellStringValue(row.getCell(3)))
+                        .answerC(ExcelUtil.getCellStringValue(row.getCell(4)))
+                        .answerD(ExcelUtil.getCellStringValue(row.getCell(5)))
+                        .correctAnswer(ExcelUtil.getCellStringValue(row.getCell(6)))
                         .build();
                 rows.add(dto);
             }
@@ -543,133 +486,70 @@ public class QuizServiceImpl implements IQuizService {
         return rows;
     }
 
-    private LinkedHashMap<String, List<QuizExcelRowDto>> groupByQuizTitle(List<QuizExcelRowDto> rows) {
-        LinkedHashMap<String, List<QuizExcelRowDto>> grouped = new LinkedHashMap<>();
+    private static final Set<String> VALID_QUESTION_TYPES = Arrays.stream(QuestionType.values())
+            .map(Enum::name)
+            .collect(Collectors.toSet());
+
+    private List<String> validatePreviewRows(List<QuizExcelRowDto> rows) {
+        List<String> errors = new ArrayList<>();
+
         for (QuizExcelRowDto row : rows) {
-            grouped.computeIfAbsent(row.getQuizTitle(), k -> new ArrayList<>()).add(row);
-        }
-        return grouped;
-    }
+            String prefix = "Dòng " + row.getRowNumber() + ": ";
 
-    private List<ImportErrorDetail> validateQuizGroup(String quizTitle, List<QuizExcelRowDto> rows) {
-        List<ImportErrorDetail> errors = new ArrayList<>();
-        int firstRow = rows.get(0).getRowNumber();
-
-        if (ExcelUtil.isBlank(quizTitle)) {
-            errors.add(ExcelUtil.buildError(firstRow, "quiz_title", "Tiêu đề quiz không được rỗng"));
-            return errors;
-        }
-
-        QuizExcelRowDto firstRowDto = rows.get(0);
-        if (!isValidEnum(QuizDifficulty.class, firstRowDto.getDifficulty())) {
-            errors.add(ExcelUtil.buildError(firstRow, "difficulty",
-                    "Độ khó không hợp lệ: " + firstRowDto.getDifficulty() + ". Phải là EASY, MEDIUM hoặc HARD"));
-        }
-        if (!ExcelUtil.isBlank(firstRowDto.getTargetGrade())) {
-            try {
-                int grade = Integer.parseInt(firstRowDto.getTargetGrade().trim());
-                if (grade < 1 || grade > 12) {
-                    errors.add(ExcelUtil.buildError(firstRow, "target_grade", "Khối lớp phải từ 1 đến 12"));
-                }
-            } catch (NumberFormatException e) {
-                errors.add(ExcelUtil.buildError(firstRow, "target_grade", "Khối lớp phải là số nguyên"));
+            if (ExcelUtil.isBlank(row.getQuestionType())) {
+                errors.add(prefix + "question_type không được rỗng");
+            } else if (!VALID_QUESTION_TYPES.contains(row.getQuestionType().toUpperCase().trim())) {
+                errors.add(prefix + "question_type không hợp lệ (hợp lệ: MULTIPLE_CHOICE, TRUE_FALSE, DRAG_DROP)");
             }
-        }
-        if (!isValidEnum(QuizType.class, firstRowDto.getQuizType())) {
-            errors.add(ExcelUtil.buildError(firstRow, "quiz_type",
-                    "Loại quiz không hợp lệ: " + firstRowDto.getQuizType()));
-        }
 
-        Set<Integer> usedOrders = new HashSet<>();
-        for (QuizExcelRowDto row : rows) {
             if (ExcelUtil.isBlank(row.getQuestionText())) {
-                errors.add(ExcelUtil.buildError(row.getRowNumber(), "question_text", "Nội dung câu hỏi không được rỗng"));
-            }
-
-            if (ExcelUtil.isBlank(row.getQuestionOrder())) {
-                errors.add(ExcelUtil.buildError(row.getRowNumber(), "question_order", "Thứ tự câu hỏi không được rỗng"));
-            } else {
-                try {
-                    int order = Integer.parseInt(row.getQuestionOrder());
-                    if (!usedOrders.add(order)) {
-                        errors.add(ExcelUtil.buildError(row.getRowNumber(), "question_order",
-                                "Thứ tự câu hỏi " + order + " bị trùng trong cùng quiz"));
-                    }
-                } catch (NumberFormatException e) {
-                    errors.add(ExcelUtil.buildError(row.getRowNumber(), "question_order", "Thứ tự câu hỏi phải là số nguyên"));
-                }
+                errors.add(prefix + "nội dung câu hỏi không được rỗng");
             }
 
             if (ExcelUtil.isBlank(row.getAnswerA()) || ExcelUtil.isBlank(row.getAnswerB())) {
-                errors.add(ExcelUtil.buildError(row.getRowNumber(), "answer_A/B", "Phải có ít nhất 2 đáp án (A và B)"));
+                errors.add(prefix + "phải có ít nhất 2 đáp án (A và B)");
             }
 
-            String correct = row.getCorrectAnswer().toUpperCase().trim();
-            if (!correct.matches("[ABCD]")) {
-                errors.add(ExcelUtil.buildError(row.getRowNumber(), "correct_answer",
-                        "Đáp án đúng phải là A, B, C hoặc D"));
+            if (ExcelUtil.isBlank(row.getCorrectAnswer()) || !row.getCorrectAnswer().toUpperCase().trim().matches("[ABCD]")) {
+                errors.add(prefix + "đáp án đúng phải là A, B, C hoặc D");
             } else {
+                String correct = row.getCorrectAnswer().toUpperCase().trim();
                 if (correct.equals("C") && ExcelUtil.isBlank(row.getAnswerC())) {
-                    errors.add(ExcelUtil.buildError(row.getRowNumber(), "answer_C",
-                            "Đáp án đúng là C nhưng cột answer_C trống"));
+                    errors.add(prefix + "đáp án đúng là C nhưng cột answer_C trống");
                 }
                 if (correct.equals("D") && ExcelUtil.isBlank(row.getAnswerD())) {
-                    errors.add(ExcelUtil.buildError(row.getRowNumber(), "answer_D",
-                            "Đáp án đúng là D nhưng cột answer_D trống"));
+                    errors.add(prefix + "đáp án đúng là D nhưng cột answer_D trống");
                 }
             }
         }
-
         return errors;
     }
 
-    private void saveAnswersFromExcelRow(QuizQuestion question, QuizExcelRowDto row) {
+    private QuizQuestionRequest convertRowToQuestionRequest(QuizExcelRowDto row, int rowIndex) {
         String correct = row.getCorrectAnswer().toUpperCase().trim();
-        String[][] answerPairs = {
+
+        List<QuizAnswerRequest> answers = new ArrayList<>();
+        String[][] pairs = {
                 {"A", row.getAnswerA()},
                 {"B", row.getAnswerB()},
                 {"C", row.getAnswerC()},
                 {"D", row.getAnswerD()}
         };
-
-        for (String[] pair : answerPairs) {
-            String label = pair[0];
-            String text = pair[1];
-            if (!ExcelUtil.isBlank(text)) {
-                QuizAnswer answer = new QuizAnswer();
-                answer.setQuestion(question);
-                answer.setAnswerText(text);
-                answer.setCorrect(label.equals(correct));
-                quizAnswerRepository.save(answer);
+        for (String[] pair : pairs) {
+            if (!ExcelUtil.isBlank(pair[1])) {
+                answers.add(QuizAnswerRequest.builder()
+                        .answerText(pair[1])
+                        .correct(pair[0].equals(correct))
+                        .build());
             }
         }
+
+        return QuizQuestionRequest.builder()
+                .questionOrder(rowIndex)
+                .questionType(QuestionType.valueOf(row.getQuestionType().toUpperCase().trim()))
+                .questionText(row.getQuestionText())
+                .answers(answers)
+                .build();
     }
 
-    private <E extends Enum<E>> boolean isValidEnum(Class<E> enumClass, String value) {
-        if (ExcelUtil.isBlank(value)) return false;
-        try {
-            Enum.valueOf(enumClass, value.toUpperCase());
-            return true;
-        } catch (IllegalArgumentException e) {
-            return false;
-        }
-    }
-
-    private Integer parseIntOrDefault(String value, int defaultValue) {
-        if (ExcelUtil.isBlank(value)) return defaultValue;
-        try {
-            return Integer.parseInt(value.trim());
-        } catch (NumberFormatException e) {
-            return defaultValue;
-        }
-    }
-
-    private Integer parseIntOrNull(String value) {
-        if (ExcelUtil.isBlank(value)) return null;
-        try {
-            return Integer.parseInt(value.trim());
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
 }

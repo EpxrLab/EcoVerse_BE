@@ -2,6 +2,7 @@ package com.sep490.ecoverse_be.controller;
 
 import com.sep490.ecoverse_be.dto.request.CancelRewardRequestDto;
 import com.sep490.ecoverse_be.dto.request.CreateRewardRequestDto;
+import com.sep490.ecoverse_be.dto.request.MarkDeliveredRequest;
 import com.sep490.ecoverse_be.dto.request.RejectRewardRequestDto;
 import com.sep490.ecoverse_be.dto.response.ResponseDto;
 import com.sep490.ecoverse_be.dto.response.RewardRequestResponse;
@@ -148,13 +149,18 @@ public class RewardRequestController {
                     Chỉ có thể xác nhận giao khi trạng thái đang là **APPROVED**.
                     Sau khi DELIVERED, coin không thể hoàn trả nữa.
 
+                    `imageUrl` (tùy chọn): S3 key của ảnh bằng chứng giao quà, lấy từ `POST /api/files/upload/image`.
+
                     **Lỗi có thể xảy ra:**
                     - `400` — Trạng thái không phải APPROVED
                     - `404` — Không tìm thấy yêu cầu
                     """
     )
-    public ResponseEntity<ResponseDto<RewardRequestResponse>> markDelivered(@PathVariable UUID requestId) {
+    public ResponseEntity<ResponseDto<RewardRequestResponse>> markDelivered(
+            @PathVariable UUID requestId,
+            @RequestBody(required = false) MarkDeliveredRequest body) {
+        String imageUrl = body != null ? body.getImageUrl() : null;
         return ResponseEntity.ok(
-                ResponseDto.success(rewardRequestService.markDelivered(requestId), "Xác nhận giao quà thành công"));
+                ResponseDto.success(rewardRequestService.markDelivered(requestId, imageUrl), "Xác nhận giao quà thành công"));
     }
 }

@@ -85,6 +85,9 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
                 .rejectedReason(r.getRejectedReason())
                 .cancelledReason(r.getCancelledReason())
                 .notes(r.getNotes())
+                .deliveryImageUrl(r.getDeliveryImageUrl())
+                .deliveryImagePresignedUrl(r.getDeliveryImageUrl() != null
+                        ? s3PresignedUrlService.generatePresignedUrl(r.getDeliveryImageUrl()) : null)
                 .approvedBy(r.getApprovedBy() != null ? r.getApprovedBy().getId() : null)
                 .approvedAt(r.getApprovedAt())
                 .rejectedAt(r.getRejectedAt())
@@ -416,7 +419,7 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
 
     @Override
     @Transactional
-    public RewardRequestResponse markDelivered(UUID requestId) {
+    public RewardRequestResponse markDelivered(UUID requestId, String imageUrl) {
         User currentUser = getCurrentUser();
         School school = schoolRepository.findByUserId(currentUser.getId())
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
@@ -431,6 +434,7 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
 
         request.setStatus(RewardRequestStatus.DELIVERED);
         request.setDeliveredAt(LocalDateTime.now());
+        request.setDeliveryImageUrl(imageUrl);
         request.setUpdatedAt(LocalDateTime.now());
         rewardRequestRepository.save(request);
 

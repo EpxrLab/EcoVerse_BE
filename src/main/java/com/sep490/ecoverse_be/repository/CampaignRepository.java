@@ -35,6 +35,18 @@ public interface CampaignRepository extends JpaRepository<Campaign, UUID> {
     // Scheduler: ON_GOING → COMPLETED khi đến endDate
     @Query("SELECT c FROM Campaign c WHERE c.campaignType = 'SCHOOL_INTERNAL' AND c.schoolStatus = 'ON_GOING' AND c.endDate <= :now AND c.isActive = true")
     List<Campaign> findSchoolCampaignsReadyForCompleted(@Param("now") LocalDateTime now);
+
+    @Query("SELECT c FROM Campaign c WHERE c.campaignType = 'PARTNERSHIP_EVENT' AND c.partnershipStatus = 'SCHEDULED' AND c.registrationDate IS NOT NULL AND c.registrationDate <= :now AND c.isActive = true")
+    List<Campaign> findPartnershipCampaignsReadyForJoining(@Param("now") LocalDateTime now);
+
+    @Query("SELECT c FROM Campaign c WHERE c.campaignType = 'PARTNERSHIP_EVENT' AND c.partnershipStatus = 'JOINING' AND c.invitationDate IS NOT NULL AND c.invitationDate <= :now AND c.isActive = true")
+    List<Campaign> findPartnershipCampaignsReadyForInviting(@Param("now") LocalDateTime now);
+
+    @Query("SELECT c FROM Campaign c WHERE c.campaignType = 'PARTNERSHIP_EVENT' AND c.partnershipStatus = 'INVITING' AND c.startDate <= :now AND c.isActive = true")
+    List<Campaign> findPartnershipCampaignsReadyForOnGoing(@Param("now") LocalDateTime now);
+
+    @Query("SELECT c FROM Campaign c WHERE c.campaignType = 'PARTNERSHIP_EVENT' AND c.partnershipStatus = 'ON_GOING' AND c.endDate <= :now AND c.isActive = true")
+    List<Campaign> findPartnershipCampaignsReadyForCompleted(@Param("now") LocalDateTime now);
 }
 
 
