@@ -968,6 +968,7 @@ public class CampaignServiceImpl implements ICampaignService {
                             .campaignCode(c.getCampaignCode())
                             .campaignName(c.getCampaignName())
                             .status(i.getStatus())
+                            .campaignCampaignStatus(c.getPartnershipStatus())
                             .invitationSentAt(i.getInvitationSentAt())
                             .participationConfirmedAt(i.getParticipationConfirmedAt())
                             .studentsEnrolled(i.getStudentsEnrolled())
