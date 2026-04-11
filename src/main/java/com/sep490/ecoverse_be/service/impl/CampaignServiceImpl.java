@@ -24,7 +24,7 @@ import java.util.*;
 @Service
 public class CampaignServiceImpl implements ICampaignService {
 
-    private static final int MAX_PLAYS_PER_LEVEL_PER_DAY = 100;
+    private static final int MAX_PLAYS_PER_LEVEL_PER_DAY = 1000;
 
     @Autowired
     private CampaignRepository campaignRepository;
@@ -1316,10 +1316,10 @@ public class CampaignServiceImpl implements ICampaignService {
         return participants.stream()
                 .filter(p -> {
                     String campaignStatus = statusOf(p.getCampaign());
-                    boolean isOngoing = "ON_GOING".equals(campaignStatus) 
+                    boolean isOngoing = "ON_GOING".equals(campaignStatus)
                             && p.getParentApprovalStatus() == ParticipationStatus.APPROVED;
                     boolean isCompleted = "COMPLETED".equals(campaignStatus);
-                    
+
                     if (!isOngoing && !isCompleted) {
                         return false;
                     }
@@ -1331,7 +1331,7 @@ public class CampaignServiceImpl implements ICampaignService {
                             case INVITED -> false;
                         };
                     }
-                    
+
                     return true;
                 })
                 .map(CampaignParticipant::getCampaign)
