@@ -1,27 +1,25 @@
 package com.sep490.ecoverse_be.scheduler;
 
-import com.sep490.ecoverse_be.entity.Campaign;
-import com.sep490.ecoverse_be.entity.CampaignParticipant;
-import com.sep490.ecoverse_be.entity.CampaignSchoolParticipate;
-import com.sep490.ecoverse_be.entity.StudentParentLink;
-import com.sep490.ecoverse_be.entity.User;
+import com.sep490.ecoverse_be.entity.*;
 import com.sep490.ecoverse_be.enums.NotificationType;
 import com.sep490.ecoverse_be.enums.ParticipationStatus;
 import com.sep490.ecoverse_be.enums.PartnershipCampaignStatus;
+import com.sep490.ecoverse_be.enums.PartnershipRewardStatus;
+import com.sep490.ecoverse_be.enums.RoundStatus;
 import com.sep490.ecoverse_be.enums.SchoolCampaignStatus;
-import com.sep490.ecoverse_be.repository.CampaignParticipantRepository;
-import com.sep490.ecoverse_be.repository.CampaignRepository;
-import com.sep490.ecoverse_be.repository.CampaignSchoolParticipateRepository;
-import com.sep490.ecoverse_be.repository.StudentParentLinkRepository;
+import com.sep490.ecoverse_be.event.NotificationEvent;
+import com.sep490.ecoverse_be.repository.*;
 import com.sep490.ecoverse_be.service.INotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -33,6 +31,11 @@ public class CampaignScheduler {
     private final CampaignSchoolParticipateRepository campaignSchoolParticipateRepository;
     private final StudentParentLinkRepository studentParentLinkRepository;
     private final INotificationService notificationService;
+    private final CampaignRoundRepository campaignRoundRepository;
+    private final RoundLeaderboardRepository roundLeaderboardRepository;
+    private final CampaignRewardRepository campaignRewardRepository;
+    private final CampaignRewardDeliveryRepository campaignRewardDeliveryRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Chạy mỗi phút để tự động chuyển trạng thái campaign trường (SCHOOL_INTERNAL).
@@ -289,6 +292,9 @@ public class CampaignScheduler {
             campaign.setPartnershipStatus(PartnershipCampaignStatus.COMPLETED);
             campaignRepository.save(campaign);
 
+            // Tao delivery records cho hoc sinh dat giai cua vong cuoi
+            createDeliveryRecordsForWinners(campaign);
+
             notificationService.notifyCampaignParticipants(
                     campaign.getId(),
                     NotificationType.CAMPAIGN_END,
@@ -313,6 +319,124 @@ public class CampaignScheduler {
                     campaign.getCampaignName(), campaign.getCampaignCode());
         }
         log.info("[CampaignScheduler] {} partnership campaign(s) transitioned to COMPLETED", campaigns.size());
+    }
+
+    private void createDeliveryRecordsForWinners(Campaign campaign) {
+        // Tim vong cuoi (isFinalRound = true) va phai o trang thai COMPLETED
+        Optional<CampaignRound> finalRoundOpt = campaignRoundRepository
+                .findByCampaignIdOrderByRoundNumberAsc(campaign.getId())
+                .stream()
+                .filter(r -> Boolean.TRUE.equals(r.getIsFinalRound()) && r.getStatus() == RoundStatus.COMPLETED)
+                .findFirst();
+
+        if (finalRoundOpt.isEmpty()) {
+            log.warn("[CampaignScheduler] Khong tim thay final round COMPLETED cho campaign '{}'",
+                    campaign.getCampaignName());
+            return;
+        }
+
+        CampaignRound finalRound = finalRoundOpt.get();
+
+        List<RoundLeaderboard> ranked = roundLeaderboardRepository
+                .findByCampaignRoundIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(finalRound.getId());
+        if (ranked.isEmpty()) {
+            log.warn("[CampaignScheduler] Khong co du lieu leaderboard cho final round cua campaign '{}'",
+                    campaign.getCampaignName());
+            return;
+        }
+
+        int topRankingCount = campaign.getTopRankingCount() == null ? 0 : campaign.getTopRankingCount();
+        if (topRankingCount <= 0) return;
+
+        List<RoundLeaderboard> winners = ranked.stream().limit(topRankingCount).toList();
+
+        Map<Integer, CampaignReward> rewardByRank = campaignRewardRepository
+                .findByCampaignIdOrderByRankPositionAsc(campaign.getId())
+                .stream()
+                .collect(Collectors.toMap(CampaignReward::getRankPosition, r -> r, (a, b) -> a, HashMap::new));
+
+        int created = 0;
+        for (int i = 0; i < winners.size(); i++) {
+            RoundLeaderboard winner = winners.get(i);
+            Integer rank = winner.getOverallRankInRound() != null ? winner.getOverallRankInRound() : (i + 1);
+            CampaignReward reward = rewardByRank.get(rank);
+            if (reward == null) continue;
+
+            if (campaignRewardDeliveryRepository.existsByCampaignRewardIdAndStudentId(
+                    reward.getId(), winner.getStudent().getId())) {
+                continue;
+            }
+
+            CampaignRewardDelivery delivery = new CampaignRewardDelivery();
+            delivery.setCampaignReward(reward);
+            delivery.setCampaign(campaign);
+            delivery.setCampaignRound(finalRound);
+            delivery.setRoundLeaderboard(winner);
+            delivery.setStudent(winner.getStudent());
+            delivery.setSchool(winner.getSchool());
+            delivery.setLeaderboardRank(rank);
+            delivery.setStatus(PartnershipRewardStatus.PREPARING);
+            delivery.setPreparingAt(LocalDateTime.now());
+            CampaignRewardDelivery saved = campaignRewardDeliveryRepository.save(delivery);
+            created++;
+
+            notifyWinnerPreparing(saved, campaign, winner.getStudent(), winner.getSchool(), rank, reward);
+        }
+
+        log.info("[CampaignScheduler] Campaign '{}': da tao {} delivery record(s) cho nguoi thang cuoc",
+                campaign.getCampaignName(), created);
+    }
+
+    private void notifyWinnerPreparing(CampaignRewardDelivery delivery, Campaign campaign,
+                                       Student student, School school, int rank, CampaignReward reward) {
+        String campaignName = campaign.getCampaignName();
+        String rewardName = reward.getRewardName();
+        String studentName = student.getFullName();
+        String schoolName = school.getSchoolName();
+        UUID deliveryId = delivery.getId();
+
+        // Thong bao hoc sinh dat giai
+        eventPublisher.publishEvent(NotificationEvent.builder()
+                .source(this)
+                .recipientUserId(student.getUser().getId())
+                .type(NotificationType.PARTNERSHIP_REWARD_PREPARING)
+                .title("Chuc mung! Ban dat giai hang " + rank + "!")
+                .message("Ban xep hang " + rank + " tai chien dich \"" + campaignName
+                        + "\". Phan thuong \"" + rewardName + "\" dang duoc chuan bi gui ve truong ban.")
+                .referenceType("campaign_reward_delivery")
+                .referenceId(deliveryId)
+                .sendEmail(false)
+                .build());
+
+        // Thong bao phu huynh cua hoc sinh
+        List<StudentParentLink> parentLinks = studentParentLinkRepository.findByStudentId(student.getId());
+        for (StudentParentLink link : parentLinks) {
+            eventPublisher.publishEvent(NotificationEvent.builder()
+                    .source(this)
+                    .recipientUserId(link.getParent().getUser().getId())
+                    .type(NotificationType.PARTNERSHIP_REWARD_PREPARING)
+                    .title("Con ban dat giai hang " + rank + "!")
+                    .message(studentName + " xep hang " + rank + " tai chien dich \"" + campaignName
+                            + "\". Phan thuong \"" + rewardName + "\" dang duoc chuan bi gui ve truong.")
+                    .referenceType("campaign_reward_delivery")
+                    .referenceId(deliveryId)
+                    .sendEmail(false)
+                    .build());
+        }
+
+        // Thong bao truong
+        eventPublisher.publishEvent(NotificationEvent.builder()
+                .source(this)
+                .recipientUserId(school.getUser().getId())
+                .type(NotificationType.PARTNERSHIP_REWARD_PREPARING)
+                .title("Hoc sinh truong ban dat giai tai chien dich partnership")
+                .message("Hoc sinh " + studentName + " cua " + schoolName + " xep hang " + rank
+                        + " tai chien dich \"" + campaignName
+                        + "\". Phan thuong dang duoc chuan bi, vui long cho qua ve truong.")
+                .referenceType("campaign_reward_delivery")
+                .referenceId(deliveryId)
+                .sendEmail(false)
+                .build());
     }
 
     // ======================== Auto-reject helpers ========================

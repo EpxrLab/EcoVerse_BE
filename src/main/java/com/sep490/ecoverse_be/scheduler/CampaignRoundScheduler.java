@@ -2,17 +2,12 @@ package com.sep490.ecoverse_be.scheduler;
 
 import com.sep490.ecoverse_be.entity.Campaign;
 import com.sep490.ecoverse_be.entity.CampaignParticipant;
-import com.sep490.ecoverse_be.entity.CampaignReward;
-import com.sep490.ecoverse_be.entity.CampaignRewardDelivery;
 import com.sep490.ecoverse_be.entity.CampaignRound;
 import com.sep490.ecoverse_be.entity.CampaignRoundParticipant;
 import com.sep490.ecoverse_be.entity.RoundLeaderboard;
 import com.sep490.ecoverse_be.enums.CampaignType;
-import com.sep490.ecoverse_be.enums.PartnershipRewardStatus;
 import com.sep490.ecoverse_be.enums.RoundStatus;
 import com.sep490.ecoverse_be.repository.CampaignParticipantRepository;
-import com.sep490.ecoverse_be.repository.CampaignRewardDeliveryRepository;
-import com.sep490.ecoverse_be.repository.CampaignRewardRepository;
 import com.sep490.ecoverse_be.repository.CampaignRoundRepository;
 import com.sep490.ecoverse_be.repository.CampaignRoundParticipantRepository;
 import com.sep490.ecoverse_be.repository.RoundLeaderboardRepository;
@@ -23,7 +18,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -38,8 +32,6 @@ public class CampaignRoundScheduler {
     private final RoundLeaderboardRepository roundLeaderboardRepository;
     private final CampaignParticipantRepository campaignParticipantRepository;
     private final CampaignRoundParticipantRepository campaignRoundParticipantRepository;
-    private final CampaignRewardRepository campaignRewardRepository;
-    private final CampaignRewardDeliveryRepository campaignRewardDeliveryRepository;
 
     @Scheduled(fixedDelay = 60_000)
     @Transactional
@@ -90,9 +82,8 @@ public class CampaignRoundScheduler {
             return;
         }
 
-        if (Boolean.TRUE.equals(round.getIsFinalRound())) {
-            finalizePartnershipWinners(round, ranked);
-        } else {
+        // Final round: delivery records se duoc tao khi campaign chuyen sang COMPLETED (trong CampaignScheduler)
+        if (!Boolean.TRUE.equals(round.getIsFinalRound())) {
             advanceToNextRound(round, ranked);
         }
     }
@@ -173,44 +164,4 @@ public class CampaignRoundScheduler {
         log.info("[CampaignRoundScheduler] Round '{}' advanced {} student(s) to next round", round.getRoundName(), topStudents.size());
     }
 
-    private void finalizePartnershipWinners(CampaignRound round, List<RoundLeaderboard> ranked) {
-        Campaign campaign = round.getCampaign();
-        int topRankingCount = campaign.getTopRankingCount() == null ? 0 : campaign.getTopRankingCount();
-        if (topRankingCount <= 0) {
-            return;
-        }
-
-        List<RoundLeaderboard> winners = ranked.stream().limit(topRankingCount).toList();
-        Map<Integer, CampaignReward> rewardByRank = campaignRewardRepository
-                .findByCampaignIdOrderByRankPositionAsc(campaign.getId())
-                .stream()
-                .collect(Collectors.toMap(CampaignReward::getRankPosition, r -> r, (a, b) -> a, HashMap::new));
-
-        for (int i = 0; i < winners.size(); i++) {
-            RoundLeaderboard winner = winners.get(i);
-            Integer rank = winner.getOverallRankInRound() != null ? winner.getOverallRankInRound() : (i + 1);
-            CampaignReward reward = rewardByRank.get(rank);
-            if (reward == null) {
-                continue;
-            }
-
-            if (campaignRewardDeliveryRepository.existsByCampaignRewardIdAndStudentId(reward.getId(), winner.getStudent().getId())) {
-                continue;
-            }
-
-            CampaignRewardDelivery delivery = new CampaignRewardDelivery();
-            delivery.setCampaignReward(reward);
-            delivery.setCampaign(campaign);
-            delivery.setCampaignRound(round);
-            delivery.setRoundLeaderboard(winner);
-            delivery.setStudent(winner.getStudent());
-            delivery.setSchool(winner.getSchool());
-            delivery.setLeaderboardRank(rank);
-            delivery.setStatus(PartnershipRewardStatus.PREPARING);
-            delivery.setPreparingAt(LocalDateTime.now());
-            campaignRewardDeliveryRepository.save(delivery);
-        }
-
-        log.info("[CampaignRoundScheduler] Final round '{}' selected {} winner(s) for reward delivery", round.getRoundName(), winners.size());
-    }
 }
