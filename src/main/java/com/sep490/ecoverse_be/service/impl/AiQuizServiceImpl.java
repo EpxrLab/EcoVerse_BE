@@ -47,32 +47,32 @@ public class AiQuizServiceImpl implements IAiQuizService {
     private static final String SYSTEM_PROMPT = """
             You are an expert educational quiz designer specializing in environmental education, \
             waste management, and recycling awareness for K-12 students.
-            
+
             Your task is to generate multiple-choice quiz questions that are:
             - Accurate, age-appropriate, and educationally valuable
             - Directly grounded in the provided source content (campaign content, uploaded files, and waste item data)
             - Varied in cognitive demand: mix recall, comprehension, and application questions
             - Clear, unambiguous, and free of trick questions
-            
+
             Grade-level difficulty guidelines:
             - Grade 1–2: Simple vocabulary, one-concept questions, 3 answer choices
             - Grade 3–5: Slightly complex sentences, cause-effect understanding, 4 answer choices
             - Grade 6–8: Multi-concept questions, inference required, 4 answer choices
             - Grade 9–12: Critical thinking, data interpretation, real-world application, 4 answer choices
-            
+
             Question distribution rules:
             - At least 40% of questions must be directly derived from waste item data (description, \
               recyclingTips, decompositionTime, funFact, category, subCategory, itemName)
             - At least 30% from campaign content
             - Remaining questions may draw from imported file content (if provided)
             - Ensure topic diversity — do not repeat the same waste item in more than 2 questions
-            
+
             Answer design rules:
             - Each question must have exactly 1 correct answer
             - Distractors (wrong answers) must be plausible but clearly incorrect upon reflection
             - Avoid "All of the above" or "None of the above"
             - Randomize the position of the correct answer across questions
-            
+
             Output format:
             Respond ONLY with a valid JSON array. No explanation, no markdown fences, no preamble.
             Each element must conform exactly to the output schema provided.""";
@@ -110,7 +110,7 @@ public class AiQuizServiceImpl implements IAiQuizService {
 
         // 4. Lấy round + game config → waste items
         CampaignRound round = campaignRoundRepository.findByIdAndCampaignId(
-                        request.getRoundId(), request.getCampaignId())
+                request.getRoundId(), request.getCampaignId())
                 .orElseThrow(() -> new NotFoundException(
                         "Không tìm thấy round trong chiến dịch này"));
 
@@ -132,8 +132,8 @@ public class AiQuizServiceImpl implements IAiQuizService {
         log.info("Gọi Gemini AI để tạo {} câu hỏi cho campaign '{}'",
                 request.getQuestionCount(), campaign.getCampaignName());
 
-        List<GeminiService.GeminiQuizQuestion> generatedQuestions =
-                geminiService.generateQuizQuestions(SYSTEM_PROMPT, userPrompt);
+        List<GeminiService.GeminiQuizQuestion> generatedQuestions = geminiService.generateQuizQuestions(SYSTEM_PROMPT,
+                userPrompt);
 
         // 8. Tạo AiGenerationLog — trừ quota ngay
         AiGenerationLog genLog = new AiGenerationLog();
@@ -146,7 +146,7 @@ public class AiQuizServiceImpl implements IAiQuizService {
         genLog.setAiModel("gemini-2.0-flash");
         genLog.setPromptUsed(userPrompt);
         genLog.setStatus("SUCCESS");
-        genLog.setUsageCharged(true);              // trừ quota ngay
+        genLog.setUsageCharged(true); // trừ quota ngay
         genLog.setUsageChargedAt(LocalDateTime.now());
         genLog.setCreatedBy(currentUser);
 
@@ -208,10 +208,10 @@ public class AiQuizServiceImpl implements IAiQuizService {
         // 6. Tạo Quiz entity
         Quiz quiz = new Quiz();
         quiz.setTitle("AI Quiz — " + (genLog.getTargetGrade() != null
-                ? "Lớp " + genLog.getTargetGrade() : "General"));
+                ? "Lớp " + genLog.getTargetGrade()
+                : "General"));
         quiz.setDescription("Quiz được tạo bởi AI dựa trên nội dung chiến dịch và waste items");
         quiz.setDifficulty(difficulty);
-        quiz.setQuizType(QuizType.MULTIPLE_CHOICE);
         quiz.setSource(QuizSource.AI_GENERATED);
         quiz.setCreatedBy(QuizCreated.AI);
         quiz.setTargetGrade(genLog.getTargetGrade());
@@ -245,7 +245,7 @@ public class AiQuizServiceImpl implements IAiQuizService {
     // ── Build User Prompt ────────────────────────────────────────────────────
 
     private String buildUserPrompt(Campaign campaign, List<WasteItem> wasteItems,
-                                   String fileContent, int questionCount, int targetGrade) {
+            String fileContent, int questionCount, int targetGrade) {
         StringBuilder prompt = new StringBuilder();
 
         prompt.append(String.format(
@@ -303,7 +303,7 @@ public class AiQuizServiceImpl implements IAiQuizService {
                     { "answerText": "string — answer option", "correct": boolean }
                   ]
                 }
-                
+
                 Rules:
                 - Exactly 1 correct answer per question (correct=true)
                 - 3–4 answer options per question depending on grade level
@@ -333,8 +333,8 @@ public class AiQuizServiceImpl implements IAiQuizService {
     // ── Get Waste Items from Round ───────────────────────────────────────────
 
     private List<WasteItem> getWasteItemsFromRound(CampaignRound round) {
-        List<RoundGameConfig> gameConfigs =
-                roundGameConfigRepository.findByCampaignRoundIdOrderByDisplayOrderAsc(round.getId());
+        List<RoundGameConfig> gameConfigs = roundGameConfigRepository
+                .findByCampaignRoundIdOrderByDisplayOrderAsc(round.getId());
 
         if (gameConfigs.isEmpty()) {
             return Collections.emptyList();
@@ -424,7 +424,6 @@ public class AiQuizServiceImpl implements IAiQuizService {
                 .description("Quiz được tạo bởi AI dựa trên nội dung chiến dịch '"
                         + campaign.getCampaignName() + "' và waste items")
                 .difficulty(difficulty)
-                .quizType(request.getQuizType())
                 .source(QuizSource.AI_GENERATED)
                 .createdBy(QuizCreated.AI)
                 .targetGrade(request.getTargetGrade())
@@ -505,9 +504,12 @@ public class AiQuizServiceImpl implements IAiQuizService {
     }
 
     private QuizDifficulty determineDifficulty(Integer targetGrade) {
-        if (targetGrade == null) return QuizDifficulty.MEDIUM;
-        if (targetGrade <= 5) return QuizDifficulty.EASY;
-        if (targetGrade <= 8) return QuizDifficulty.MEDIUM;
+        if (targetGrade == null)
+            return QuizDifficulty.MEDIUM;
+        if (targetGrade <= 5)
+            return QuizDifficulty.EASY;
+        if (targetGrade <= 8)
+            return QuizDifficulty.MEDIUM;
         return QuizDifficulty.HARD;
     }
 
@@ -530,6 +532,7 @@ public class AiQuizServiceImpl implements IAiQuizService {
             QuizQuestion question = new QuizQuestion();
             question.setQuiz(quiz);
             question.setQuestionOrder(qReq.getQuestionOrder());
+            question.setQuestionType(QuestionType.MULTIPLE_CHOICE);
             question.setQuestionText(qReq.getQuestionText());
             question = quizQuestionRepository.save(question);
 
@@ -544,8 +547,8 @@ public class AiQuizServiceImpl implements IAiQuizService {
     }
 
     private QuizResponse mapToQuizResponse(Quiz quiz) {
-        List<QuizQuestion> questions =
-                quizQuestionRepository.findByQuizIdAndIsDeleteFalseOrderByQuestionOrder(quiz.getId());
+        List<QuizQuestion> questions = quizQuestionRepository
+                .findByQuizIdAndIsActiveTrueOrderByQuestionOrder(quiz.getId());
         List<QuizAnswer> allAnswers = quizAnswerRepository.findByQuestionIn(questions);
 
         Map<UUID, List<QuizAnswer>> answersByQuestion = allAnswers.stream()
@@ -578,7 +581,6 @@ public class AiQuizServiceImpl implements IAiQuizService {
                 .title(quiz.getTitle())
                 .description(quiz.getDescription())
                 .difficulty(quiz.getDifficulty())
-                .quizType(quiz.getQuizType())
                 .source(quiz.getSource())
                 .createdBy(quiz.getCreatedBy())
                 .targetGrade(quiz.getTargetGrade())

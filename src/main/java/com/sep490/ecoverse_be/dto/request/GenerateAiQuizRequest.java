@@ -1,6 +1,5 @@
 package com.sep490.ecoverse_be.dto.request;
 
-import com.sep490.ecoverse_be.enums.QuizType;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
@@ -29,9 +28,6 @@ public class GenerateAiQuizRequest {
     @Min(value = 1, message = "Lớp phải từ 1 trở lên")
     @Max(value = 12, message = "Lớp tối đa là 12")
     private Integer targetGrade;
-
-    @NotNull(message = "Loại quiz không được rỗng")
-    private QuizType quizType;
 
     @NotNull(message = "Số coin thưởng không được rỗng")
     @Min(value = 1, message = "Số coin thưởng phải >= 1")
