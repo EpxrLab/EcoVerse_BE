@@ -15,7 +15,9 @@ import java.util.Map;
 @Table(name = "campaign_titles", indexes = {
         @Index(name = "idx_camp_title_campaign_id", columnList = "campaign_id"),
         @Index(name = "idx_camp_title_criteria_type", columnList = "criteria_type"),
-        @Index(name = "idx_camp_title_is_active", columnList = "is_active")
+        @Index(name = "idx_camp_title_is_active", columnList = "is_active"),
+        @Index(name = "idx_camp_title_school_id", columnList = "school_id"),
+        @Index(name = "idx_camp_title_partnership_id", columnList = "partnership_id")
 })
 @Getter
 @Setter
@@ -26,6 +28,14 @@ public class CampaignTitle extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "campaign_id", nullable = false)
     private Campaign campaign;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "school_id")
+    private School school;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partnership_id")
+    private Partnership partnership;
 
     @Column(name = "title_name", nullable = false)
     private String titleName;

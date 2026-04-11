@@ -45,7 +45,7 @@ public class ParentController {
 
     @GetMapping("/campaign-invitations")
     public ResponseEntity<ResponseDto<List<ParentCampaignInvitationResponse>>> getCampaignInvitations(
-            @Parameter(description = "Lọc theo parentApprovalStatus. Bỏ qua = mặc định chỉ lời mời PREPARED đã gửi (invitationSentAt). "
+            @Parameter(description = "Lọc theo parentApprovalStatus. Bỏ qua = mặc định chỉ lời mời INVITED đã gửi (invitationSentAt), chờ phụ huynh duyệt. "
                     + "Giá trị: PREPARED | INVITED | APPROVED | REJECTED | CANCELLED")
             @RequestParam(required = false) ParticipationStatus status) {
         return ResponseEntity.ok(ResponseDto.success(

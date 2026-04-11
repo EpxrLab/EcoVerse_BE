@@ -101,4 +101,25 @@ public class NotificationController {
 
         return ResponseEntity.ok(ResponseDto.success(null, "Đánh dấu tất cả đã đọc thành công"));
     }
+
+    @GetMapping("/{id}")
+    @Operation(
+            summary = "Lấy chi tiết một thông báo",
+            description = """
+                    Trả về toàn bộ thông tin chi tiết của một thông báo (bao gồm metadata).
+                    
+                    **Lỗi có thể xảy ra:**
+                    - `404` — Không tìm thấy thông báo
+                    - `403` — Thông báo không thuộc về người dùng này
+                    """
+    )
+    public ResponseEntity<ResponseDto<NotificationResponse>> getNotificationById(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable UUID id) {
+
+        UUID userId = principal.getUser().getId();
+        NotificationResponse response = notificationService.getNotificationById(id, userId);
+
+        return ResponseEntity.ok(ResponseDto.success(response, "Lấy chi tiết thông báo thành công"));
+    }
 }

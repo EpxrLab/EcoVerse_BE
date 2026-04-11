@@ -19,4 +19,7 @@ public interface IPaymentService {
 
     // Get payment by order code (for PayOS return URL handling)
     PaymentResponse getPaymentByOrderCode(long orderCode);
+
+    // Cancel payment when user cancels on PayOS checkout screen
+    void cancelPaymentByOrderCode(long orderCode);
 }

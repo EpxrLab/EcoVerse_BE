@@ -20,5 +20,8 @@ public interface RoundLeaderboardRepository extends JpaRepository<RoundLeaderboa
 
     // Lay tat ca entry trong 1 round de re-rank
     List<RoundLeaderboard> findByCampaignRoundId(UUID campaignRoundId);
+
+    // Lay tat ca entry cua campaign (tat ca cac round) - dung de tinh toan danh hieu
+    List<RoundLeaderboard> findByCampaignId(UUID campaignId);
 }
 

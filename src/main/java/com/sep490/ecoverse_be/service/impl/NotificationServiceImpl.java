@@ -126,6 +126,17 @@ public class NotificationServiceImpl implements INotificationService {
         return notificationRepository.countByRecipientUserIdAndStatus(userId, NotificationStatus.UNREAD);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public NotificationResponse getNotificationById(UUID notificationId, UUID userId) {
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy thông báo"));
+        if (!notification.getRecipientUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem thông báo này");
+        }
+        return toResponse(notification);
+    }
+
     // =====================================================================
     // Core event-driven method
     // =====================================================================

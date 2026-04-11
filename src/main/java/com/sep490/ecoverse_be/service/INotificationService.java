@@ -33,6 +33,9 @@ public interface INotificationService {
     // Đếm số lượng thông báo UNREAD của người dùng
     long getUnreadCount(UUID userId);
 
+    // Lấy chi tiết 1 thông báo theo ID (kiểm tra quyền truy cập)
+    NotificationResponse getNotificationById(UUID notificationId, UUID userId);
+
     // ---- Core event-driven methods ----
 
     // Tạo thông báo từ event và gửi realtime qua WebSocket
