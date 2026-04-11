@@ -24,7 +24,7 @@ import java.util.*;
 @Service
 public class CampaignServiceImpl implements ICampaignService {
 
-    private static final int MAX_PLAYS_PER_LEVEL_PER_DAY = 100;
+    private static final int MAX_PLAYS_PER_LEVEL_PER_DAY = 1000;
 
     @Autowired
     private CampaignRepository campaignRepository;
@@ -1381,14 +1381,30 @@ public class CampaignServiceImpl implements ICampaignService {
         Student student = getCurrentStudent();
         List<CampaignParticipant> participants = campaignParticipantRepository
                 .findByStudentIdAndIsActiveTrueOrderByCreatedAtDesc(student.getId());
-        if (status == null) {
-            return participants.stream()
-                    .map(p -> mapCampaignSummary(p.getCampaign(), p.getParentApprovalStatus()))
-                    .toList();
-        }
+
         return participants.stream()
-                .filter(p -> campaignMatchStudentStatus(p.getCampaign(), p, status))
-                .map(p -> mapCampaignSummary(p.getCampaign(), p.getParentApprovalStatus()))
+                .filter(p -> {
+                    String campaignStatus = statusOf(p.getCampaign());
+                    boolean isOngoing = "ON_GOING".equals(campaignStatus)
+                            && p.getParentApprovalStatus() == ParticipationStatus.APPROVED;
+                    boolean isCompleted = "COMPLETED".equals(campaignStatus);
+
+                    if (!isOngoing && !isCompleted) {
+                        return false;
+                    }
+
+                    if (status != null) {
+                        return switch (status) {
+                            case ON_GOING -> isOngoing;
+                            case COMPLETED -> isCompleted;
+                            case INVITED -> false;
+                        };
+                    }
+
+                    return true;
+                })
+                .map(CampaignParticipant::getCampaign)
+                .map(this::mapCampaignSummary)
                 .toList();
     }
 
