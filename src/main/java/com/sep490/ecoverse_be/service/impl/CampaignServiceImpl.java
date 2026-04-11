@@ -1307,29 +1307,33 @@ public class CampaignServiceImpl implements ICampaignService {
         }
     }
 
-    private boolean campaignMatchStudentStatus(Campaign campaign, CampaignParticipant participant,
-            StudentCampaignStatusFilter status) {
-        String campaignStatus = statusOf(campaign);
-        return switch (status) {
-            case INVITED -> participant.getInvitationSentAt() != null
-                    && participant.getParentApprovalStatus() == ParticipationStatus.PREPARED;
-            case ON_GOING -> "ON_GOING".equals(campaignStatus)
-                    && participant.getParentApprovalStatus() == ParticipationStatus.APPROVED;
-            case COMPLETED -> "COMPLETED".equals(campaignStatus)
-                    && participant.getParentApprovalStatus() == ParticipationStatus.APPROVED;
-        };
-    }
-
     @Override
     public List<CampaignSummaryResponse> getStudentCampaigns(StudentCampaignStatusFilter status) {
         Student student = getCurrentStudent();
         List<CampaignParticipant> participants = campaignParticipantRepository
                 .findByStudentIdAndIsActiveTrueOrderByCreatedAtDesc(student.getId());
-        if (status == null) {
-            return participants.stream().map(CampaignParticipant::getCampaign).map(this::mapCampaignSummary).toList();
-        }
+
         return participants.stream()
-                .filter(p -> campaignMatchStudentStatus(p.getCampaign(), p, status))
+                .filter(p -> {
+                    String campaignStatus = statusOf(p.getCampaign());
+                    boolean isOngoing = "ON_GOING".equals(campaignStatus) 
+                            && p.getParentApprovalStatus() == ParticipationStatus.APPROVED;
+                    boolean isCompleted = "COMPLETED".equals(campaignStatus);
+                    
+                    if (!isOngoing && !isCompleted) {
+                        return false;
+                    }
+
+                    if (status != null) {
+                        return switch (status) {
+                            case ON_GOING -> isOngoing;
+                            case COMPLETED -> isCompleted;
+                            case INVITED -> false;
+                        };
+                    }
+                    
+                    return true;
+                })
                 .map(CampaignParticipant::getCampaign)
                 .map(this::mapCampaignSummary)
                 .toList();

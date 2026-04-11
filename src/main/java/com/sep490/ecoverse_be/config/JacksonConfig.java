@@ -3,8 +3,10 @@ package com.sep490.ecoverse_be.config;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -28,5 +30,16 @@ public class JacksonConfig {
         module.addSerializer(LocalDateTime.class, new LocalDateTimeSerializer(UTC_FORMATTER));
         module.addDeserializer(LocalDateTime.class, new LocalDateTimeDeserializer(UTC_FORMATTER));
         return module;
+    }
+
+    @Bean
+    @Primary
+    public ObjectMapper objectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        // Register the standard JavaTimeModule first
+        mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        // Custom formatters
+        mapper.registerModule(localDateTimeModule());
+        return mapper;
     }
 }
