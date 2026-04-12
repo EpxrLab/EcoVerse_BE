@@ -6,6 +6,7 @@ import com.sep490.ecoverse_be.enums.NotificationType;
 import com.sep490.ecoverse_be.enums.SubscriberType;
 import com.sep490.ecoverse_be.enums.SubscriptionStatus;
 import com.sep490.ecoverse_be.event.NotificationEvent;
+import com.sep490.ecoverse_be.repository.SubscriptionPlanRepository;
 import com.sep490.ecoverse_be.repository.SubscriptionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -25,6 +27,7 @@ import java.util.Map;
 public class SubscriptionScheduler {
 
     private final SubscriptionRepository subscriptionRepository;
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
     // Dung ApplicationEventPublisher thay vi inject truc tiep NotificationService
     // -> tuan thu best practice event-driven, tach biet concern
     private final ApplicationEventPublisher eventPublisher;
@@ -52,10 +55,10 @@ public class SubscriptionScheduler {
             eventPublisher.publishEvent(NotificationEvent.builder()
                     .recipientUserId(owner.getId())
                     .type(NotificationType.SUBSCRIPTION_EXPIRING)
-                    .title("Subscription Expiring Soon")
-                    .message("Your subscription to \"" + planName + "\" will expire in " + daysLeft
-                            + " day(s) on " + subscription.getEndDate().toLocalDate()
-                            + ". Please renew to continue using premium features.")
+                    .title("Gói đăng ký sắp hết hạn")
+                    .message("Gói đăng ký \"" + planName + "\" của bạn sẽ hết hạn sau " + daysLeft
+                            + " ngày, vào ngày " + subscription.getEndDate().toLocalDate()
+                            + ". Vui lòng gia hạn để tiếp tục sử dụng tính năng cao cấp.")
                     .referenceType("subscription")
                     .referenceId(subscription.getId())
                     .metadata(Map.of(
@@ -92,9 +95,9 @@ public class SubscriptionScheduler {
                 eventPublisher.publishEvent(NotificationEvent.builder()
                         .recipientUserId(owner.getId())
                         .type(NotificationType.SUBSCRIPTION_EXPIRED)
-                        .title("Subscription Expired")
-                        .message("Your subscription to \"" + subscription.getPlan().getPlanName()
-                                + "\" has expired. Please renew to continue using premium features.")
+                        .title("Gói đăng ký đã hết hạn")
+                        .message("Gói đăng ký \"" + subscription.getPlan().getPlanName()
+                                + "\" đã hết hạn. Vui lòng gia hạn để tiếp tục sử dụng tính năng cao cấp.")
                         .referenceType("subscription")
                         .referenceId(subscription.getId())
                         .metadata(Map.of(
@@ -104,6 +107,9 @@ public class SubscriptionScheduler {
                         .sendEmail(true)
                         .build());
             }
+
+            // Tự động gán gói miễn phí sau khi hết hạn
+            autoAssignFreePlan(subscription);
 
             log.info("Subscription {} marked as expired", subscription.getSubscriptionCode());
         }
@@ -145,5 +151,66 @@ public class SubscriptionScheduler {
             return subscription.getPartnership().getUser();
         }
         return null;
+    }
+
+    // Tự động gán gói miễn phí sau khi subscription hết hạn
+    private void autoAssignFreePlan(Subscription expiredSubscription) {
+        SubscriberType type = expiredSubscription.getSubscriberType();
+
+        // Kiểm tra xem đã có ACTIVE subscription chưa (user có thể đã tự nâng gói trước khi scheduler chạy)
+        boolean alreadyActive;
+        if (type == SubscriberType.SCHOOL && expiredSubscription.getSchool() != null) {
+            alreadyActive = subscriptionRepository
+                    .findBySchoolIdAndStatus(expiredSubscription.getSchool().getId(), SubscriptionStatus.ACTIVE)
+                    .isPresent();
+        } else if (type == SubscriberType.PARTNERSHIP && expiredSubscription.getPartnership() != null) {
+            alreadyActive = subscriptionRepository
+                    .findByPartnershipIdAndStatus(expiredSubscription.getPartnership().getId(), SubscriptionStatus.ACTIVE)
+                    .isPresent();
+        } else {
+            return;
+        }
+
+        if (alreadyActive) {
+            return;
+        }
+
+        // Tìm gói miễn phí phù hợp
+        var freePlanOpt = subscriptionPlanRepository.findActiveFreeBySubscriberType(type);
+        if (freePlanOpt.isEmpty()) {
+            log.warn("Không tìm thấy gói miễn phí cho type={}, bỏ qua tự động gán.", type);
+            return;
+        }
+
+        var freePlan = freePlanOpt.get();
+        Subscription freeSub = new Subscription();
+        freeSub.setSubscriptionCode("SUB-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        freeSub.setSubscriberType(type);
+        freeSub.setSchool(expiredSubscription.getSchool());
+        freeSub.setPartnership(expiredSubscription.getPartnership());
+        freeSub.setPlan(freePlan);
+        freeSub.setStatus(SubscriptionStatus.ACTIVE);
+        freeSub.setStartDate(LocalDateTime.now());
+        freeSub.setEndDate(LocalDateTime.now().plusDays(freePlan.getDurationDays()));
+        freeSub.setRenewedFrom(expiredSubscription);
+        subscriptionRepository.save(freeSub);
+
+        log.info("Đã tự động gán gói miễn phí '{}' cho subscription hết hạn {}",
+                freePlan.getPlanName(), expiredSubscription.getSubscriptionCode());
+
+        User owner = getSubscriptionOwner(expiredSubscription);
+        if (owner != null) {
+            eventPublisher.publishEvent(NotificationEvent.builder()
+                    .recipientUserId(owner.getId())
+                    .type(NotificationType.SUBSCRIPTION_EXPIRED)
+                    .title("Đã chuyển về gói miễn phí")
+                    .message("Gói đăng ký \"" + expiredSubscription.getPlan().getPlanName()
+                            + "\" đã hết hạn. Bạn đã được tự động chuyển về gói miễn phí \""
+                            + freePlan.getPlanName() + "\". Vui lòng nâng cấp để tiếp tục sử dụng tính năng cao cấp.")
+                    .referenceType("subscription")
+                    .referenceId(freeSub.getId())
+                    .sendEmail(true)
+                    .build());
+        }
     }
 }

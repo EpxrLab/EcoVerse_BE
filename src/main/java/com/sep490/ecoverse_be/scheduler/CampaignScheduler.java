@@ -10,6 +10,7 @@ import com.sep490.ecoverse_be.enums.SchoolCampaignStatus;
 import com.sep490.ecoverse_be.event.NotificationEvent;
 import com.sep490.ecoverse_be.repository.*;
 import com.sep490.ecoverse_be.service.INotificationService;
+import com.sep490.ecoverse_be.service.impl.TitleEvaluationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -36,6 +37,7 @@ public class CampaignScheduler {
     private final CampaignRewardRepository campaignRewardRepository;
     private final CampaignRewardDeliveryRepository campaignRewardDeliveryRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final TitleEvaluationService titleEvaluationService;
 
     /**
      * Chạy mỗi phút để tự động chuyển trạng thái campaign trường (SCHOOL_INTERNAL).
@@ -151,6 +153,9 @@ public class CampaignScheduler {
             log.info("[CampaignScheduler] Campaign '{}' ({}): ON_GOING → COMPLETED",
                     campaign.getCampaignName(), campaign.getCampaignCode());
 
+            // Trao danh hiệu cho học sinh thỏa mãn tiêu chí
+            titleEvaluationService.evaluateTitles(campaign);
+
             notificationService.notifyCampaignParticipants(
                     campaign.getId(),
                     NotificationType.CAMPAIGN_END,
@@ -227,6 +232,9 @@ public class CampaignScheduler {
             List<CampaignParticipant> pending = campaignParticipantRepository
                     .findByCampaignIdAndInvitationSentAtIsNullAndIsActiveTrue(campaign.getId());
             for (CampaignParticipant p : pending) {
+                if (p.getParentApprovalStatus() == ParticipationStatus.PREPARED) {
+                    p.setParentApprovalStatus(ParticipationStatus.INVITED);
+                }
                 p.setInvitationSentAt(now);
                 campaignParticipantRepository.save(p);
             }
@@ -257,6 +265,9 @@ public class CampaignScheduler {
 
             campaign.setPartnershipStatus(PartnershipCampaignStatus.ON_GOING);
             campaignRepository.save(campaign);
+
+            // Tu dong reject cac hoc sinh chua APPROVED (giong school campaign)
+            autoRejectPendingInvitations(campaign);
 
             notificationService.notifyCampaignParticipants(
                     campaign.getId(),
@@ -291,6 +302,9 @@ public class CampaignScheduler {
         for (Campaign campaign : campaigns) {
             campaign.setPartnershipStatus(PartnershipCampaignStatus.COMPLETED);
             campaignRepository.save(campaign);
+
+            // Trao danh hiệu cho học sinh thỏa mãn tiêu chí
+            titleEvaluationService.evaluateTitles(campaign);
 
             // Tao delivery records cho hoc sinh dat giai cua vong cuoi
             createDeliveryRecordsForWinners(campaign);

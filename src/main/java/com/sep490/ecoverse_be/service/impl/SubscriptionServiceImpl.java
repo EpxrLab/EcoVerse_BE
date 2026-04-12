@@ -49,6 +49,7 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
     private final IPaymentService paymentService;
     private final SubscriptionMapper subscriptionMapper;
     private final PaymentMapper paymentMapper;
+    private final StudentRepository studentRepository;
 
     @Override
     @Transactional
@@ -89,9 +90,21 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         Subscription activeSubscription = activeSubscriptionOptional.orElse(null);
         if (activeSubscription != null) {
             boolean activePlanIsFree = isFreePlan(activeSubscription.getPlan());
-            boolean isFreeToPaidUpgrade = activePlanIsFree && !requestedPlanIsFree;
-            if (!isFreeToPaidUpgrade) {
-                throw new FuncErrorException("You already have an active subscription. Please wait for it to expire or cancel it first.");
+
+            if (activePlanIsFree && !requestedPlanIsFree) {
+                // Free -> Paid: cho phép nâng gói
+            } else if (!activePlanIsFree && requestedPlanIsFree) {
+                // Paid -> Free: kiểm tra ràng buộc số học sinh trước khi hạ gói
+                validateDowngradeToFree(school, plan);
+            } else if (!activePlanIsFree && !requestedPlanIsFree) {
+                // Paid -> Paid: chỉ cho phép nâng lên gói cao hơn
+                if (plan.getPrice().compareTo(activeSubscription.getPlan().getPrice()) <= 0) {
+                    throw new FuncErrorException(
+                            "Chỉ được phép nâng cấp lên gói có giá cao hơn. Không thể đăng ký gói thấp hơn hoặc bằng gói hiện tại.");
+                }
+            } else {
+                // Free -> Free: đã có gói đang dùng
+                throw new FuncErrorException("Bạn đã có gói đăng ký đang hoạt động.");
             }
         }
 
@@ -112,6 +125,13 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         if (plan.getPrice().compareTo(BigDecimal.ZERO) == 0) {
             subscription.setStatus(SubscriptionStatus.ACTIVE);
             subscriptionRepository.save(subscription);
+            // Nếu đang hạ từ gói trả phí về gói miễn phí: hủy gói trả phí cũ ngay lập tức
+            if (activeSubscription != null && !isFreePlan(activeSubscription.getPlan())) {
+                activeSubscription.setStatus(SubscriptionStatus.CANCELLED);
+                activeSubscription.setCancellationReason("Hạ xuống gói miễn phí");
+                activeSubscription.setCancelledAt(LocalDateTime.now());
+                subscriptionRepository.save(activeSubscription);
+            }
             log.info("Free subscription activated for user {}: plan={}", user.getEmail(), plan.getPlanCode());
             return paymentMapper.toResponse(
                     createFreePaymentRecord(subscription, subscriberType, school, partnership, user), null);
@@ -365,6 +385,19 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
 
     private boolean isFreePlan(SubscriptionPlan plan) {
         return plan.getPrice() != null && plan.getPrice().compareTo(BigDecimal.ZERO) == 0;
+    }
+
+    // Kiểm tra ràng buộc khi trường muốn hạ xuống gói miễn phí
+    private void validateDowngradeToFree(School school, SubscriptionPlan freePlan) {
+        if (school == null) return;
+        Integer maxStudents = freePlan.getMaxStudents();
+        if (maxStudents == null) return;
+        long currentStudentCount = studentRepository.countBySchoolId(school.getId());
+        if (currentStudentCount > maxStudents) {
+            throw new FuncErrorException(
+                    "Số học sinh hiện tại (" + currentStudentCount + ") vượt quá giới hạn của gói miễn phí ("
+                            + maxStudents + " học sinh). Vui lòng xóa bớt học sinh trước khi chuyển về gói miễn phí.");
+        }
     }
 
     private void retirePreviousActiveSubscriptionForUpgrade(Subscription subscription) {
