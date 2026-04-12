@@ -30,7 +30,13 @@ public class DebugController {
             @PathVariable UUID studentId) {
         return ResponseEntity.ok(ResponseDto.success(
                 studentGameService.getOpenSessionsByStudentId(studentId),
-                "Lấy danh sách session đang mở thành công"
-        ));
+                "Lấy danh sách session đang mở thành công"));
+    }
+
+    @GetMapping("/test")
+    public ResponseEntity<ResponseDto<String>> getTest() {
+        return ResponseEntity.ok(ResponseDto.success(
+                "test",
+                "test"));
     }
 }
