@@ -52,7 +52,7 @@ public class ProfileController {
     @Operation(
             summary = "Lấy hồ sơ học sinh đang đăng nhập",
             description = """
-                    Trả về đầy đủ thông tin hồ sơ học sinh. Chỉ dành cho role **STUDENT**.
+                    Trả về đầy đủ thông tin hồ sơ học sinh, kèm danh sách **danh hiệu đã đạt** (`earnedTitles`) trong các chiến dịch. Chỉ dành cho role **STUDENT**.
 
                     **Header:**
                     ```

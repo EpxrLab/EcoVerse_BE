@@ -343,6 +343,7 @@ public class CampaignServiceImpl implements ICampaignService {
                 .build();
     }
 
+    /** Dùng cho danh sách campaign phía trường/đối tác — không có trạng thái tham gia của học sinh. */
     private CampaignSummaryResponse mapCampaignSummary(Campaign campaign) {
         return mapCampaignSummary(campaign, null);
     }
@@ -1023,13 +1024,17 @@ public class CampaignServiceImpl implements ICampaignService {
                             .campaignCode(c.getCampaignCode())
                             .campaignName(c.getCampaignName())
                             .status(i.getStatus())
-                            .campaignCampaignStatus(c.getPartnershipStatus())
+                            .campaignPartnershipStatus(c.getPartnershipStatus())
                             .invitationSentAt(i.getInvitationSentAt())
                             .participationConfirmedAt(i.getParticipationConfirmedAt())
                             .studentsEnrolled(i.getStudentsEnrolled())
                             .partnershipName(c.getCreatorPartnership() != null
                                     ? c.getCreatorPartnership().getOrganizationName()
                                     : null)
+                            .startDate(c.getStartDate())
+                            .endDate(c.getEndDate())
+                            .registrationDeadline(c.getRegistrationDeadline())
+                            .maxStudentsPerSchool(c.getMaxStudentsPerSchool())
                             .build();
                 })
                 .toList();
@@ -1403,8 +1408,7 @@ public class CampaignServiceImpl implements ICampaignService {
 
                     return true;
                 })
-                .map(CampaignParticipant::getCampaign)
-                .map(this::mapCampaignSummary)
+                .map(p -> mapCampaignSummary(p.getCampaign(), p.getParentApprovalStatus()))
                 .toList();
     }
 

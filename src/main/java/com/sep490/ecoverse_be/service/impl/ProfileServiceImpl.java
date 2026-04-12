@@ -12,6 +12,7 @@ import com.sep490.ecoverse_be.entity.Partnership;
 import com.sep490.ecoverse_be.entity.School;
 import com.sep490.ecoverse_be.entity.Student;
 import com.sep490.ecoverse_be.entity.StudentParentLink;
+import com.sep490.ecoverse_be.entity.StudentTitle;
 import com.sep490.ecoverse_be.entity.User;
 import com.sep490.ecoverse_be.exception.NotFoundException;
 import com.sep490.ecoverse_be.repository.ParentRepository;
@@ -19,14 +20,17 @@ import com.sep490.ecoverse_be.repository.PartnershipRepository;
 import com.sep490.ecoverse_be.repository.SchoolRepository;
 import com.sep490.ecoverse_be.repository.StudentParentLinkRepository;
 import com.sep490.ecoverse_be.repository.StudentRepository;
+import com.sep490.ecoverse_be.repository.StudentTitleRepository;
 import com.sep490.ecoverse_be.repository.UserRepository;
 import com.sep490.ecoverse_be.service.IProfileService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class ProfileServiceImpl implements IProfileService {
@@ -50,6 +54,9 @@ public class ProfileServiceImpl implements IProfileService {
     private StudentParentLinkRepository studentParentLinkRepository;
 
     @Autowired
+    private StudentTitleRepository studentTitleRepository;
+
+    @Autowired
     private S3PresignedUrlService s3PresignedUrlService;
 
     @Override
@@ -70,6 +77,12 @@ public class ProfileServiceImpl implements IProfileService {
     public StudentProfileResponse getStudentProfile(UUID userId) {
         Student student = studentRepository.findByUserId(userId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin học sinh"));
+        return buildStudentProfileResponse(student);
+    }
+
+    @Override
+    public StudentProfileResponse buildStudentProfileResponse(Student student) {
+        List<StudentProfileResponse.EarnedTitleItem> earnedTitles = mapEarnedTitles(student.getId());
 
         return StudentProfileResponse.builder()
                 .id(student.getId())
@@ -88,7 +101,30 @@ public class ProfileServiceImpl implements IProfileService {
                         .id(student.getSchool().getId())
                         .schoolName(student.getSchool().getSchoolName())
                         .build())
+                .earnedTitles(earnedTitles)
                 .build();
+    }
+
+    private List<StudentProfileResponse.EarnedTitleItem> mapEarnedTitles(UUID studentId) {
+        List<StudentTitle> titles = studentTitleRepository.findByStudentIdWithDetailsOrderByEarnedAtDesc(studentId);
+        if (titles.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return titles.stream()
+                .map(st -> StudentProfileResponse.EarnedTitleItem.builder()
+                        .studentTitleId(st.getId())
+                        .campaignId(st.getCampaign().getId())
+                        .campaignName(st.getCampaign().getCampaignName())
+                        .campaignTitleId(st.getCampaignTitle().getId())
+                        .titleName(st.getCampaignTitle().getTitleName())
+                        .criteriaType(st.getCampaignTitle().getCriteriaType() != null
+                                ? st.getCampaignTitle().getCriteriaType().name() : null)
+                        .displayText(st.getDisplayText())
+                        .metricValue(st.getMetricValue())
+                        .earnedAt(st.getEarnedAt())
+                        .isDisplayed(st.isDisplayed())
+                        .build())
+                .collect(Collectors.toList());
     }
 
     @Override
