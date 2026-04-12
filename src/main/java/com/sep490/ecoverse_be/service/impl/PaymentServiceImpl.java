@@ -162,10 +162,10 @@ public class PaymentServiceImpl implements IPaymentService {
                     eventPublisher.publishEvent(NotificationEvent.builder()
                             .recipientUserId(recipient.getId())
                             .type(NotificationType.SYSTEM_ANNOUNCEMENT)
-                            .title("Subscription Activated")
-                            .message("Your subscription to " + subscription.getPlan().getPlanName()
-                                    + " has been activated successfully. Valid until "
-                                    + subscription.getEndDate().toLocalDate())
+                            .title("Kích hoạt gói đăng ký thành công")
+                            .message("Gói đăng ký \"" + subscription.getPlan().getPlanName()
+                                    + "\" của bạn đã được kích hoạt thành công. Hiệu lực đến ngày "
+                                    + subscription.getEndDate().toLocalDate() + ".")
                             .referenceType("subscription")
                             .referenceId(subscription.getId())
                             .sendEmail(true)
@@ -211,8 +211,44 @@ public class PaymentServiceImpl implements IPaymentService {
     @Transactional(readOnly = true)
     public PaymentResponse getPaymentByOrderCode(long orderCode) {
         Payment payment = paymentRepository.findByTransactionRef(String.valueOf(orderCode))
-                .orElseThrow(() -> new ResourceNotFoundException("Payment not found."));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thanh toán."));
         return paymentMapper.toResponse(payment);
+    }
+
+    @Override
+    @Transactional
+    public void cancelPaymentByOrderCode(long orderCode) {
+        Payment payment = paymentRepository.findByTransactionRef(String.valueOf(orderCode))
+                .orElse(null);
+
+        if (payment == null) {
+            log.warn("cancelPaymentByOrderCode: không tìm thấy payment với orderCode={}", orderCode);
+            return;
+        }
+
+        // Chỉ xử lý nếu payment đang PENDING (chưa hoàn thành hoặc đã hủy)
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            log.info("cancelPaymentByOrderCode: payment {} trạng thái {} – bỏ qua", payment.getPaymentCode(), payment.getStatus());
+            return;
+        }
+
+        payment.setStatus(PaymentStatus.CANCELLED);
+        payment.setFailedAt(LocalDateTime.now());
+        payment.setFailureReason("Người dùng hủy thanh toán");
+        paymentRepository.save(payment);
+
+        // Hủy subscription PENDING_RENEWAL liên quan; KHÔNG hủy subscription gốc (renewedFrom)
+        Subscription subscription = payment.getSubscription();
+        if (subscription != null && subscription.getStatus() == SubscriptionStatus.PENDING_RENEWAL) {
+            subscription.setStatus(SubscriptionStatus.CANCELLED);
+            subscription.setCancellationReason("Người dùng hủy thanh toán");
+            subscription.setCancelledAt(LocalDateTime.now());
+            subscriptionRepository.save(subscription);
+            log.info("Đã hủy subscription PENDING_RENEWAL {} do người dùng hủy thanh toán",
+                    subscription.getSubscriptionCode());
+        }
+
+        log.info("Đã hủy payment {} (orderCode={})", payment.getPaymentCode(), orderCode);
     }
 
     private User getSubscriptionOwner(Subscription subscription) {

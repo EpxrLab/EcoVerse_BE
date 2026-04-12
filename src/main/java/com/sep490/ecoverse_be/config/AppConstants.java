@@ -20,6 +20,7 @@ public final class AppConstants {
             "/api/otp/verify-register",
             "/api/otp/verify-reset-password",
             "/api/payments/webhook/payos",
+            "/api/payments/cancel/**",
             "/api/locations/provinces",
             "/api/locations/wards/**",
             "/api/auth/verify-register/school",

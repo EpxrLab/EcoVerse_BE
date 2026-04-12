@@ -19,6 +19,8 @@ public interface StudentRepository extends JpaRepository<Student, UUID>,
 
     Optional<Student> findByUserId(UUID userId);
 
+    long countBySchoolId(UUID schoolId);
+
     @Query("SELECT s.studentCode FROM Student s WHERE s.school.id = :schoolId AND s.studentCode LIKE :prefix%")
     List<String> findStudentCodesBySchoolIdAndPrefix(@Param("schoolId") UUID schoolId, @Param("prefix") String prefix);
 
