@@ -53,8 +53,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/admin/game-types", "/api/admin/game-types/*").permitAll()
                         .requestMatchers(AppConstants.PUBLIC_URLS).permitAll()
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
@@ -80,19 +79,19 @@ public class SecurityConfig {
                 "https://api.ecoverse-system.io.vn",
                 "https://www.api.ecoverse-system.io.vn",
                 "https://ecoverse-system.io.vn",
-                "https://www.ecoverse-system.io.vn"
-        ));
+                "https://www.ecoverse-system.io.vn",
+                "*"));
         apiConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         apiConfig.setAllowedHeaders(List.of("*"));
         apiConfig.setExposedHeaders(List.of(
                 "X-Mode", "X-Center", "X-RadiusKm", "X-Limit", "X-Count", "X-Has-More",
-                "X-BBox", "X-District", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"
-        ));
+                "X-BBox", "X-District", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"));
         apiConfig.setAllowCredentials(true);
         apiConfig.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        // WS config phai dang ky truoc vi UrlBasedCorsConfigurationSource khop pattern dau tien
+        // WS config phai dang ky truoc vi UrlBasedCorsConfigurationSource khop pattern
+        // dau tien
         source.registerCorsConfiguration("/ws/**", wsConfig);
         source.registerCorsConfiguration("/**", apiConfig);
         return source;
