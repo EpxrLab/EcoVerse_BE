@@ -30,7 +30,7 @@ public class GenerateAiQuizRequest {
     private Integer targetGrade;
 
     @NotNull(message = "Số coin thưởng không được rỗng")
-    @Min(value = 1, message = "Số coin thưởng phải >= 1")
+    @Min(value = 0, message = "Số coin thưởng phải >= 0")
     private Integer coinsOnPass;
 
     @NotNull(message = "Thời gian mỗi câu không được rỗng")
