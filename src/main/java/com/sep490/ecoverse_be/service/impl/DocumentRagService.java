@@ -177,6 +177,7 @@ public class DocumentRagService {
         int start = 0;
 
         while (start < length) {
+            int prevStart = start;
             int end = Math.min(start + CHUNK_SIZE, length);
 
             // Cố gắng cắt ở ranh giới câu (dấu chấm, dấu xuống dòng)
@@ -196,6 +197,12 @@ public class DocumentRagService {
             }
 
             start = end - CHUNK_OVERLAP;
+            if (start <= prevStart) {
+                start = end; // Fallback to avoid infinite loop
+            }
+            if (end >= length) {
+                break;
+            }
             if (start < 0) start = 0;
             if (start >= end) start = end; // prevent infinite loop
         }
