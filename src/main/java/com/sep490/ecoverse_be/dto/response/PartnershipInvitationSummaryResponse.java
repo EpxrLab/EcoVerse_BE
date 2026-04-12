@@ -14,10 +14,14 @@ public record PartnershipInvitationSummaryResponse(
         String campaignCode,
         String campaignName,
         ParticipationStatus status,
-        PartnershipCampaignStatus campaignCampaignStatus,
+        PartnershipCampaignStatus campaignPartnershipStatus,
         LocalDateTime invitationSentAt,
         LocalDateTime participationConfirmedAt,
         Integer studentsEnrolled,
-        String partnershipName
+        String partnershipName,
+        LocalDateTime startDate,
+        LocalDateTime endDate,
+        LocalDateTime registrationDeadline,
+        Integer maxStudentsPerSchool
 ) {
 }
