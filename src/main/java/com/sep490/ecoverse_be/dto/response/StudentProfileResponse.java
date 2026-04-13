@@ -4,6 +4,8 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -27,6 +29,9 @@ public class StudentProfileResponse {
     private Boolean isFirstLogin;
     private SchoolSummary school;
 
+    /** Danh hiệu đạt được trong các chiến dịch (mới nhất trước) */
+    private List<EarnedTitleItem> earnedTitles;
+
     @Getter
     @Setter
     @Builder
@@ -35,5 +40,23 @@ public class StudentProfileResponse {
     public static class SchoolSummary {
         private UUID id;
         private String schoolName;
+    }
+
+    @Getter
+    @Setter
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class EarnedTitleItem {
+        private UUID studentTitleId;
+        private UUID campaignId;
+        private String campaignName;
+        private UUID campaignTitleId;
+        private String titleName;
+        private String criteriaType;
+        private String displayText;
+        private String metricValue;
+        private LocalDateTime earnedAt;
+        private Boolean isDisplayed;
     }
 }

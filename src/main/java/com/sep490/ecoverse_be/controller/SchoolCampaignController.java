@@ -3,6 +3,7 @@ package com.sep490.ecoverse_be.controller;
 import com.sep490.ecoverse_be.dto.request.*;
 import com.sep490.ecoverse_be.dto.response.CampaignDetailResponse;
 import com.sep490.ecoverse_be.dto.response.CampaignSummaryResponse;
+import com.sep490.ecoverse_be.dto.response.LeaderboardEntryResponse;
 import com.sep490.ecoverse_be.dto.response.PartnershipInvitationAssignedStudentsResponse;
 import com.sep490.ecoverse_be.dto.response.PartnershipInvitationDetailResponse;
 import com.sep490.ecoverse_be.dto.response.PartnershipInvitationSummaryResponse;
@@ -120,6 +121,17 @@ public class SchoolCampaignController {
                                                                      @Valid @RequestBody AssignStudentsRequest request) {
         campaignService.replaceAssignedStudentsForPartnershipInvitation(id, request);
         return ResponseEntity.ok(ResponseDto.success(null, "Cập nhật danh sách học sinh thành công"));
+    }
+
+    @GetMapping("/campaigns/{id}/leaderboard")
+    public ResponseEntity<ResponseDto<List<LeaderboardEntryResponse>>> getCampaignLeaderboard(@PathVariable UUID id) {
+        return ResponseEntity.ok(ResponseDto.success(campaignService.getCampaignLeaderboard(id), "Lấy leaderboard campaign thành công"));
+    }
+
+    @GetMapping("/campaigns/{id}/rounds/{roundId}/leaderboard")
+    public ResponseEntity<ResponseDto<List<LeaderboardEntryResponse>>> getRoundLeaderboard(@PathVariable UUID id,
+                                                                                           @PathVariable UUID roundId) {
+        return ResponseEntity.ok(ResponseDto.success(campaignService.getCampaignRoundLeaderboard(roundId), "Lấy leaderboard round thành công"));
     }
 }
 

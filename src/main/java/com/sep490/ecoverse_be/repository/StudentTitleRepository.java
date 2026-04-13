@@ -16,6 +16,17 @@ public interface StudentTitleRepository extends JpaRepository<StudentTitle, UUID
 
     List<StudentTitle> findByStudentIdOrderByEarnedAtDesc(UUID studentId);
 
+    @Query("""
+            SELECT st FROM StudentTitle st
+            JOIN FETCH st.campaignTitle
+            JOIN FETCH st.campaign
+            WHERE st.student.id = :studentId
+            ORDER BY st.earnedAt DESC
+            """)
+    List<StudentTitle> findByStudentIdWithDetailsOrderByEarnedAtDesc(@Param("studentId") UUID studentId);
+
     @Query("SELECT st FROM StudentTitle st WHERE st.campaign.id = :campaignId ORDER BY st.earnedAt DESC")
     List<StudentTitle> findByCampaignId(@Param("campaignId") UUID campaignId);
+
+    long countByStudentId(UUID studentId);
 }

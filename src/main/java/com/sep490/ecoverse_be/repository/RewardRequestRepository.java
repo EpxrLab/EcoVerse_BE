@@ -30,4 +30,17 @@ public interface RewardRequestRepository extends JpaRepository<RewardRequest, UU
     List<RewardRequest> findByStatusAndDeliveredAtBefore(
             @Param("status") RewardRequestStatus status,
             @Param("deadline") LocalDateTime deadline);
+
+    // ── Report aggregate queries ───────────────────────────────────────────────
+
+    long countBySchoolIdAndStatus(UUID schoolId, RewardRequestStatus status);
+
+    @Query("SELECT COUNT(rr) FROM RewardRequest rr WHERE rr.requestedByParent.id = :parentId")
+    long countByParentId(@Param("parentId") UUID parentId);
+
+    @Query("SELECT COUNT(rr) FROM RewardRequest rr WHERE rr.student.id = :studentId")
+    long countByStudentId(@Param("studentId") UUID studentId);
+
+    @Query("SELECT COUNT(rr) FROM RewardRequest rr WHERE rr.student.id = :studentId AND rr.status = :status")
+    long countByStudentIdAndStatus(@Param("studentId") UUID studentId, @Param("status") RewardRequestStatus status);
 }

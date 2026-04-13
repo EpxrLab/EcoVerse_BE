@@ -171,22 +171,25 @@ public class QuizServiceImpl implements IQuizService {
 
     /**
      * Build và lưu một Quiz mới.
-     * quizCreated: USER cho tạo thủ công, IMPORT cho import Excel, AI cho AI generate.
+     * source: MANUAL hoặc AI_GENERATED (do FE truyền).
+     * quizCreated: USER / IMPORT / AI (do FE truyền).
+     * Nếu source == AI_GENERATED thì tự động set published = true.
      */
     private Quiz buildAndSaveQuiz(String title, String description, QuizDifficulty difficulty,
                                    Integer targetGrade, Integer coinOnPass,
                                    Integer timePerQuestion, Integer passScorePercentage,
-                                   QuizCreated quizCreated, School school, Partnership partnership) {
+                                   QuizSource source, QuizCreated quizCreated,
+                                   School school, Partnership partnership) {
         Quiz quiz = new Quiz();
         quiz.setTitle(title);
         quiz.setDescription(description);
         quiz.setDifficulty(difficulty);
-        quiz.setSource(QuizSource.MANUAL);
+        quiz.setSource(source);
         quiz.setTargetGrade(targetGrade);
         quiz.setCoinsOnPass(coinOnPass != null ? coinOnPass : 0);
         quiz.setTimePerQuestion(timePerQuestion);
         quiz.setPassScorePercentage(passScorePercentage != null ? passScorePercentage : 80);
-        quiz.setPublished(false);
+        quiz.setPublished(source == QuizSource.AI_GENERATED);
         quiz.setActive(true);
         quiz.setCreatedBy(quizCreated);
         quiz.setSchool(school);
@@ -251,7 +254,8 @@ public class QuizServiceImpl implements IQuizService {
                 request.getDifficulty(),
                 request.getTargetGrade(), request.getCoinOnPass(),
                 request.getTimePerQuestion(), request.getPassScorePercentage(),
-                QuizCreated.USER, school, partnership
+                request.getSource(), request.getCreatedBy(),
+                school, partnership
         );
 
         if (request.getQuestions() != null && !request.getQuestions().isEmpty()) {

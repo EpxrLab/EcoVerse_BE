@@ -20,13 +20,13 @@ import com.sep490.ecoverse_be.repository.SchoolRepository;
 import com.sep490.ecoverse_be.repository.StudentParentLinkRepository;
 import com.sep490.ecoverse_be.repository.StudentRepository;
 import com.sep490.ecoverse_be.repository.UserRepository;
+import com.sep490.ecoverse_be.service.IProfileService;
 import com.sep490.ecoverse_be.service.ISchoolService;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import org.jetbrains.annotations.NotNull;
-import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -58,8 +58,9 @@ public class SchoolServiceImpl implements ISchoolService {
 
     @Autowired
     private UserRepository userRepository;
+
     @Autowired
-    private ModelMapper modelMapper;
+    private IProfileService profileService;
     @Autowired
     private S3PresignedUrlService s3PresignedUrlService;
 
@@ -199,13 +200,7 @@ public class SchoolServiceImpl implements ISchoolService {
         }
         student.setUpdatedAt(LocalDateTime.now());
         Student updateStudent = studentRepository.save(student);
-        StudentProfileResponse response = modelMapper.map(updateStudent, StudentProfileResponse.class);
-        response.setId(updateStudent.getId());
-        response.setAvatarUrl(updateStudent.getAvatarUrl());
-        response.setAvatarPresignedUrl(s3PresignedUrlService.generatePresignedUrl(updateStudent.getAvatarUrl()));
-        response.setTotalCoins(updateStudent.getTotalCoins());
-        response.setIsFirstLogin(updateStudent.getIsFirstLogin());
-        return response;
+        return profileService.buildStudentProfileResponse(updateStudent);
     }
 
     @NotNull

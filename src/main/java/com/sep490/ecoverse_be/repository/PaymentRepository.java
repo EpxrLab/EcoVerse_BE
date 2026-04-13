@@ -38,4 +38,24 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
 
     @Query("SELECT p FROM Payment p WHERE p.subscription.id IN :subscriptionIds ORDER BY p.createdAt DESC")
     List<Payment> findAllBySubscriptionIdInOrderByCreatedAtDesc(@Param("subscriptionIds") List<UUID> subscriptionIds);
+
+    // ── Report aggregate queries ───────────────────────────────────────────────
+
+    @Query("SELECT SUM(p.amount) FROM Payment p WHERE p.status = :status")
+    java.math.BigDecimal sumAmountByStatus(@Param("status") com.sep490.ecoverse_be.enums.PaymentStatus status);
+
+    @Query("SELECT SUM(p.amount) FROM Payment p WHERE p.status = :status AND p.paidAt BETWEEN :from AND :to")
+    java.math.BigDecimal sumAmountByStatusAndDateRange(@Param("status") com.sep490.ecoverse_be.enums.PaymentStatus status, @Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
+    @Query("SELECT SUM(p.amount) FROM Payment p WHERE p.status = 'COMPLETED' AND p.subscriberType = :type AND p.paidAt BETWEEN :from AND :to")
+    java.math.BigDecimal sumAmountBySubscriberTypeAndDateRange(@Param("type") com.sep490.ecoverse_be.enums.SubscriberType type, @Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
+    @Query("SELECT SUM(p.amount) FROM Payment p WHERE p.status = 'COMPLETED' AND p.subscriberType = :type")
+    java.math.BigDecimal sumAmountBySubscriberType(@Param("type") com.sep490.ecoverse_be.enums.SubscriberType type);
+
+    @Query("SELECT COUNT(p) FROM Payment p WHERE p.status = :status")
+    long countByStatus(@Param("status") com.sep490.ecoverse_be.enums.PaymentStatus status);
+
+    @Query(value = "SELECT EXTRACT(YEAR FROM paid_at) AS yr, EXTRACT(MONTH FROM paid_at) AS mo, SUM(amount) AS total FROM payments WHERE status = 'COMPLETED' AND paid_at >= :from GROUP BY yr, mo ORDER BY yr, mo", nativeQuery = true)
+    List<Object[]> findMonthlyRevenueTrend(@Param("from") java.time.LocalDateTime from);
 }

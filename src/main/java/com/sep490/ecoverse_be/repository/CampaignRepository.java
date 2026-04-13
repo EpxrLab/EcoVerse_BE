@@ -47,6 +47,23 @@ public interface CampaignRepository extends JpaRepository<Campaign, UUID> {
 
     @Query("SELECT c FROM Campaign c WHERE c.campaignType = 'PARTNERSHIP_EVENT' AND c.partnershipStatus = 'ON_GOING' AND c.endDate <= :now AND c.isActive = true")
     List<Campaign> findPartnershipCampaignsReadyForCompleted(@Param("now") LocalDateTime now);
+
+    // ── Report aggregate queries ───────────────────────────────────────────────
+
+    @Query("SELECT COUNT(c) FROM Campaign c WHERE c.creatorSchool.id = :schoolId AND c.isActive = true")
+    long countByCreatorSchoolId(@Param("schoolId") UUID schoolId);
+
+    @Query("SELECT COUNT(c) FROM Campaign c WHERE c.creatorSchool.id = :schoolId AND c.schoolStatus IN :statuses AND c.isActive = true")
+    long countByCreatorSchoolIdAndSchoolStatusIn(@Param("schoolId") UUID schoolId, @Param("statuses") java.util.List<SchoolCampaignStatus> statuses);
+
+    @Query("SELECT COUNT(c) FROM Campaign c WHERE c.creatorPartnership.id = :partnershipId AND c.isActive = true")
+    long countByCreatorPartnershipId(@Param("partnershipId") UUID partnershipId);
+
+    @Query("SELECT COUNT(c) FROM Campaign c WHERE c.creatorPartnership.id = :partnershipId AND c.partnershipStatus IN :statuses AND c.isActive = true")
+    long countByCreatorPartnershipIdAndPartnershipStatusIn(@Param("partnershipId") UUID partnershipId, @Param("statuses") java.util.List<PartnershipCampaignStatus> statuses);
+
+    @Query("SELECT COUNT(c) FROM Campaign c WHERE c.isActive = true AND (c.schoolStatus = 'ON_GOING' OR c.partnershipStatus = 'ON_GOING')")
+    long countAllActiveCampaigns();
 }
 
 

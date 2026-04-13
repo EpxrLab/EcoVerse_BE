@@ -38,4 +38,18 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
 
     @Query("SELECT s FROM Subscription s WHERE s.status = 'ACTIVE' AND s.endDate < :now")
     List<Subscription> findExpiredSubscriptions(@Param("now") LocalDateTime now);
+
+    // ── Report aggregate queries ───────────────────────────────────────────────
+
+    @Query("SELECT COUNT(s) FROM Subscription s WHERE s.status = :status")
+    long countByStatus(@Param("status") SubscriptionStatus status);
+
+    @Query("SELECT COUNT(s) FROM Subscription s WHERE s.status = :status AND s.subscriberType = :type")
+    long countByStatusAndSubscriberType(@Param("status") SubscriptionStatus status, @Param("type") com.sep490.ecoverse_be.enums.SubscriberType type);
+
+    @Query("SELECT s FROM Subscription s WHERE s.school.id = :schoolId ORDER BY s.createdAt DESC")
+    List<Subscription> findBySchoolIdOrderByCreatedAtDesc(@Param("schoolId") UUID schoolId);
+
+    @Query("SELECT s FROM Subscription s WHERE s.partnership.id = :partnershipId ORDER BY s.createdAt DESC")
+    List<Subscription> findByPartnershipIdOrderByCreatedAtDesc(@Param("partnershipId") UUID partnershipId);
 }
