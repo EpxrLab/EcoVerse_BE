@@ -1,0 +1,82 @@
+server:
+  port: 8080
+spring:
+  config:
+    import: optional:file:.env[.properties]
+  application:
+    name: EcoVerse_be
+  datasource:
+#    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/eco_verse_db}
+#    username: ${POSTGRES_USERNAME:postgres}
+#    password: ${POSTGRES_PASSWORD:postgres}
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5433/eco_verse_db}
+    username: ${POSTGRES_USERNAME:postgres}
+    password: ${POSTGRES_PASSWORD:StrongP@ssword123}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  servlet:
+    multipart:
+      max-file-size: 250MB
+      max-request-size: 250MB
+  mail:
+    host: ${MAIL_HOST:smtp.sendgrid.net}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:apikey}
+    password: ${MAIL_PASSWORD:}
+    # FROM address riêng biệt với username (SendGrid username luôn là literal "apikey")
+    from: ${MAIL_FROM:noreply@ecoverse-system.io.vn}
+    properties:
+      mail:
+        smtp:
+          connection timeout: 10000
+          timeout: 10000
+          write timeout: 10000
+          auth: true
+          starttls:
+            enable: true
+        transport:
+          protocol: smtp
+
+app:
+  jwt:
+    secret-key: ${JWT_SECRET_KEY:defaultSecretKeyChangeThisInProduction}
+    access-token-expiration: 3600000       # 60 minutes
+    refresh-token-expiration: 604800000    # 7 days
+  default-avatar-url: ${DEFAULT_AVATAR_URL:}
+
+aws:
+  access-key: ${AWS_ACCESS_KEY:}
+  secret-key: ${AWS_SECRET_KEY:}
+  region: ${AWS_REGION:ap-southeast-1}
+  s3:
+    bucket: ${AWS_S3_BUCKET:}
+
+payos:
+  client-id: ${PAYOS_CLIENT_ID:}
+  api-key: ${PAYOS_API_KEY:}
+  checksum-key: ${PAYOS_CHECKSUM_KEY:}
+  return-url: ${PAYOS_RETURN_URL:http://localhost:5173/payment/result}
+  cancel-url: ${PAYOS_CANCEL_URL:http://localhost:5173/payment/result}
+
+#logging:
+#  level:
+#    root: warn
+#    org.springframework.security: INFO
+#    org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer: ERROR
+
+# ── Gemini AI ────────────────────────────────────────────────────────────────
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:gemini-flash-latest}
+  embedding-model: ${GEMINI_EMBEDDING_MODEL:gemini-embedding-2-preview}
