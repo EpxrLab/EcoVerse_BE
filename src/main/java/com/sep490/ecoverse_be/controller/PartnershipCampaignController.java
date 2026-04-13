@@ -6,6 +6,7 @@ import com.sep490.ecoverse_be.dto.response.CampaignDetailResponse;
 import com.sep490.ecoverse_be.dto.response.CampaignRewardResponse;
 import com.sep490.ecoverse_be.dto.response.CampaignSummaryResponse;
 import com.sep490.ecoverse_be.dto.response.EligibleSchoolResponse;
+import com.sep490.ecoverse_be.dto.response.LeaderboardEntryResponse;
 import com.sep490.ecoverse_be.dto.response.ResponseDto;
 import com.sep490.ecoverse_be.service.ICampaignRewardService;
 import com.sep490.ecoverse_be.service.ICampaignService;
@@ -100,6 +101,19 @@ public class PartnershipCampaignController {
     )
     public ResponseEntity<ResponseDto<List<CampaignRewardResponse>>> getRewards(@PathVariable UUID id) {
         return ResponseEntity.ok(ResponseDto.success(campaignRewardService.getRewards(id), "Lấy danh sách quà thưởng thành công"));
+    }
+
+    @GetMapping("/campaigns/{id}/leaderboard")
+    @Operation(summary = "Xem leaderboard của partnership campaign")
+    public ResponseEntity<ResponseDto<List<LeaderboardEntryResponse>>> getCampaignLeaderboard(@PathVariable UUID id) {
+        return ResponseEntity.ok(ResponseDto.success(campaignService.getCampaignLeaderboard(id), "Lấy leaderboard campaign thành công"));
+    }
+
+    @GetMapping("/campaigns/{id}/rounds/{roundId}/leaderboard")
+    @Operation(summary = "Xem leaderboard theo round của partnership campaign")
+    public ResponseEntity<ResponseDto<List<LeaderboardEntryResponse>>> getRoundLeaderboard(@PathVariable UUID id,
+                                                                                           @PathVariable UUID roundId) {
+        return ResponseEntity.ok(ResponseDto.success(campaignService.getCampaignRoundLeaderboard(roundId), "Lấy leaderboard round thành công"));
     }
 }
 

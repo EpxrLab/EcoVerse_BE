@@ -43,4 +43,27 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, UUID> 
             """)
     List<QuizAttempt> findCompletedByParticipantAndCampaign(@Param("participantId") UUID participantId,
                                                             @Param("campaignId") UUID campaignId);
+
+    // ── Report aggregate queries ───────────────────────────────────────────────
+
+    @Query("SELECT COUNT(qa) FROM QuizAttempt qa WHERE qa.campaignParticipant.student.id = :studentId AND qa.isCompleted = true")
+    long countCompletedByStudentId(@Param("studentId") UUID studentId);
+
+    @Query("SELECT AVG(qa.scorePercentage) FROM QuizAttempt qa WHERE qa.campaignParticipant.student.id = :studentId AND qa.isCompleted = true")
+    Double avgScoreByStudentId(@Param("studentId") UUID studentId);
+
+    @Query("SELECT COUNT(qa) FROM QuizAttempt qa WHERE qa.campaignParticipant.student.id = :studentId AND qa.isCompleted = true AND qa.isPassed = true")
+    long countPassedByStudentId(@Param("studentId") UUID studentId);
+
+    @Query("SELECT COUNT(qa) FROM QuizAttempt qa WHERE qa.campaignParticipant.student.id = :studentId AND qa.isCompleted = true AND qa.createdAt BETWEEN :from AND :to")
+    long countCompletedByStudentIdAndDateRange(@Param("studentId") UUID studentId, @Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
+    @Query("SELECT AVG(qa.scorePercentage) FROM QuizAttempt qa WHERE qa.campaignParticipant.student.id = :studentId AND qa.isCompleted = true AND qa.createdAt BETWEEN :from AND :to")
+    Double avgScoreByStudentIdAndDateRange(@Param("studentId") UUID studentId, @Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
+    @Query("SELECT AVG(qa.scorePercentage) FROM QuizAttempt qa WHERE qa.campaignParticipant.student.id = :studentId AND qa.isCompleted = true")
+    Double avgScoreByStudentIdOverall(@Param("studentId") UUID studentId);
+
+    @Query("SELECT COUNT(qa) FROM QuizAttempt qa WHERE qa.isCompleted = true")
+    long countAllCompleted();
 }

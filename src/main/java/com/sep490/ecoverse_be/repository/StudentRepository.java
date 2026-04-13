@@ -25,4 +25,9 @@ public interface StudentRepository extends JpaRepository<Student, UUID>,
     List<String> findStudentCodesBySchoolIdAndPrefix(@Param("schoolId") UUID schoolId, @Param("prefix") String prefix);
 
     boolean existsBySchoolIdAndStudentCode(UUID schoolId, String studentCode);
+
+    // ── Report aggregate queries ───────────────────────────────────────────────
+
+    @Query("SELECT s FROM Student s WHERE s.school.id = :schoolId ORDER BY s.totalCoins DESC")
+    List<Student> findTopBySchoolIdOrderByTotalCoinsDesc(@Param("schoolId") UUID schoolId, org.springframework.data.domain.Pageable pageable);
 }

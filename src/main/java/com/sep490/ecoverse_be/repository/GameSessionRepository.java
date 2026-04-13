@@ -92,4 +92,33 @@ public interface GameSessionRepository extends JpaRepository<GameSession, UUID> 
             ORDER BY gs.sessionStart ASC
             """)
     List<GameSession> findAllOpenSessionsByStudentId(@Param("studentId") UUID studentId);
+
+    // ── Report aggregate queries ───────────────────────────────────────────────
+
+    @Query("SELECT COUNT(gs) FROM GameSession gs WHERE gs.campaignParticipant.student.id = :studentId AND gs.isCompleted = true")
+    long countCompletedByStudentId(@Param("studentId") UUID studentId);
+
+    @Query("SELECT AVG(gs.accuracyPercentage) FROM GameSession gs WHERE gs.campaignParticipant.student.id = :studentId AND gs.isCompleted = true")
+    Double avgAccuracyByStudentId(@Param("studentId") UUID studentId);
+
+    @Query("SELECT MAX(gs.accuracyPercentage) FROM GameSession gs WHERE gs.campaignParticipant.student.id = :studentId AND gs.isCompleted = true")
+    java.math.BigDecimal maxAccuracyByStudentId(@Param("studentId") UUID studentId);
+
+    @Query("SELECT COUNT(gs) FROM GameSession gs WHERE gs.campaignParticipant.student.id = :studentId AND gs.isCompleted = true AND gs.createdAt BETWEEN :from AND :to")
+    long countCompletedByStudentIdAndDateRange(@Param("studentId") UUID studentId, @Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
+    @Query("SELECT AVG(gs.accuracyPercentage) FROM GameSession gs WHERE gs.campaignParticipant.student.id = :studentId AND gs.isCompleted = true AND gs.createdAt BETWEEN :from AND :to")
+    Double avgAccuracyByStudentIdAndDateRange(@Param("studentId") UUID studentId, @Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
+    @Query("SELECT AVG(gs.accuracyPercentage) FROM GameSession gs WHERE gs.campaignParticipant.school.id = :schoolId AND gs.isCompleted = true")
+    Double avgAccuracyBySchoolId(@Param("schoolId") UUID schoolId);
+
+    @Query("SELECT AVG(gs.accuracyPercentage) FROM GameSession gs WHERE gs.campaignParticipant.campaign.creatorPartnership.id = :partnershipId AND gs.isCompleted = true")
+    Double avgAccuracyByPartnershipId(@Param("partnershipId") UUID partnershipId);
+
+    @Query("SELECT COUNT(gs) FROM GameSession gs WHERE gs.isCompleted = true")
+    long countAllCompleted();
+
+    @Query("SELECT gs.campaignParticipant.student.id, AVG(gs.accuracyPercentage) FROM GameSession gs WHERE gs.campaignParticipant.school.id = :schoolId AND gs.isCompleted = true GROUP BY gs.campaignParticipant.student.id ORDER BY AVG(gs.accuracyPercentage) DESC")
+    List<Object[]> findTopStudentsByGameAccuracyInSchool(@Param("schoolId") UUID schoolId, org.springframework.data.domain.Pageable pageable);
 }
