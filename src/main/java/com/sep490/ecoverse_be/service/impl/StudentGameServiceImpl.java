@@ -344,6 +344,10 @@ public class StudentGameServiceImpl implements IStudentGameService {
                         .subCategoryDisplayName(item.getSubCategory().getDisplayName())
                         .imageUrl(item.getImageUrl())
                         .imagePresignedUrl(s3PresignedUrlService.generatePresignedUrl(item.getImageUrl()))
+                        .funFact(item.getFunFact())
+                        .decompositionTime(item.getDecompositionTime())
+                        .recyclingTips(item.getRecyclingTips())
+                        .description(item.getDescription())
                         .build())
                 .toList();
     }
