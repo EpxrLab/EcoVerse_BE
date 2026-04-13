@@ -230,6 +230,10 @@ public class CampaignServiceImpl implements ICampaignService {
     }
 
     private CampaignDetailResponse mapCampaignDetail(Campaign campaign) {
+        return mapCampaignDetail(campaign, null);
+    }
+
+    private CampaignDetailResponse mapCampaignDetail(Campaign campaign, UUID currentParticipantId) {
         List<CampaignRoundInfoResponse> rounds = campaignRoundRepository
                 .findByCampaignIdOrderByRoundNumberAsc(campaign.getId())
                 .stream()
@@ -250,18 +254,131 @@ public class CampaignServiceImpl implements ICampaignService {
                                     : cfg.getPresetSubCategoryConfig())
                             .orElse(Map.of());
 
+                    List<StudentRoundGameConfigResponse> games = roundGameConfigRepository
+                            .findByCampaignRoundIdOrderByDisplayOrderAsc(r.getId())
+                            .stream()
+                            .map(config -> {
+                                Integer coinPerSession = null;
+                                if (campaign.getCampaignType() != CampaignType.PARTNERSHIP_EVENT) {
+                                    if (config.getCoinPerSession() != null) {
+                                        coinPerSession = config.getCoinPerSession();
+                                    } else if (config.getResolvedDifficulty() != null) {
+                                        coinPerSession = defaultCoinConfigRepository
+                                                .findByGameTypeIdAndDifficulty(config.getGameType().getId(),
+                                                        config.getResolvedDifficulty())
+                                                .map(DefaultCoinConfig::getDefaultCoin)
+                                                .orElse(0);
+                                    }
+                                }
+
+                                Map<String, List<UUID>> presetSubCategoryConfigGame = config.getPresetSubCategoryConfig() == null
+                                        ? Map.of()
+                                        : config.getPresetSubCategoryConfig();
+
+                                List<StudentRoundPresetConfigResponse> presets = config.getSelectedPresets() == null
+                                        ? List.of()
+                                        : config.getSelectedPresets().stream()
+                                                .map(preset -> {
+                                                    LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
+                                                    LocalDateTime endOfDay = startOfDay.plusDays(1);
+
+                                                    List<StudentPresetLevelConfigResponse> items = preset.getItems() == null
+                                                            ? List.of()
+                                                            : preset.getItems().stream()
+                                                                    .map(item -> {
+                                                                        long todayAttempts = 0;
+                                                                        Boolean coinReceived = null;
+
+                                                                        if (currentParticipantId != null) {
+                                                                            todayAttempts = gameSessionRepository
+                                                                                    .countByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndSessionStartBetween(
+                                                                                            currentParticipantId,
+                                                                                            config.getId(),
+                                                                                            preset.getId(),
+                                                                                            item.getLevelNumber(),
+                                                                                            startOfDay,
+                                                                                            endOfDay);
+                                                                            if (campaign.getCampaignType() == CampaignType.SCHOOL_INTERNAL) {
+                                                                                coinReceived = gameSessionRepository
+                                                                                            .existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndCoinAwardedGreaterThan(
+                                                                                                    currentParticipantId,
+                                                                                                    config.getId(),
+                                                                                                    preset.getId(),
+                                                                                                    item.getLevelNumber(),
+                                                                                                    0);
+                                                                            }
+                                                                        }
+
+                                                                        return StudentPresetLevelConfigResponse.builder()
+                                                                                .levelNumber(item.getLevelNumber())
+                                                                                .itemCount(item.getItemCount())
+                                                                                .timeLimitSeconds(item.getTimeLimitSeconds())
+                                                                                .scorePerCorrect(item.getScorePerCorrect())
+                                                                                .lives(item.getLives())
+                                                                                .wasteCategories(
+                                                                                        item.getWasteCategories() == null ? Set.of()
+                                                                                                : item.getWasteCategories())
+                                                                                .configJson(item.getConfigJson() == null ? Map.of()
+                                                                                        : item.getConfigJson())
+                                                                                .coinReceived(coinReceived)
+                                                                                .maxDailyAttempts(MAX_PLAYS_PER_LEVEL_PER_DAY)
+                                                                                .todayAttempts(todayAttempts)
+                                                                                .build();
+                                                                    })
+                                                                    .toList();
+
+                                                    List<UUID> configuredSubCategoryIds = presetSubCategoryConfigGame.getOrDefault(
+                                                            preset.getId().toString(),
+                                                            List.of());
+
+                                                    return StudentRoundPresetConfigResponse.builder()
+                                                            .presetId(preset.getId())
+                                                            .difficulty(preset.getDifficulty())
+                                                            .configuredSubCategoryIds(configuredSubCategoryIds)
+                                                            .items(items)
+                                                            .build();
+                                                })
+                                                .toList();
+
+                                return StudentRoundGameConfigResponse.builder()
+                                        .roundGameConfigId(config.getId())
+                                        .gameTypeId(config.getGameType().getId())
+                                        .typeCode(config.getGameType().getTypeCode().name())
+                                        .gameTypeName(config.getGameType().getName())
+                                        .resolvedDifficulty(config.getResolvedDifficulty())
+                                        .coinPerSession(coinPerSession)
+                                        .presets(presets)
+                                        .build();
+                            })
+                            .toList();
+
                     // Lấy danh sách quiz kèm thông tin chi tiết từ CampaignRoundQuiz
                     List<RoundQuizBriefResponse> quizzes = campaignRoundQuizRepository
                             .findByCampaignRoundIdOrderByDisplayOrderAsc(r.getId())
                             .stream()
-                            .map(rq -> RoundQuizBriefResponse.builder()
-                                    .quizId(rq.getQuiz().getId())
-                                    .title(rq.getQuiz().getTitle())
-                                    .difficulty(rq.getQuiz().getDifficulty())
-                                    .displayOrder(rq.getDisplayOrder())
-                                    .maxAttempts(rq.getMaxAttempts())
-                                    .isRequired(rq.isRequired())
-                                    .build())
+                            .map(rq -> {
+                                int attemptsUsed = 0;
+                                boolean isPassed = false;
+                                if (currentParticipantId != null) {
+                                    attemptsUsed = quizAttemptRepository.countByCampaignParticipantIdAndCampaignRoundIdAndQuizId(
+                                            currentParticipantId, r.getId(), rq.getQuiz().getId());
+                                    isPassed = quizAttemptRepository
+                                            .findTopByCampaignParticipantIdAndCampaignRoundIdAndQuizIdAndIsCompletedTrueOrderByScorePercentageDesc(
+                                                    currentParticipantId, r.getId(), rq.getQuiz().getId())
+                                            .map(QuizAttempt::isPassed)
+                                            .orElse(false);
+                                }
+                                return RoundQuizBriefResponse.builder()
+                                        .quizId(rq.getQuiz().getId())
+                                        .title(rq.getQuiz().getTitle())
+                                        .difficulty(rq.getQuiz().getDifficulty())
+                                        .displayOrder(rq.getDisplayOrder())
+                                        .attemptsUsed(attemptsUsed)
+                                        .isPassed(isPassed)
+                                        .maxAttempts(rq.getMaxAttempts())
+                                        .isRequired(rq.isRequired())
+                                        .build();
+                            })
                             .toList();
 
                     return CampaignRoundInfoResponse.builder()
@@ -279,6 +396,7 @@ public class CampaignServiceImpl implements ICampaignService {
                             .coinPerSession(configOpt.map(RoundGameConfig::getCoinPerSession).orElse(null))
                             .selectedPresetIds(selectedPresetIds)
                             .presetSubCategoryConfig(presetSubCategoryConfig)
+                            .games(games)
                             .quizzes(quizzes)
                             .build();
                 })
@@ -1411,11 +1529,11 @@ public class CampaignServiceImpl implements ICampaignService {
     @Override
     public CampaignDetailResponse getStudentCampaignDetail(UUID campaignId) {
         Student student = getCurrentStudent();
-        campaignParticipantRepository.findByCampaignIdAndStudentIdAndIsActiveTrue(campaignId, student.getId())
+        CampaignParticipant participant = campaignParticipantRepository.findByCampaignIdAndStudentIdAndIsActiveTrue(campaignId, student.getId())
                 .orElseThrow(() -> new NotFoundException("Bạn không tham gia campaign này"));
         Campaign campaign = campaignRepository.findById(campaignId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy campaign"));
-        return mapCampaignDetail(campaign);
+        return mapCampaignDetail(campaign, participant.getId());
     }
 
     @Override

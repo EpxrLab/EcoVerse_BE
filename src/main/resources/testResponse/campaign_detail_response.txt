@@ -1,0 +1,117 @@
+{
+  "status": 200,
+  "message": "Lấy chi tiết campaign thành công",
+  "data": {
+    "id": "b2fb81b2-6802-433d-8ce7-12bef63207f9",
+    "campaignCode": "SCH-75CD7004",
+    "campaignName": "test 11",
+    "campaignType": "SCHOOL_INTERNAL",
+    "description": "test 11",
+    "status": "ON_GOING",
+    "startDate": "2026-04-09T01:00:00",
+    "endDate": "2026-04-16T01:00:00",
+    "registrationDate": null,
+    "registrationDeadline": null,
+    "invitationDate": "2026-04-08T16:31:00",
+    "invitationDeadline": "2026-04-08T23:00:00",
+    "maxStudentsPerSchool": null,
+    "totalStudentQuota": null,
+    "topRankingCount": 0,
+    "totalRounds": 1,
+    "bannerImageUrl": "",
+    "bannerImagePresignedUrl": null,
+    "rounds": [
+      {
+        "id": "2199e583-a91e-4c8d-a71b-496ad5acd37f",
+        "roundNumber": 1,
+        "roundName": "Play & Learn",
+        "status": "ACTIVE",
+        "startTime": "2026-04-09T01:00:00",
+        "endTime": "2026-04-16T01:00:00",
+        "maxParticipants": null,
+        "advanceCount": null,
+        "isFinalRound": false,
+        "gameTypeId": "f7f20bc2-7bc0-4801-85ab-3bff080e82bf",
+        "gameTypeName": "Sea Rescue - Giải cứu đại dương",
+        "coinPerSession": 20,
+        "selectedPresetIds": [
+          "31853517-170d-41f6-ac57-f904e6491278",
+          "1cb4392d-3f76-4ff7-a520-7644884acd33",
+          "04db8d6f-f732-40a6-82e8-e4b2004e04df"
+        ],
+        "presetSubCategoryConfig": {
+          "04db8d6f-f732-40a6-82e8-e4b2004e04df": [
+            "566508ef-971a-4a1d-a85d-10b289c730b4",
+            "0c99171d-697f-4640-ae5a-02c501ed66a0",
+            "3f2420b2-7155-4c2d-8084-7226e4f3ff7e",
+            "1d13f4ea-4fe6-4a2e-b473-b85d728fc86f"
+          ],
+          "1cb4392d-3f76-4ff7-a520-7644884acd33": [
+            "566508ef-971a-4a1d-a85d-10b289c730b4",
+            "0c99171d-697f-4640-ae5a-02c501ed66a0",
+            "3f2420b2-7155-4c2d-8084-7226e4f3ff7e"
+          ],
+          "31853517-170d-41f6-ac57-f904e6491278": [
+            "3f2420b2-7155-4c2d-8084-7226e4f3ff7e",
+            "0c99171d-697f-4640-ae5a-02c501ed66a0"
+          ]
+        },
+        "quizzes": [
+          {
+            "quizId": "a6342893-bc95-4b0b-854c-430ab207531e",
+            "title": "Phân loại rác",
+            "difficulty": "EASY",
+            "displayOrder": 1,
+            "attemptsUsed": 0,
+            "isPassed": false,
+            "maxAttempts": 10,
+            "isRequired": true
+          },
+          {
+            "quizId": "fee1eae2-f7b3-4822-a44c-f9f5deb222c2",
+            "title": "Phân loại rác",
+            "difficulty": "MEDIUM",
+            "displayOrder": 2,
+            "attemptsUsed": 0,
+            "isPassed": false,
+            "maxAttempts": 10,
+            "isRequired": true
+          },
+          {
+            "quizId": "661bb9ec-de6b-4474-bae0-de7241351c88",
+            "title": "Phân loại rác",
+            "difficulty": "HARD",
+            "displayOrder": 3,
+            "attemptsUsed": 0,
+"isPassed": false,
+            "maxAttempts": 10,
+            "isRequired": true
+          },
+          {
+            "quizId": "58250357-b622-4259-8ae6-9c64ecca08b3",
+            "title": "Phân loại rác",
+            "difficulty": "HARD",
+            "displayOrder": 4,
+            "attemptsUsed": 0,
+            "isPassed": false,
+            "maxAttempts": 10,
+            "isRequired": true
+          }
+        ]
+      }
+    ],
+    "participants": [
+      {
+        "studentId": "bbeaa7e1-2eb9-47df-a5cb-b71d98ede430",
+        "studentCode": "Teo",
+        "fullName": "tèo",
+        "gradeLevel": "2",
+        "className": "A",
+        "parentApprovalStatus": "APPROVED",
+        "invitationSentAt": "2026-04-08T16:31:07.911669",
+        "rejectionReason": null
+      }
+    ],
+    "invitedSchools": null
+  }
+}
