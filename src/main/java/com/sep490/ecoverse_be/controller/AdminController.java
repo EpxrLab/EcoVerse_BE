@@ -21,13 +21,18 @@ import com.sep490.ecoverse_be.dto.response.SubscriptionPlanResponse;
 import com.sep490.ecoverse_be.enums.Role;
 import com.sep490.ecoverse_be.exception.BadRequestException;
 import com.sep490.ecoverse_be.exception.NotFoundException;
+import com.sep490.ecoverse_be.dto.response.report.AdminReportSummaryResponse;
+import com.sep490.ecoverse_be.dto.response.report.AdminRevenueReportResponse;
+import com.sep490.ecoverse_be.enums.ReportPeriod;
 import com.sep490.ecoverse_be.service.IAdminService;
+import com.sep490.ecoverse_be.service.IReportService;
 import com.sep490.ecoverse_be.service.ISubscriptionPlanService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
@@ -49,6 +54,9 @@ public class AdminController {
 
     @Autowired
     private ISubscriptionPlanService subscriptionPlanService;
+
+    @Autowired
+    private IReportService reportService;
 
     @GetMapping("/schools/pending")
     @Operation(summary = "Lấy danh sách trường học đang chờ duyệt", description = """
@@ -496,5 +504,41 @@ public class AdminController {
     public ResponseEntity<ResponseDto<AdminCampaignAnalyticsResponse>> getCampaignAnalytics() {
         return ResponseEntity
                 .ok(ResponseDto.success(adminService.getCampaignAnalytics(), "Lấy campaign analytics thành công"));
+    }
+
+    // ── Admin Report endpoints ────────────────────────────────────────────────
+
+    @GetMapping("/report/summary")
+    @Operation(summary = "Tổng quan báo cáo hệ thống", description = """
+            Trả về dashboard tổng quan toàn nền tảng:
+            số người dùng theo role, phê duyệt đang chờ, chiến dịch (theo loại, đang active),
+            doanh thu tổng & trong kỳ, subscription đang active,
+            tổng game sessions & quiz attempts, biểu đồ doanh thu 12 tháng.
+
+            **period:** `THIS_WEEK | THIS_MONTH | LAST_3_MONTHS | THIS_YEAR | CUSTOM`
+            """)
+    public ResponseEntity<ResponseDto<AdminReportSummaryResponse>> getAdminReportSummary(
+            @RequestParam(defaultValue = "THIS_MONTH") ReportPeriod period,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime toDate) {
+        return ResponseEntity.ok(ResponseDto.success(
+                reportService.getAdminSummary(period, fromDate, toDate),
+                "Lấy báo cáo tổng quan hệ thống thành công"));
+    }
+
+    @GetMapping("/report/revenue")
+    @Operation(summary = "Báo cáo doanh thu chi tiết", description = """
+            Trả về phân tích doanh thu chi tiết:
+            tổng doanh thu all-time & trong kỳ, phân chia theo School/Partnership,
+            tổng giao dịch thành công, số subscription active,
+            xu hướng doanh thu 12 tháng gần nhất.
+            """)
+    public ResponseEntity<ResponseDto<AdminRevenueReportResponse>> getAdminRevenueReport(
+            @RequestParam(defaultValue = "THIS_MONTH") ReportPeriod period,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime toDate) {
+        return ResponseEntity.ok(ResponseDto.success(
+                reportService.getAdminRevenue(period, fromDate, toDate),
+                "Lấy báo cáo doanh thu thành công"));
     }
 }

@@ -27,4 +27,6 @@ public interface StudentTitleRepository extends JpaRepository<StudentTitle, UUID
 
     @Query("SELECT st FROM StudentTitle st WHERE st.campaign.id = :campaignId ORDER BY st.earnedAt DESC")
     List<StudentTitle> findByCampaignId(@Param("campaignId") UUID campaignId);
+
+    long countByStudentId(UUID studentId);
 }

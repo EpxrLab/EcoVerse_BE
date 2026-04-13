@@ -15,4 +15,6 @@ public interface PartnershipRepository extends JpaRepository<Partnership, UUID>,
     List<Partnership> findByApprovalStatus(ApprovalStatus approvalStatus);
 
     Optional<Partnership> findByUserId(UUID userId);
+
+    long countByApprovalStatus(ApprovalStatus approvalStatus);
 }
