@@ -1875,7 +1875,10 @@ public class CampaignServiceImpl implements ICampaignService {
     }
 
     private boolean shouldUseCurrentRoundLeaderboardForRole(Role role) {
-        return role == Role.STUDENT || role == Role.PARENT || role == Role.PARTNERSHIP_SCHOOL;
+        return role == Role.STUDENT
+                || role == Role.PARENT
+                || role == Role.PARTNERSHIP_SCHOOL
+                || role == Role.THIRD_PARTY_PARTNERSHIP;
     }
 
     private Optional<CampaignRound> resolvePartnershipDefaultRound(Campaign campaign) {
