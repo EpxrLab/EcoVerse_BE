@@ -25,6 +25,7 @@ public record CampaignRoundInfoResponse(
         Integer coinPerSession,
         List<UUID> selectedPresetIds,
         Map<String, List<UUID>> presetSubCategoryConfig,
+        List<StudentRoundGameConfigResponse> games,
         // Quiz config
         List<RoundQuizBriefResponse> quizzes
 ) {
