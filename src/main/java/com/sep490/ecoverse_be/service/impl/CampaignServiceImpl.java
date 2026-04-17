@@ -288,6 +288,7 @@ public class CampaignServiceImpl implements ICampaignService {
                                                                     .map(item -> {
                                                                         long todayAttempts = 0;
                                                                         Boolean coinReceived = null;
+                                                                        Boolean isPassed = null;
 
                                                                         if (currentParticipantId != null) {
                                                                             todayAttempts = gameSessionRepository
@@ -307,6 +308,12 @@ public class CampaignServiceImpl implements ICampaignService {
                                                                                                     item.getLevelNumber(),
                                                                                                     0);
                                                                             }
+                                                                            isPassed = gameSessionRepository
+                                                                                    .existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndIsCompletedTrueAndIsPassedTrue(
+                                                                                            currentParticipantId,
+                                                                                            config.getId(),
+                                                                                            preset.getId(),
+                                                                                            item.getLevelNumber());
                                                                         }
 
                                                                         return StudentPresetLevelConfigResponse.builder()
@@ -323,6 +330,7 @@ public class CampaignServiceImpl implements ICampaignService {
                                                                                 .coinReceived(coinReceived)
                                                                                 .maxDailyAttempts(MAX_PLAYS_PER_LEVEL_PER_DAY)
                                                                                 .todayAttempts(todayAttempts)
+                                                                                .isPassed(isPassed)
                                                                                 .build();
                                                                     })
                                                                     .toList();
@@ -1618,6 +1626,11 @@ public class CampaignServiceImpl implements ICampaignService {
                                                                                     : null)
                                                                     .maxDailyAttempts(MAX_PLAYS_PER_LEVEL_PER_DAY)
                                                                     .todayAttempts(todayAttempts)
+                                                                    .isPassed(gameSessionRepository.existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndIsCompletedTrueAndIsPassedTrue(
+                                                                            participantIdFinal,
+                                                                            configId,
+                                                                            preset.getId(),
+                                                                            item.getLevelNumber()))
                                                                     .build();
                                                         })
                                                         .toList();
