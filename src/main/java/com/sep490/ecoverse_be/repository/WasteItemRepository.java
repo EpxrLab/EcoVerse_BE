@@ -13,6 +13,8 @@ public interface WasteItemRepository extends JpaRepository<WasteItem, UUID>, Jpa
 
     List<WasteItem> findByIsDeleteFalse();
 
+    List<WasteItem> findByTripoStatus(String status);
+
     List<WasteItem> findBySubCategoryIdInAndIsDeleteFalseAndIsActiveTrue(List<UUID> subCategoryIds);
 
     List<WasteItem> findByCategoryInAndIsDeleteFalseAndIsActiveTrue(List<WasteCategory> categories);

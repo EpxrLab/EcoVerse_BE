@@ -144,6 +144,9 @@ public class AdminServiceImpl implements IAdminService {
     @Autowired
     private CampaignSchoolParticipateRepository campaignSchoolParticipateRepository;
 
+    @Autowired
+    private TripoApiService tripoApiService;
+
     private User getCurrentAdmin() {
         UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext()
                 .getAuthentication().getPrincipal();
@@ -396,6 +399,19 @@ public class AdminServiceImpl implements IAdminService {
         wasteItem.setRecyclingTips(request.getRecyclingTips());
         wasteItem.setActive(request.getIsActive() == null || request.getIsActive());
         wasteItem.setCreatedBy(getCurrentAdmin());
+        
+        if (Boolean.TRUE.equals(request.getGenerate3dModel()) && request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
+            try {
+                String presignedUrl = s3PresignedUrlService.generatePresignedUrl(request.getImageUrl());
+                String taskId = tripoApiService.submitImageTo3dTask(presignedUrl);
+                wasteItem.setTripoTaskId(taskId);
+                wasteItem.setTripoStatus("PENDING");
+            } catch (Exception e) {
+                wasteItem.setTripoStatus("FAILED");
+                // Log naturally handled in TripoApiService, but fail gracefully for WasteItem setup
+            }
+        }
+
         return mapWasteItem(wasteItemRepository.save(wasteItem));
     }
 
@@ -418,6 +434,18 @@ public class AdminServiceImpl implements IAdminService {
         if (request.getIsActive() != null) {
             wasteItem.setActive(request.getIsActive());
         }
+
+        if (Boolean.TRUE.equals(request.getGenerate3dModel()) && request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
+            try {
+                String presignedUrl = s3PresignedUrlService.generatePresignedUrl(request.getImageUrl());
+                String taskId = tripoApiService.submitImageTo3dTask(presignedUrl);
+                wasteItem.setTripoTaskId(taskId);
+                wasteItem.setTripoStatus("PENDING");
+            } catch (Exception e) {
+                wasteItem.setTripoStatus("FAILED");
+            }
+        }
+
         return mapWasteItem(wasteItemRepository.save(wasteItem));
     }
 
@@ -425,7 +453,7 @@ public class AdminServiceImpl implements IAdminService {
     @Transactional
     public void deleteWasteItem(UUID id) {
         WasteItem wasteItem = getActiveWasteItemOrThrow(id);
-        wasteItem.setActive(false);
+        wasteItem.setDelete(true);
         wasteItemRepository.save(wasteItem);
     }
 
@@ -1032,9 +1060,14 @@ public class AdminServiceImpl implements IAdminService {
                 .subCategoryDisplayName(subCategory != null ? subCategory.getDisplayName() : null)
                 .description(wasteItem.getDescription())
                 .funFact(wasteItem.getFunFact())
-                .imageUrl(s3PresignedUrlService.generatePresignedUrl(wasteItem.getImageUrl()))
+                .imageUrl(wasteItem.getImageUrl())
+                .imagePresignedUrl(s3PresignedUrlService.generatePresignedUrl(wasteItem.getImageUrl()))
                 .decompositionTime(wasteItem.getDecompositionTime())
                 .recyclingTips(wasteItem.getRecyclingTips())
+                .model3dUrl(wasteItem.getModel3dUrl())
+                .model3dPresignedUrl(s3PresignedUrlService.generatePresignedUrl(wasteItem.getModel3dUrl()))
+                .tripoTaskId(wasteItem.getTripoTaskId())
+                .tripoStatus(wasteItem.getTripoStatus())
                 .isActive(wasteItem.isActive())
                 .build();
     }
