@@ -453,7 +453,7 @@ public class AdminServiceImpl implements IAdminService {
     @Transactional
     public void deleteWasteItem(UUID id) {
         WasteItem wasteItem = getActiveWasteItemOrThrow(id);
-        wasteItem.setActive(false);
+        wasteItem.setDelete(true);
         wasteItemRepository.save(wasteItem);
     }
 
