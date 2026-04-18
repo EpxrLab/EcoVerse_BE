@@ -62,6 +62,12 @@ public interface CampaignRepository extends JpaRepository<Campaign, UUID> {
     @Query("SELECT COUNT(c) FROM Campaign c WHERE c.creatorPartnership.id = :partnershipId AND c.partnershipStatus IN :statuses AND c.isActive = true")
     long countByCreatorPartnershipIdAndPartnershipStatusIn(@Param("partnershipId") UUID partnershipId, @Param("statuses") java.util.List<PartnershipCampaignStatus> statuses);
 
+    @Query("SELECT COUNT(c) FROM Campaign c WHERE c.creatorSchool.id = :schoolId AND c.schoolStatus <> 'DRAFT' AND c.createdAt >= :startOfMonth")
+    long countNonDraftByCreatorSchoolIdInMonth(@Param("schoolId") UUID schoolId, @Param("startOfMonth") LocalDateTime startOfMonth);
+
+    @Query("SELECT COUNT(c) FROM Campaign c WHERE c.creatorPartnership.id = :partnershipId AND c.partnershipStatus <> 'DRAFT' AND c.createdAt >= :startOfMonth")
+    long countNonDraftByCreatorPartnershipIdInMonth(@Param("partnershipId") UUID partnershipId, @Param("startOfMonth") LocalDateTime startOfMonth);
+
     @Query("SELECT COUNT(c) FROM Campaign c WHERE c.isActive = true AND (c.schoolStatus = 'ON_GOING' OR c.partnershipStatus = 'ON_GOING')")
     long countAllActiveCampaigns();
 }
