@@ -50,6 +50,8 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
     private final SubscriptionMapper subscriptionMapper;
     private final PaymentMapper paymentMapper;
     private final StudentRepository studentRepository;
+    private final CampaignRepository campaignRepository;
+    private final AiGenerationLogRepository aiGenerationLogRepository;
 
     @Override
     @Transactional
@@ -440,7 +442,24 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
                 .map(subscriptionMapper::toTransactionResponse)
                 .toList();
 
-        return subscriptionMapper.toResponse(subscription, transactions);
+        Long usedStudents = null;
+        Long usedCampaignsCurrentMonth = null;
+        Long usedAiQuizGenerations = null;
+
+        if (subscription.getStatus() == SubscriptionStatus.ACTIVE) {
+            LocalDateTime startOfMonth = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+            
+            if (subscription.getSubscriberType() == SubscriberType.SCHOOL && subscription.getSchool() != null) {
+                usedStudents = studentRepository.countBySchoolId(subscription.getSchool().getId());
+                usedCampaignsCurrentMonth = campaignRepository.countNonDraftByCreatorSchoolIdInMonth(subscription.getSchool().getId(), startOfMonth);
+                usedAiQuizGenerations = aiGenerationLogRepository.countChargedBySchoolIdInPeriod(subscription.getSchool().getId(), subscription.getStartDate(), subscription.getEndDate());
+            } else if (subscription.getSubscriberType() == SubscriberType.PARTNERSHIP && subscription.getPartnership() != null) {
+                usedCampaignsCurrentMonth = campaignRepository.countNonDraftByCreatorPartnershipIdInMonth(subscription.getPartnership().getId(), startOfMonth);
+                usedAiQuizGenerations = aiGenerationLogRepository.countChargedByPartnershipIdInPeriod(subscription.getPartnership().getId(), subscription.getStartDate(), subscription.getEndDate());
+            }
+        }
+
+        return subscriptionMapper.toResponse(subscription, transactions, usedStudents, usedCampaignsCurrentMonth, usedAiQuizGenerations);
     }
 
     private PageResponse<SubscriptionResponse> toSubscriptionPageResponse(Page<Subscription> page) {
@@ -448,10 +467,10 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         Map<UUID, List<SubscriptionTransactionResponse>> transactionMap = getTransactionMap(subscriptions);
 
         List<SubscriptionResponse> content = subscriptions.stream()
-                .map(subscription -> subscriptionMapper.toResponse(
-                        subscription,
-                        transactionMap.getOrDefault(subscription.getId(), Collections.emptyList())
-                ))
+                .map(subscription -> {
+                    List<SubscriptionTransactionResponse> txs = transactionMap.getOrDefault(subscription.getId(), Collections.emptyList());
+                    return subscriptionMapper.toResponse(subscription, txs, null, null, null);
+                })
                 .toList();
 
         return new PageResponse<>(
