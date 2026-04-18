@@ -26,7 +26,7 @@ public class TripoPollingScheduler {
     @Scheduled(fixedDelayString = "${tripo.polling.delay:60000}")
     public void pollTripoStatus() {
         List<WasteItem> pendingItems = wasteItemRepository.findByTripoStatus("PENDING");
-        
+
         if (pendingItems.isEmpty()) {
             return;
         }
@@ -61,12 +61,13 @@ public class TripoPollingScheduler {
             if (statusResponse.getResults() != null && !statusResponse.getResults().isEmpty()) {
                 String assetUrl = statusResponse.getResults().get(0).getAsset();
                 log.info("Tripo task {} FINISHED. Downloading asset from {}", item.getTripoTaskId(), assetUrl);
-                
+
                 String fileName = "tripo_" + item.getTripoTaskId() + ".glb";
                 StorageResponse storageResponse = storageService.uploadModelFromUrl(assetUrl, fileName);
 
-                item.setModel3dUrl(storageResponse.getPublicId());
+                item.setModel3dUrl(storageResponse.getUrl());
                 item.setTripoStatus("FINISHED");
+
                 wasteItemRepository.save(item);
                 log.info("Successfully saved 3D model to S3 for WasteItem ID: {}", item.getId());
             } else {
