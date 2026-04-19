@@ -87,6 +87,9 @@ public class CampaignServiceImpl implements ICampaignService {
     @Autowired
     private CampaignTitleRepository campaignTitleRepository;
 
+    @Autowired
+    private SubscriptionRepository subscriptionRepository;
+
     private User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !(auth.getPrincipal() instanceof UserPrincipal principal)) {
@@ -161,6 +164,60 @@ public class CampaignServiceImpl implements ICampaignService {
 
     private String createCode(String prefix) {
         return prefix + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+    }
+
+    // ── Subscription quota helpers ─────────────────────────────────────────────
+
+    private Subscription getActiveSchoolSubscription(School school) {
+        return subscriptionRepository.findBySchoolIdAndStatus(school.getId(), com.sep490.ecoverse_be.enums.SubscriptionStatus.ACTIVE)
+                .orElseThrow(() -> new BadRequestException("Trường chưa có gói subscription hoạt động"));
+    }
+
+    private Subscription getActivePartnershipSubscription(Partnership partnership) {
+        return subscriptionRepository.findByPartnershipIdAndStatus(partnership.getId(), com.sep490.ecoverse_be.enums.SubscriptionStatus.ACTIVE)
+                .orElseThrow(() -> new BadRequestException("Tổ chức chưa có gói subscription hoạt động"));
+    }
+
+    private void checkCampaignPerMonthQuota(Subscription subscription, School school, Partnership partnership) {
+        Integer maxCampaignsPerMonth = subscription.getPlan().getMaxCampaignsPerMonth();
+        if (maxCampaignsPerMonth == null) return; // unlimited
+
+        LocalDateTime startOfMonth = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+        long usedCount;
+        if (school != null) {
+            usedCount = campaignRepository.countNonDraftByCreatorSchoolIdInMonth(school.getId(), startOfMonth);
+        } else {
+            usedCount = campaignRepository.countNonDraftByCreatorPartnershipIdInMonth(partnership.getId(), startOfMonth);
+        }
+
+        if (usedCount >= maxCampaignsPerMonth) {
+            throw new BadRequestException(String.format(
+                    "Đã đạt giới hạn số chiến dịch trong tháng (%d/%d). Không thể kích hoạt thêm chiến dịch.",
+                    usedCount, maxCampaignsPerMonth));
+        }
+    }
+
+    private void checkMaxRoundsPerCampaign(Subscription subscription, int requestedRounds) {
+        Integer maxRoundsPerCampaign = subscription.getPlan().getMaxRoundsPerCampaign();
+        if (maxRoundsPerCampaign == null) return; // unlimited
+
+        if (requestedRounds > maxRoundsPerCampaign) {
+            throw new BadRequestException(String.format(
+                    "Số round (%d) vượt quá giới hạn của gói subscription (%d round/campaign).",
+                    requestedRounds, maxRoundsPerCampaign));
+        }
+    }
+
+    private void checkMaxSchoolsPerCampaign(Subscription subscription, UUID campaignId, int additionalSchools) {
+        Integer maxSchoolsPerCampaign = subscription.getPlan().getMaxSchoolsPerCampaign();
+        if (maxSchoolsPerCampaign == null) return; // unlimited
+
+        long currentSchools = campaignSchoolParticipateRepository.findByCampaignId(campaignId).size();
+        if (currentSchools + additionalSchools > maxSchoolsPerCampaign) {
+            throw new BadRequestException(String.format(
+                    "Tổng số trường mời (%d) vượt quá giới hạn của gói subscription (%d trường/campaign).",
+                    currentSchools + additionalSchools, maxSchoolsPerCampaign));
+        }
     }
 
     private void validateDateRange(LocalDateTime start, LocalDateTime end) {
@@ -290,6 +347,7 @@ public class CampaignServiceImpl implements ICampaignService {
                                                                     .map(item -> {
                                                                         long todayAttempts = 0;
                                                                         Boolean coinReceived = null;
+                                                                        Boolean isPassed = null;
 
                                                                         if (currentParticipantId != null) {
                                                                             todayAttempts = gameSessionRepository
@@ -309,6 +367,12 @@ public class CampaignServiceImpl implements ICampaignService {
                                                                                                     item.getLevelNumber(),
                                                                                                     0);
                                                                             }
+                                                                            isPassed = gameSessionRepository
+                                                                                    .existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndIsCompletedTrueAndIsPassedTrue(
+                                                                                            currentParticipantId,
+                                                                                            config.getId(),
+                                                                                            preset.getId(),
+                                                                                            item.getLevelNumber());
                                                                         }
 
                                                                         return StudentPresetLevelConfigResponse.builder()
@@ -325,6 +389,7 @@ public class CampaignServiceImpl implements ICampaignService {
                                                                                 .coinReceived(coinReceived)
                                                                                 .maxDailyAttempts(MAX_PLAYS_PER_LEVEL_PER_DAY)
                                                                                 .todayAttempts(todayAttempts)
+                                                                                .isPassed(isPassed)
                                                                                 .build();
                                                                     })
                                                                     .toList();
@@ -699,6 +764,10 @@ public class CampaignServiceImpl implements ICampaignService {
         if (campaign.getSchoolStatus() != SchoolCampaignStatus.DRAFT) {
             throw new BadRequestException("Chỉ được kích hoạt campaign ở trạng thái DRAFT");
         }
+        // Check campaign per month quota
+        Subscription schoolSub = getActiveSchoolSubscription(school);
+        checkCampaignPerMonthQuota(schoolSub, school, null);
+
         ensureHasAtLeastOneGameAndQuiz(campaign);
         campaign.setSchoolStatus(SchoolCampaignStatus.SCHEDULED);
         campaignRepository.save(campaign);
@@ -936,6 +1005,20 @@ public class CampaignServiceImpl implements ICampaignService {
             throw new BadRequestException("Partnership campaign phải có ít nhất 1 round");
         }
 
+        // Check maxRoundsPerCampaign quota
+        Subscription partnershipSub = getActivePartnershipSubscription(partnership);
+        checkMaxRoundsPerCampaign(partnershipSub, request.getRounds().size());
+
+        // Check maxSchoolsPerCampaign quota (at creation time if schoolIds are provided)
+        if (request.getSchoolIds() != null && !request.getSchoolIds().isEmpty()) {
+            Integer maxSchools = partnershipSub.getPlan().getMaxSchoolsPerCampaign();
+            if (maxSchools != null && request.getSchoolIds().size() > maxSchools) {
+                throw new BadRequestException(String.format(
+                        "Số trường mời (%d) vượt quá giới hạn của gói subscription (%d trường/campaign).",
+                        request.getSchoolIds().size(), maxSchools));
+            }
+        }
+
         Campaign campaign = new Campaign();
         campaign.setCampaignCode(createCode("PRT"));
         campaign.setCampaignName(request.getCampaignName());
@@ -1081,11 +1164,23 @@ public class CampaignServiceImpl implements ICampaignService {
     @Override
     @Transactional
     public void inviteSchools(UUID campaignId, InviteSchoolsRequest request) {
-        Campaign campaign = getPartnershipCampaignOwned(campaignId, getCurrentPartnership().getId());
+        Partnership partnership = getCurrentPartnership();
+        Campaign campaign = getPartnershipCampaignOwned(campaignId, partnership.getId());
         if (campaign.getCampaignType() != CampaignType.PARTNERSHIP_EVENT) {
             throw new BadRequestException("Chỉ hỗ trợ mời school cho partnership campaign");
         }
+
+        // Check maxSchoolsPerCampaign quota
+        Subscription partnershipSub = getActivePartnershipSubscription(partnership);
+        // Only count truly new schools (not already invited)
         List<School> schools = schoolRepository.findAllById(request.getSchoolIds());
+        long newSchoolCount = schools.stream()
+                .filter(s -> campaignSchoolParticipateRepository.findByCampaignIdAndSchoolId(campaignId, s.getId()).isEmpty())
+                .count();
+        if (newSchoolCount > 0) {
+            checkMaxSchoolsPerCampaign(partnershipSub, campaignId, (int) newSchoolCount);
+        }
+
         for (School school : schools) {
             CampaignSchoolParticipate invitation = campaignSchoolParticipateRepository
                     .findByCampaignIdAndSchoolId(campaignId, school.getId())
@@ -1100,10 +1195,15 @@ public class CampaignServiceImpl implements ICampaignService {
     @Override
     @Transactional
     public CampaignDetailResponse activatePartnershipCampaign(UUID campaignId) {
-        Campaign campaign = getPartnershipCampaignOwned(campaignId, getCurrentPartnership().getId());
+        Partnership partnership = getCurrentPartnership();
+        Campaign campaign = getPartnershipCampaignOwned(campaignId, partnership.getId());
         if (campaign.getPartnershipStatus() != PartnershipCampaignStatus.DRAFT) {
             throw new BadRequestException("Chỉ được kích hoạt campaign ở trạng thái DRAFT");
         }
+        // Check campaign per month quota
+        Subscription partnershipSub = getActivePartnershipSubscription(partnership);
+        checkCampaignPerMonthQuota(partnershipSub, null, partnership);
+
         ensureHasAtLeastOneGameAndQuiz(campaign);
         campaign.setPartnershipStatus(PartnershipCampaignStatus.SCHEDULED);
         campaignRepository.save(campaign);
@@ -1662,6 +1762,11 @@ public class CampaignServiceImpl implements ICampaignService {
                                                                                     : null)
                                                                     .maxDailyAttempts(MAX_PLAYS_PER_LEVEL_PER_DAY)
                                                                     .todayAttempts(todayAttempts)
+                                                                    .isPassed(gameSessionRepository.existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndIsCompletedTrueAndIsPassedTrue(
+                                                                            participantIdFinal,
+                                                                            configId,
+                                                                            preset.getId(),
+                                                                            item.getLevelNumber()))
                                                                     .build();
                                                         })
                                                         .toList();

@@ -60,6 +60,15 @@ public class WasteItem extends BaseEntity {
     @Column(columnDefinition = "text")
     private String recyclingTips;
 
+    @Column(length = 500)
+    private String model3dUrl;
+
+    @Column(length = 50)
+    private String tripoTaskId;
+
+    @Column(length = 20)
+    private String tripoStatus;
+
     @Column(nullable = false)
     private boolean isActive = true;
 

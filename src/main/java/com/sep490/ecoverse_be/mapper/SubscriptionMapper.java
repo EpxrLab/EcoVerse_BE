@@ -13,7 +13,10 @@ import java.util.List;
 public class SubscriptionMapper {
 
     public SubscriptionResponse toResponse(Subscription subscription,
-                                           List<SubscriptionTransactionResponse> transactions) {
+                                           List<SubscriptionTransactionResponse> transactions,
+                                           Long usedStudents,
+                                           Long usedCampaignsCurrentMonth,
+                                           Long usedAiQuizGenerations) {
         String subscriberName = null;
         if (subscription.getSubscriberType() == SubscriberType.SCHOOL && subscription.getSchool() != null) {
             subscriberName = subscription.getSchool().getSchoolName();
@@ -36,6 +39,14 @@ public class SubscriptionMapper {
                 subscription.getCancellationReason(),
                 subscription.getCancelledAt(),
                 subscription.getNotes(),
+                subscription.getPlan().getMaxStudents(),
+                usedStudents,
+                subscription.getPlan().getMaxCampaignsPerMonth(),
+                usedCampaignsCurrentMonth,
+                subscription.getPlan().getMaxRoundsPerCampaign(),
+                subscription.getPlan().getMaxSchoolsPerCampaign(),
+                subscription.getPlan().getMaxAiQuizGenerations(),
+                usedAiQuizGenerations,
                 transactions,
                 subscription.getCreatedAt(),
                 subscription.getUpdatedAt()

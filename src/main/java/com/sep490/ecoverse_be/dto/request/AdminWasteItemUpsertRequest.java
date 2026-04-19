@@ -28,5 +28,7 @@ public class AdminWasteItemUpsertRequest {
     private String recyclingTips;
 
     private Boolean isActive;
+
+    private Boolean generate3dModel;
 }
 

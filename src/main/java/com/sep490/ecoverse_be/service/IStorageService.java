@@ -9,6 +9,8 @@ public interface IStorageService {
 
     StorageResponse uploadModelFile(MultipartFile file, String fileName);
 
+    StorageResponse uploadModelFromUrl(String sourceUrl, String fileName);
+
     StorageResponse uploadContractFile(MultipartFile file, String fileName);
 
     StorageResponse uploadDocumentFile(MultipartFile file, String fileName);

@@ -3,10 +3,8 @@ package com.sep490.ecoverse_be.config;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -17,6 +15,9 @@ import java.time.format.DateTimeFormatter;
  * Frontend gửi timestamp dạng "2026-04-13T16:00:00.000Z" (UTC).
  * Nếu không cấu hình, backend response trả về "2026-04-13T16:00:00" (thiếu "Z"),
  * khiến frontend hiểu là local time → bị lệch 7 tiếng (UTC+7).
+ * <p>
+ * Chỉ cần đăng ký SimpleModule bean — Spring Boot auto-configuration sẽ tự động
+ * phát hiện và đăng ký module vào ObjectMapper mặc định.
  */
 @Configuration
 public class JacksonConfig {
@@ -33,13 +34,18 @@ public class JacksonConfig {
     }
 
     @Bean
-    @Primary
-    public ObjectMapper objectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        // Register the standard JavaTimeModule first
-        mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
-        // Custom formatters
-        mapper.registerModule(localDateTimeModule());
+    @org.springframework.context.annotation.Primary
+    public com.fasterxml.jackson.databind.ObjectMapper objectMapper() {
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        
+        // Dùng luôn JavaTimeModule chuẩn của Jackson nhưng ghi đè formatter của LocalDateTime
+        com.fasterxml.jackson.datatype.jsr310.JavaTimeModule javaTimeModule = new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule();
+        javaTimeModule.addSerializer(LocalDateTime.class, new LocalDateTimeSerializer(UTC_FORMATTER));
+        javaTimeModule.addDeserializer(LocalDateTime.class, new LocalDateTimeDeserializer(UTC_FORMATTER));
+        
+        mapper.registerModule(javaTimeModule);
+        mapper.disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        
         return mapper;
     }
 }
