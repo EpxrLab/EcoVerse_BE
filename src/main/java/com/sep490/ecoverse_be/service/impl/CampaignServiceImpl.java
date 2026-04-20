@@ -9,7 +9,9 @@ import com.sep490.ecoverse_be.exception.NotFoundException;
 import com.sep490.ecoverse_be.model.UserPrincipal;
 import com.sep490.ecoverse_be.repository.*;
 import com.sep490.ecoverse_be.event.NotificationEvent;
+import com.sep490.ecoverse_be.service.ICampaignRewardService;
 import com.sep490.ecoverse_be.service.ICampaignService;
+import com.sep490.ecoverse_be.service.INotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
@@ -77,13 +79,13 @@ public class CampaignServiceImpl implements ICampaignService {
     private S3PresignedUrlService s3PresignedUrlService;
 
     @Autowired
-    private com.sep490.ecoverse_be.service.ICampaignRewardService campaignRewardService;
+    private ICampaignRewardService campaignRewardService;
 
     @Autowired
-    private com.sep490.ecoverse_be.service.INotificationService notificationService;
+    private INotificationService notificationService;
 
     @Autowired
-    private com.sep490.ecoverse_be.repository.CampaignTitleRepository campaignTitleRepository;
+    private CampaignTitleRepository campaignTitleRepository;
 
     @Autowired
     private SubscriptionRepository subscriptionRepository;
@@ -1109,6 +1111,48 @@ public class CampaignServiceImpl implements ICampaignService {
                 request.getTopRankingCount() != null ? request.getTopRankingCount() : campaign.getTopRankingCount());
         campaign.setBannerImageUrl(request.getBannerImageUrl());
         campaignRepository.save(campaign);
+
+        if (request.getRounds() != null && !request.getRounds().isEmpty()) {
+            List<Integer> incomingRoundNumbers = request.getRounds().stream()
+                    .map(PartnershipRoundRequest::getRoundNumber)
+                    .toList();
+
+            List<CampaignRound> existingRounds = campaignRoundRepository
+                    .findByCampaignIdOrderByRoundNumberAsc(campaign.getId());
+
+            // Xóa các round không còn trong request
+            for (CampaignRound existing : existingRounds) {
+                if (!incomingRoundNumbers.contains(existing.getRoundNumber())) {
+                    roundGameConfigRepository.deleteByCampaignRoundId(existing.getId());
+                    campaignRoundQuizRepository.deleteByCampaignRoundId(existing.getId());
+                    campaignRoundRepository.delete(existing);
+                }
+            }
+
+            // Upsert từng round trong request
+            Map<Integer, CampaignRound> existingByNumber = existingRounds.stream()
+                    .collect(java.util.stream.Collectors.toMap(CampaignRound::getRoundNumber, r -> r));
+
+            for (PartnershipRoundRequest roundRequest : request.getRounds()) {
+                if (!roundRequest.getEndTime().isAfter(roundRequest.getStartTime())) {
+                    throw new BadRequestException("Thời gian round không hợp lệ");
+                }
+                CampaignRound round = existingByNumber.getOrDefault(
+                        roundRequest.getRoundNumber(), new CampaignRound());
+                round.setCampaign(campaign);
+                round.setRoundNumber(roundRequest.getRoundNumber());
+                round.setRoundName(roundRequest.getRoundName());
+                round.setStartTime(roundRequest.getStartTime());
+                round.setEndTime(roundRequest.getEndTime());
+                round.setMaxParticipants(roundRequest.getMaxParticipants());
+                round.setAdvanceCount(roundRequest.getAdvanceCount());
+                round.setIsFinalRound(Boolean.TRUE.equals(roundRequest.getIsFinalRound()));
+                campaignRoundRepository.save(round);
+            }
+
+            campaign.setTotalRounds(request.getRounds().size());
+            campaignRepository.save(campaign);
+        }
 
         if (request.getRewards() != null) {
             campaignRewardService.saveRewards(campaign, campaign.getCreatorPartnership(), request.getRewards());

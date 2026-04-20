@@ -198,7 +198,7 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
             }
 
             if (e instanceof BadCredentialsException) {
-                throw new RuntimeException("Email hoặc mật khẩu sai!");
+                throw new RuntimeException("Thông tin đăng nhập không đúng! Vui lòng thử lại");
             }
 
             throw new RuntimeException("Xác thực thất bại!");
