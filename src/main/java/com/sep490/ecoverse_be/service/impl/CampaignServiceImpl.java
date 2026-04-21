@@ -1001,12 +1001,22 @@ public class CampaignServiceImpl implements ICampaignService {
             if (currentStudentIds.contains(student.getId())) {
                 continue;
             }
-            CampaignParticipant participant = new CampaignParticipant();
-            participant.setCampaign(campaign);
-            participant.setStudent(student);
+            // Reactivate bản ghi soft-deleted thay vì INSERT mới để tránh vi phạm unique constraint
+            // (campaign_id, student_id)
+            CampaignParticipant participant = campaignParticipantRepository
+                    .findByCampaignIdAndStudentId(campaignId, student.getId())
+                    .orElseGet(() -> {
+                        CampaignParticipant p = new CampaignParticipant();
+                        p.setCampaign(campaign);
+                        p.setStudent(student);
+                        p.setSchool(school);
+                        return p;
+                    });
+            participant.setActive(true);
             participant.setSchool(school);
             participant.setEnrollmentDate(LocalDateTime.now());
             participant.setParentApprovalStatus(ParticipationStatus.PREPARED);
+            participant.setInvitationSentAt(null);
             campaignParticipantRepository.save(participant);
         }
 

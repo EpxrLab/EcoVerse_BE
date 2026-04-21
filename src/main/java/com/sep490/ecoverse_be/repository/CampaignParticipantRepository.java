@@ -16,6 +16,9 @@ public interface CampaignParticipantRepository extends JpaRepository<CampaignPar
 
     Optional<CampaignParticipant> findByCampaignIdAndStudentIdAndIsActiveTrue(UUID campaignId, UUID studentId);
 
+    // Tìm participant kể cả đã soft-delete (dùng khi reactivate thay vì insert mới)
+    Optional<CampaignParticipant> findByCampaignIdAndStudentId(UUID campaignId, UUID studentId);
+
     List<CampaignParticipant> findByStudentIdInAndParentApprovalStatusAndIsActiveTrue(
             List<UUID> studentIds,
             ParticipationStatus status
