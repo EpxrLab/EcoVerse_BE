@@ -278,7 +278,7 @@ public class ReportServiceImpl implements IReportService {
                 List.of(SchoolCampaignStatus.ON_GOING, SchoolCampaignStatus.INVITING));
         long completedCampaigns = campaignRepository.countByCreatorSchoolIdAndSchoolStatusIn(schoolId,
                 List.of(SchoolCampaignStatus.COMPLETED));
-        long participated = campaignSchoolParticipateRepository.countBySchoolId(schoolId);
+        long participated = campaignSchoolParticipateRepository.countBySchoolIdAndStatus(schoolId, ParticipationStatus.APPROVED);
 
         long pendingRewards = rewardRequestRepository.countBySchoolIdAndStatus(schoolId, RewardRequestStatus.PENDING);
         long processedRewards = rewardRequestRepository.countBySchoolIdAndStatus(schoolId, RewardRequestStatus.DELIVERED)
@@ -392,7 +392,7 @@ public class ReportServiceImpl implements IReportService {
         List<CampaignSchoolParticipate> participations = campaignSchoolParticipateRepository.findBySchoolIdOrderByCreatedAtDesc(schoolId);
         for (CampaignSchoolParticipate csp : participations) {
             Campaign c = csp.getCampaign();
-            if (c.getCampaignType() == CampaignType.SCHOOL_INTERNAL) continue;
+            if (c.getCampaignType() == CampaignType.SCHOOL_INTERNAL || csp.getStatus() != ParticipationStatus.APPROVED) continue;
             Double avgAcc = roundLeaderboardRepository.avgAccuracyByCampaignAndSchool(c.getId(), schoolId);
             result.add(SchoolCampaignReportResponse.builder()
                     .campaignId(c.getId())
@@ -427,8 +427,8 @@ public class ReportServiceImpl implements IReportService {
         long completedCampaigns = campaignRepository.countByCreatorPartnershipIdAndPartnershipStatusIn(partnershipId,
                 List.of(PartnershipCampaignStatus.COMPLETED));
 
-        long totalSchools = campaignSchoolParticipateRepository.countDistinctSchoolsByPartnershipId(partnershipId);
-        Long totalStudents = campaignSchoolParticipateRepository.sumStudentsEnrolledByPartnershipId(partnershipId);
+        long totalSchools = campaignSchoolParticipateRepository.countDistinctSchoolsByPartnershipIdAndStatus(partnershipId, ParticipationStatus.APPROVED);
+        Long totalStudents = campaignSchoolParticipateRepository.sumStudentsEnrolledByPartnershipIdAndStatus(partnershipId, ParticipationStatus.APPROVED);
         Double avgAccuracy = roundLeaderboardRepository.avgAccuracyByPartnershipId(partnershipId);
 
         Subscription activeSub = subscriptionRepository.findByPartnershipIdAndStatus(partnershipId, SubscriptionStatus.ACTIVE).orElse(null);
@@ -454,13 +454,14 @@ public class ReportServiceImpl implements IReportService {
 
     private List<TopSchoolDto> buildTopSchoolsForPartnership(UUID partnershipId) {
         List<Object[]> rows = campaignSchoolParticipateRepository
-                .findTopSchoolsByStudentsEnrolledForPartnership(partnershipId, PageRequest.of(0, TOP_SCHOOLS_LIMIT));
+                .findTopSchoolsByStudentsEnrolledForPartnershipAndStatus(partnershipId, ParticipationStatus.APPROVED, PageRequest.of(0, TOP_SCHOOLS_LIMIT));
         List<TopSchoolDto> result = new ArrayList<>();
         for (Object[] row : rows) {
             UUID schoolId = (UUID) row[0];
             String schoolName = (String) row[1];
             long total = row[2] != null ? ((Number) row[2]).longValue() : 0L;
-            long campaigns = campaignSchoolParticipateRepository.countBySchoolId(schoolId);
+            long campaigns = campaignSchoolParticipateRepository
+                    .countBySchoolIdAndPartnershipIdAndStatus(schoolId, partnershipId, ParticipationStatus.APPROVED);
             result.add(TopSchoolDto.builder()
                     .schoolId(schoolId)
                     .schoolName(schoolName)
@@ -478,9 +479,15 @@ public class ReportServiceImpl implements IReportService {
 
         List<Campaign> campaigns = campaignRepository.findByCreatorPartnershipIdAndIsActiveTrueOrderByCreatedAtDesc(partnershipId);
         return campaigns.stream().map(c -> {
-            long schools = campaignSchoolParticipateRepository.findByCampaignId(c.getId()).size();
-            Long students = campaignSchoolParticipateRepository.sumStudentsEnrolledByPartnershipId(partnershipId);
-            Double avgAcc = roundLeaderboardRepository.avgAccuracyByPartnershipId(partnershipId);
+            long schools = campaignSchoolParticipateRepository.countByCampaignIdAndStatus(c.getId(), ParticipationStatus.APPROVED);
+            Long students = campaignSchoolParticipateRepository.sumStudentsEnrolledByCampaignIdAndStatus(c.getId(), ParticipationStatus.APPROVED);
+            List<RoundLeaderboard> campaignLeaderboard = roundLeaderboardRepository.findByCampaignId(c.getId());
+            double avgAcc = campaignLeaderboard.stream()
+                    .map(RoundLeaderboard::getCombinedAccuracyPercentage)
+                    .filter(Objects::nonNull)
+                    .mapToDouble(BigDecimal::doubleValue)
+                    .average()
+                    .orElse(0.0);
             return PartnershipCampaignReportResponse.builder()
                     .campaignId(c.getId())
                     .campaignCode(c.getCampaignCode())
