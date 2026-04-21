@@ -400,7 +400,11 @@ public class AdminServiceImpl implements IAdminService {
         wasteItem.setActive(request.getIsActive() == null || request.getIsActive());
         wasteItem.setCreatedBy(getCurrentAdmin());
         
-        if (Boolean.TRUE.equals(request.getGenerate3dModel()) && request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
+        if (request.getImageUrl() != null && request.getImageUrl().toLowerCase().endsWith(".glb")) {
+            wasteItem.setModel3dUrl(null);
+            wasteItem.setTripoTaskId(null);
+            wasteItem.setTripoStatus(null);
+        } else if (Boolean.TRUE.equals(request.getGenerate3dModel()) && request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
             try {
                 String presignedUrl = s3PresignedUrlService.generatePresignedUrl(request.getImageUrl());
                 String taskId = tripoApiService.submitImageTo3dTask(presignedUrl);
@@ -435,7 +439,11 @@ public class AdminServiceImpl implements IAdminService {
             wasteItem.setActive(request.getIsActive());
         }
 
-        if (Boolean.TRUE.equals(request.getGenerate3dModel()) && request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
+        if (request.getImageUrl() != null && request.getImageUrl().toLowerCase().endsWith(".glb")) {
+            wasteItem.setModel3dUrl(null);
+            wasteItem.setTripoTaskId(null);
+            wasteItem.setTripoStatus(null);
+        } else if (Boolean.TRUE.equals(request.getGenerate3dModel()) && request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
             try {
                 String presignedUrl = s3PresignedUrlService.generatePresignedUrl(request.getImageUrl());
                 String taskId = tripoApiService.submitImageTo3dTask(presignedUrl);
