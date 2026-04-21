@@ -4,6 +4,7 @@ import com.sep490.ecoverse_be.dto.response.ResponseDto;
 import com.sep490.ecoverse_be.dto.response.StudentAccountInfo;
 import com.sep490.ecoverse_be.dto.request.ParentCampaignApprovalRequest;
 import com.sep490.ecoverse_be.dto.response.CampaignProgressResponse;
+import com.sep490.ecoverse_be.dto.response.ParentCampaignInvitationHistoryResponse;
 import com.sep490.ecoverse_be.dto.response.ParentCampaignInvitationResponse;
 import com.sep490.ecoverse_be.enums.ParticipationStatus;
 import com.sep490.ecoverse_be.service.ICampaignService;
@@ -45,12 +46,23 @@ public class ParentController {
 
     @GetMapping("/campaign-invitations")
     public ResponseEntity<ResponseDto<List<ParentCampaignInvitationResponse>>> getCampaignInvitations(
-            @Parameter(description = "Lọc theo parentApprovalStatus. Bỏ qua = mặc định chỉ lời mời INVITED đã gửi (invitationSentAt), chờ phụ huynh duyệt. "
+            @Parameter(description = "Inbox: chỉ campaign đang mời / gia hạn mời (INVITING, EXTENDED, JOINING). "
+                    + "Lọc theo parentApprovalStatus. Bỏ qua = mặc định INVITED đã gửi (invitationSentAt), chờ phụ huynh duyệt. "
                     + "Giá trị: PREPARED | INVITED | APPROVED | REJECTED | CANCELLED")
             @RequestParam(required = false) ParticipationStatus status) {
         return ResponseEntity.ok(ResponseDto.success(
                 campaignService.getParentCampaignInvitations(status),
-                "Danh sách lời mời campaign thành công"));
+                "Danh sách lời mời campaign (inbox) thành công"));
+    }
+
+    @GetMapping("/campaign-invitations/history")
+    public ResponseEntity<ResponseDto<List<ParentCampaignInvitationHistoryResponse>>> getCampaignInvitationHistory(
+            @Parameter(description = "Lịch sử: chỉ campaign đã COMPLETED. Lọc theo parentApprovalStatus (tùy chọn). "
+                    + "Giá trị: PREPARED | INVITED | APPROVED | REJECTED | CANCELLED")
+            @RequestParam(required = false) ParticipationStatus status) {
+        return ResponseEntity.ok(ResponseDto.success(
+                campaignService.getParentCampaignInvitationHistory(status),
+                "Danh sách lịch sử lời mời campaign thành công"));
     }
 
     @PostMapping("/campaigns/{campaignId}/approve-join")
