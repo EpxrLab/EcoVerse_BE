@@ -1,0 +1,70 @@
+@startuml seq_delete_game_type
+title Sequence Diagram - DELETE /api/admin/game-types/{id} (Delete Game Type)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "AdminController" as ctrl
+participant "IAdminService\n(AdminServiceImpl)" as svc
+participant "GameTypeRepository" as gtRepo
+participant "SecurityContextHolder" as sec
+database "Database" as db
+
+admin -> ui : Mở trang danh sách Game Type
+activate ui
+ui -> ui : Hiển thị danh sách Game Type\nvới nút "Xóa" cho mỗi item
+
+admin -> ui : Nhấn nút "Xóa" trên Game Type cần xóa
+ui -> ui : Hiển thị dialog xác nhận\n"Bạn có chắc muốn xóa game type này?"
+
+admin -> ui : Nhấn "Xác nhận xóa"
+
+ui -> ctrl : DELETE /api/admin/game-types/{id}
+activate ctrl
+
+ctrl -> svc : deleteGameType(id)
+activate svc
+
+note over svc : getActiveGameTypeOrThrow(id)
+svc -> gtRepo : findByIdAndIsDeleteFalse(id)
+activate gtRepo
+gtRepo -> db : SELECT FROM game_types\nWHERE id=? AND is_delete=false
+db --> gtRepo : result
+gtRepo --> svc : Optional<GameType>
+deactivate gtRepo
+
+alt GameType not found
+    svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
+    ctrl --> ui : 404 Not Found
+    ui -> ui : Hiển thị thông báo lỗi\n"Không tìm thấy game type"
+    ui --> admin : Hiển thị lỗi
+end
+
+svc -> svc : gameType.setActive(false)
+
+svc -> sec : getCurrentAdmin()
+activate sec
+sec --> svc : User (admin)
+deactivate sec
+
+svc -> svc : gameType.setUpdatedBy(admin)
+
+svc -> gtRepo : save(gameType)
+activate gtRepo
+gtRepo -> db : UPDATE game_types\nSET is_active=false, updated_by=?
+db --> gtRepo : updated GameType
+gtRepo --> svc : GameType
+deactivate gtRepo
+
+svc --> ctrl : void
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(null, "Xóa game type thành công")
+ctrl --> ui : 200 OK\nResponseDto<Void>
+deactivate ctrl
+
+ui -> ui : Hiển thị thông báo thành công\n"Xóa game type thành công"
+ui -> ui : Xóa Game Type khỏi danh sách hiển thị
+ui --> admin : Danh sách Game Type đã được cập nhật
+deactivate ui
+
+@enduml

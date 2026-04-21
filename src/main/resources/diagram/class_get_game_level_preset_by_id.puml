@@ -1,0 +1,130 @@
+@startuml class_get_game_level_preset_by_id
+title Class Diagram - GET /api/admin/game-types/{gameTypeId}/presets/{presetId} (Get Game Level Preset By ID)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class AdminController {
+        - adminService : IAdminService
+        + getGamePreset(gameTypeId: UUID, presetId: UUID) : ResponseEntity<ResponseDto<AdminGameLevelPresetResponse>>
+    }
+}
+
+package "service" {
+    interface IAdminService {
+        + getGameLevelPresetById(gameTypeId: UUID, presetId: UUID) : AdminGameLevelPresetResponse
+    }
+
+    class AdminServiceImpl implements IAdminService {
+        - gameTypeRepository : GameTypeRepository
+        - gameLevelPresetRepository : GameLevelPresetRepository
+        + getGameLevelPresetById(gameTypeId: UUID, presetId: UUID) : AdminGameLevelPresetResponse
+        - getActiveGameTypeOrThrow(id: UUID) : GameType
+        - getPresetOrThrow(gameTypeId: UUID, presetId: UUID) : GameLevelPreset
+        - mapGameLevelPreset(preset: GameLevelPreset) : AdminGameLevelPresetResponse
+    }
+}
+
+package "dto.response" {
+    class ResponseDto<T> {
+        - status : int
+        - message : String
+        - data : T
+        + {static} success(data: T, message: String) : ResponseDto<T>
+    }
+
+    class AdminGameLevelPresetResponse <<record>> {
+        + id : UUID
+        + gameTypeId : UUID
+        + difficulty : QuizDifficulty
+        + items : List<AdminGameLevelPresetItemResponse>
+    }
+
+    class AdminGameLevelPresetItemResponse <<record>> {
+        + id : UUID
+        + levelNumber : int
+        + itemCount : int
+        + timeLimitSeconds : int
+        + scorePerCorrect : int
+        + lives : Integer
+        + wasteCategories : Set<WasteCategory>
+        + configJson : Map<String, Object>
+    }
+}
+
+package "entity" {
+    abstract class BaseEntity {
+        - id : UUID
+        - createdAt : LocalDateTime
+        - updatedAt : LocalDateTime
+    }
+
+    class GameType extends BaseEntity {
+        - typeCode : GameTypeCode
+        - name : String
+        - isActive : boolean
+        - isDelete : boolean
+    }
+
+    class GameLevelPreset extends BaseEntity {
+        - gameType : GameType
+        - difficulty : QuizDifficulty
+        - items : List<GameLevelPresetItem>
+    }
+
+    class GameLevelPresetItem extends BaseEntity {
+        - preset : GameLevelPreset
+        - levelNumber : int
+        - itemCount : int
+        - timeLimitSeconds : int
+        - scorePerCorrect : int
+        - lives : Integer
+        - configJson : Map<String, Object>
+        - wasteCategories : Set<WasteCategory>
+    }
+}
+
+package "repository" {
+    interface GameTypeRepository extends JpaRepository {
+        + findByIdAndIsDeleteFalse(id: UUID) : Optional<GameType>
+    }
+
+    interface GameLevelPresetRepository extends JpaRepository {
+        + findById(id: UUID) : Optional<GameLevelPreset>
+    }
+}
+
+package "exception" {
+    class NotFoundException extends RuntimeException
+}
+
+package "enums" {
+    enum QuizDifficulty {
+        EASY
+        MEDIUM
+        HARD
+    }
+
+    enum WasteCategory {
+        RECYCLABLE
+        ORGANIC
+        HAZARDOUS
+        GENERAL
+    }
+}
+
+AdminController --> IAdminService : uses
+AdminServiceImpl --> GameTypeRepository : uses
+AdminServiceImpl --> GameLevelPresetRepository : uses
+AdminController ..> ResponseDto : returns
+AdminServiceImpl ..> AdminGameLevelPresetResponse : creates
+AdminServiceImpl ..> NotFoundException : throws
+
+GameLevelPreset --> GameType : gameType
+GameLevelPreset "1" *-- "1..*" GameLevelPresetItem : items
+GameLevelPreset ..> QuizDifficulty : difficulty
+GameLevelPresetItem ..> WasteCategory : wasteCategories
+
+AdminGameLevelPresetResponse "1" *-- "0..*" AdminGameLevelPresetItemResponse : items
+
+@enduml

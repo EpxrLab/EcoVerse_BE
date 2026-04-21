@@ -1,0 +1,59 @@
+@startuml seq_get_game_type_by_id
+title Sequence Diagram - GET /api/admin/game-types/{id} (Get Game Type By ID)
+
+actor "Authenticated User" as user
+boundary "Admin UI\n(Frontend)" as ui
+participant "AdminController" as ctrl
+participant "IAdminService\n(AdminServiceImpl)" as svc
+participant "GameTypeRepository" as gtRepo
+participant "S3PresignedUrlService" as s3
+database "Database" as db
+
+user -> ui : Nhấn vào một Game Type trong danh sách
+activate ui
+
+ui -> ctrl : GET /api/admin/game-types/{id}
+activate ctrl
+
+note over ctrl : @PreAuthorize("isAuthenticated()")
+
+ctrl -> svc : getGameTypeById(id)
+activate svc
+
+note over svc : getActiveGameTypeOrThrow(id)
+svc -> gtRepo : findByIdAndIsDeleteFalse(id)
+activate gtRepo
+gtRepo -> db : SELECT * FROM game_types\nWHERE id=? AND is_delete=false
+db --> gtRepo : result
+gtRepo --> svc : Optional<GameType>
+deactivate gtRepo
+
+alt GameType not found
+    svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
+    ctrl --> ui : 404 Not Found
+    ui -> ui : Hiển thị thông báo lỗi\n"Không tìm thấy game type"
+    ui --> user : Hiển thị lỗi
+end
+
+svc -> svc : mapGameType(gameType)
+svc -> s3 : generatePresignedUrl(thumbnailUrl)
+activate s3
+s3 --> svc : presigned thumbnail URL
+deactivate s3
+svc -> s3 : generatePresignedUrl(iconUrl)
+activate s3
+s3 --> svc : presigned icon URL
+deactivate s3
+
+svc --> ctrl : AdminGameTypeResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response, "Lấy chi tiết game type thành công")
+ctrl --> ui : 200 OK\nResponseDto<AdminGameTypeResponse>
+deactivate ctrl
+
+ui -> ui : Render chi tiết Game Type\n(typeCode, name, description,\nhowToPlay, thumbnail, icon,\nfeatures, supportsCoin,\nmaxLevels, displayOrder,\nmappedWasteCategories)
+ui --> user : Hiển thị trang chi tiết Game Type
+deactivate ui
+
+@enduml

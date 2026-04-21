@@ -1,0 +1,77 @@
+@startuml seq_delete_game_level_preset
+title Sequence Diagram - DELETE /api/admin/game-types/{gameTypeId}/presets/{presetId} (Delete Game Level Preset)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "AdminController" as ctrl
+participant "IAdminService\n(AdminServiceImpl)" as svc
+participant "GameTypeRepository" as gtRepo
+participant "GameLevelPresetRepository" as glpRepo
+database "Database" as db
+
+admin -> ui : Mở trang danh sách Preset\ncủa một Game Type
+activate ui
+ui -> ui : Hiển thị danh sách Preset\nvới nút "Xóa" cho mỗi item
+
+admin -> ui : Nhấn nút "Xóa" trên Preset cần xóa
+ui -> ui : Hiển thị dialog xác nhận\n"Bạn có chắc muốn xóa preset này?\nTất cả level items sẽ bị xóa theo."
+
+admin -> ui : Nhấn "Xác nhận xóa"
+
+ui -> ctrl : DELETE /api/admin/game-types/{gameTypeId}/presets/{presetId}
+activate ctrl
+
+ctrl -> svc : deleteGameLevelPreset(gameTypeId, presetId)
+activate svc
+
+note over svc : getActiveGameTypeOrThrow(gameTypeId)
+svc -> gtRepo : findByIdAndIsDeleteFalse(gameTypeId)
+activate gtRepo
+gtRepo -> db : SELECT FROM game_types\nWHERE id=? AND is_delete=false
+db --> gtRepo : result
+gtRepo --> svc : Optional<GameType>
+deactivate gtRepo
+
+alt GameType not found
+    svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
+    ctrl --> ui : 404 Not Found
+    ui -> ui : Hiển thị thông báo lỗi
+    ui --> admin : Hiển thị lỗi
+end
+
+note over svc : getPresetOrThrow(gameTypeId, presetId)
+svc -> glpRepo : findById(presetId)
+activate glpRepo
+glpRepo -> db : SELECT FROM game_level_presets\nWHERE id=?
+db --> glpRepo : result
+glpRepo --> svc : Optional<GameLevelPreset>
+deactivate glpRepo
+
+svc -> svc : filter: preset.gameType.id == gameTypeId
+
+alt Preset not found or wrong gameType
+    svc --> ctrl : throw NotFoundException("Không tìm thấy preset")
+    ctrl --> ui : 404 Not Found
+    ui --> admin : Hiển thị lỗi
+end
+
+svc -> glpRepo : delete(preset)
+activate glpRepo
+glpRepo -> db : DELETE FROM game_level_preset_item_waste_categories\nWHERE preset_item_id IN (...)\nDELETE FROM game_level_preset_items\nWHERE preset_id=?\nDELETE FROM game_level_presets\nWHERE id=?
+db --> glpRepo : done
+glpRepo --> svc : void
+deactivate glpRepo
+
+svc --> ctrl : void
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(null, "Xóa preset thành công")
+ctrl --> ui : 200 OK\nResponseDto<Void>
+deactivate ctrl
+
+ui -> ui : Hiển thị thông báo thành công\n"Xóa preset thành công"
+ui -> ui : Xóa Preset khỏi danh sách hiển thị
+ui --> admin : Danh sách Preset đã được cập nhật
+deactivate ui
+
+@enduml
