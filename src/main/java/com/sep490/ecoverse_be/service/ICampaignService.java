@@ -8,13 +8,13 @@ import java.util.List;
 import java.util.UUID;
 
 public interface ICampaignService {
-    CampaignDetailResponse createSchoolCampaign(SchoolCampaignUpsertRequest request);
+    CampaignDetailResponse createSchoolCampaign(CreateSchoolCampaignRequest request);
     List<CampaignSummaryResponse> getMySchoolCampaigns();
     CampaignDetailResponse getSchoolCampaignById(UUID campaignId);
-    CampaignDetailResponse updateSchoolCampaign(UUID campaignId, SchoolCampaignUpsertRequest request);
+    CampaignDetailResponse updateSchoolCampaign(UUID campaignId, UpdateSchoolCampaignRequest request);
     CampaignDetailResponse activateSchoolCampaign(UUID campaignId);
     CampaignDetailResponse setSchoolCampaignDraft(UUID campaignId);
-    void inviteStudentsToSchoolCampaign(UUID campaignId, AssignStudentsRequest request);
+    void replaceAssignedStudentsForSchoolCampaign(UUID campaignId, AssignStudentsRequest request);
     CampaignDetailResponse extendInviting(UUID campaignId, ExtendInvitingRequest request);
     CampaignDetailResponse cancelSchoolCampaign(UUID campaignId);
     void deleteSchoolCampaign(UUID campaignId);
@@ -50,6 +50,10 @@ public interface ICampaignService {
     List<LeaderboardEntryResponse> getCampaignRoundLeaderboard(UUID roundId);
 
     List<ParentCampaignInvitationResponse> getParentCampaignInvitations(ParticipationStatus status);
+
+    /** Lịch sử lời mời / tham gia campaign đã kết thúc (COMPLETED), dùng để tra cứu leaderboard & kết quả. */
+    List<ParentCampaignInvitationHistoryResponse> getParentCampaignInvitationHistory(ParticipationStatus status);
+
     void parentApproveJoin(UUID campaignId, ParentCampaignApprovalRequest request);
     void parentRejectJoin(UUID campaignId, ParentCampaignApprovalRequest request);
     List<CampaignProgressResponse> getParentStudentProgress(UUID studentId);

@@ -27,7 +27,7 @@ public class SchoolCampaignController {
     private ICampaignService campaignService;
 
     @PostMapping("/campaigns")
-    public ResponseEntity<ResponseDto<CampaignDetailResponse>> createCampaign(@Valid @RequestBody SchoolCampaignUpsertRequest request) {
+    public ResponseEntity<ResponseDto<CampaignDetailResponse>> createCampaign(@Valid @RequestBody CreateSchoolCampaignRequest request) {
         return ResponseEntity.status(201).body(ResponseDto.created(campaignService.createSchoolCampaign(request), "Tạo campaign thành công"));
     }
 
@@ -43,7 +43,7 @@ public class SchoolCampaignController {
 
     @PutMapping("/campaigns/{id}")
     public ResponseEntity<ResponseDto<CampaignDetailResponse>> updateCampaign(@PathVariable UUID id,
-                                                                               @Valid @RequestBody SchoolCampaignUpsertRequest request) {
+                                                                               @Valid @RequestBody UpdateSchoolCampaignRequest request) {
         return ResponseEntity.ok(ResponseDto.success(campaignService.updateSchoolCampaign(id, request), "Cập nhật campaign thành công"));
     }
 
@@ -57,11 +57,11 @@ public class SchoolCampaignController {
         return ResponseEntity.ok(ResponseDto.success(campaignService.setSchoolCampaignDraft(id), "Chuyển campaign về DRAFT thành công"));
     }
 
-    @PostMapping("/campaigns/{id}/invite-students")
-    public ResponseEntity<ResponseDto<Void>> inviteStudents(@PathVariable UUID id,
-                                                            @Valid @RequestBody AssignStudentsRequest request) {
-        campaignService.inviteStudentsToSchoolCampaign(id, request);
-        return ResponseEntity.ok(ResponseDto.success(null, "Mời học sinh tham gia campaign thành công"));
+    @PutMapping("/campaigns/{id}/assigned-students")
+    public ResponseEntity<ResponseDto<Void>> replaceSchoolCampaignStudents(@PathVariable UUID id,
+                                                                           @Valid @RequestBody AssignStudentsRequest request) {
+        campaignService.replaceAssignedStudentsForSchoolCampaign(id, request);
+        return ResponseEntity.ok(ResponseDto.success(null, "Cập nhật danh sách học sinh tham gia thành công"));
     }
 
     @PutMapping("/campaigns/{id}/extend-inviting")
