@@ -1,0 +1,59 @@
+@startuml class_parent_confirm_partnership_reward
+title Class Diagram - PUT /api/rewards/deliveries/{id}/confirm (Phụ huynh xác nhận nhận quà)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class CampaignRewardDeliveryController {
+        - deliveryService : ICampaignRewardDeliveryService
+        + confirmReceived(id: UUID) : ResponseEntity<ResponseDto<CampaignRewardDeliveryResponse>>
+    }
+}
+
+package "service" {
+    interface ICampaignRewardDeliveryService {
+        + confirmReceived(deliveryId: UUID) : CampaignRewardDeliveryResponse
+    }
+
+    class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliveryService {
+        - deliveryRepository : CampaignRewardDeliveryRepository
+        - parentRepository : ParentRepository
+        - studentParentLinkRepository : StudentParentLinkRepository
+        - eventPublisher : ApplicationEventPublisher
+        + confirmReceived(deliveryId: UUID) : CampaignRewardDeliveryResponse
+    }
+}
+
+package "entity" {
+    class CampaignRewardDelivery extends BaseEntity {
+        - campaign : Campaign
+        - campaignReward : CampaignReward
+        - student : Student
+        - school : School
+        - status : PartnershipRewardStatus
+        - confirmedAt : LocalDateTime
+        - confirmedBy : Parent
+    }
+
+    class StudentParentLink {
+        - student : Student
+        - parent : Parent
+    }
+}
+
+package "enums" {
+    enum PartnershipRewardStatus {
+        PREPARING
+        SHIPPING
+        ARRIVED
+        DELIVERED
+        CONFIRMED
+    }
+}
+
+CampaignRewardDeliveryController --> ICampaignRewardDeliveryService : uses
+CampaignRewardDelivery --> Student : student
+CampaignRewardDelivery --> School : school
+CampaignRewardDelivery ..> PartnershipRewardStatus : status
+
+@enduml

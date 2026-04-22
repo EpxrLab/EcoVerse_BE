@@ -1,0 +1,92 @@
+@startuml seq_create_reward_request
+title Sequence Diagram - POST /api/rewards/requests (Tạo yêu cầu đổi quà)
+
+actor "Học sinh/Phụ huynh" as user
+boundary "Reward UI\n(Frontend)" as ui
+participant "RewardRequestController" as ctrl
+participant "IRewardRequestService\n(RewardRequestServiceImpl)" as svc
+participant "StudentRepository" as stuRepo
+participant "ParentRepository" as parRepo
+participant "StudentParentLinkRepository" as splRepo
+participant "RewardRepository" as rewardRepo
+participant "RewardRequestRepository" as rrRepo
+participant "CoinTransactionRepository" as txRepo
+participant "ApplicationEventPublisher" as eventPub
+database "Database" as db
+
+user -> ui : Chọn quà muốn đổi,\nnhập số lượng, nhấn "Đổi quà"
+activate ui
+
+ui -> ctrl : POST /api/rewards/requests\n{ "rewardId": "uuid", "quantity": 1,\n"notes": "...", "studentId": "uuid" (parent only) }
+activate ctrl
+note over ctrl : @PreAuthorize("hasAnyAuthority('STUDENT', 'PARENT')")
+
+ctrl -> svc : createRequest(dto)
+activate svc
+
+svc -> svc : getCurrentUser() → User
+
+alt role == STUDENT
+    svc -> stuRepo : findByUserId(userId)
+    activate stuRepo
+    stuRepo --> svc : Student
+    deactivate stuRepo
+else role == PARENT
+    svc -> parRepo : findByUserId(userId)
+    activate parRepo
+    parRepo --> svc : Parent
+    deactivate parRepo
+
+    alt studentId == null
+        svc --> ctrl : throw BadRequestException\n("Phụ huynh phải chỉ định studentId")
+    end
+
+    svc -> stuRepo : findById(studentId)
+    svc -> splRepo : existsByStudentIdAndParentId(studentId, parentId)
+    alt không phải con
+        svc --> ctrl : throw BadRequestException\n("Học sinh này không phải con bạn")
+    end
+end
+
+svc -> rewardRepo : findByIdAndSchoolIdAndIsDeleteFalse(rewardId, schoolId)
+activate rewardRepo
+rewardRepo --> svc : Optional<Reward>
+deactivate rewardRepo
+
+note over svc : reserveStock: giữ chỗ tồn kho
+svc -> svc : Kiểm tra stockQuantity >= quantity
+alt hết hàng
+    svc --> ctrl : throw BadRequestException("Hết hàng")
+end
+svc -> rewardRepo : save(reward) [stockQuantity -= quantity]
+
+svc -> svc : totalCost = coinCost × quantity
+
+svc -> svc : new RewardRequest()\nset code, student, reward, school,\nquantity, totalCoins, status=PENDING
+
+svc -> rrRepo : save(rewardRequest)
+activate rrRepo
+rrRepo -> db : INSERT INTO reward_requests ...
+db --> rrRepo : RewardRequest
+rrRepo --> svc : RewardRequest
+deactivate rrRepo
+
+note over svc : deductCoins: trừ coin ngay
+svc -> svc : Kiểm tra totalCoins >= totalCost
+svc -> stuRepo : save(student) [totalCoins -= totalCost]
+svc -> txRepo : save(CoinTransaction SPEND_REWARD)
+
+svc -> eventPub : publishEvent → Thông báo Học sinh
+svc -> eventPub : publishEvent → Thông báo Phụ huynh
+
+svc --> ctrl : RewardRequestResponse
+deactivate svc
+
+ctrl --> ui : 201 Created\nResponseDto<RewardRequestResponse>
+deactivate ctrl
+
+ui -> ui : Hiển thị "Tạo yêu cầu thành công"
+ui --> user : Xem yêu cầu đổi quà
+deactivate ui
+
+@enduml

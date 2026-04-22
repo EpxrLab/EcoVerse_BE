@@ -1,0 +1,52 @@
+@startuml class_get_my_reward_requests
+title Class Diagram - GET /api/rewards/requests/my (Xem lịch sử yêu cầu đổi quà)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class RewardRequestController {
+        - rewardRequestService : IRewardRequestService
+        + getMyRequests() : ResponseEntity<ResponseDto<List<RewardRequestResponse>>>
+    }
+}
+
+package "service" {
+    interface IRewardRequestService {
+        + getMyRequests() : List<RewardRequestResponse>
+    }
+
+    class RewardRequestServiceImpl implements IRewardRequestService {
+        - rewardRequestRepository : RewardRequestRepository
+        - studentRepository : StudentRepository
+        - parentRepository : ParentRepository
+        - studentParentLinkRepository : StudentParentLinkRepository
+        - s3PresignedUrlService : S3PresignedUrlService
+        + getMyRequests() : List<RewardRequestResponse>
+    }
+}
+
+package "dto.response" {
+    class RewardRequestResponse {
+        - id : UUID
+        - requestCode : String
+        - studentId : UUID
+        - studentName : String
+        - rewardId : UUID
+        - rewardName : String
+        - quantity : int
+        - totalCoins : BigDecimal
+        - status : RewardRequestStatus
+        - createdAt : LocalDateTime
+    }
+}
+
+package "repository" {
+    interface RewardRequestRepository extends JpaRepository {
+        + findByStudentIdOrderByCreatedAtDesc(studentId: UUID) : List<RewardRequest>
+    }
+}
+
+RewardRequestController --> IRewardRequestService : uses
+RewardRequestServiceImpl --> RewardRequestRepository : uses
+
+@enduml

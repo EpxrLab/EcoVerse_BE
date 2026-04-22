@@ -1,0 +1,77 @@
+@startuml seq_school_update_reward
+title Sequence Diagram - PUT /api/school/rewards/{rewardId} (Cập nhật quà thưởng)
+
+actor "Trường học" as user
+boundary "School Reward UI\n(Frontend)" as ui
+participant "RewardController" as ctrl
+participant "IRewardService\n(RewardServiceImpl)" as svc
+participant "SchoolRepository" as schoolRepo
+participant "RewardRepository" as rewardRepo
+participant "S3PresignedUrlService" as s3Svc
+database "Database" as db
+
+user -> ui : Mở chi tiết quà, nhấn "Chỉnh sửa"
+activate ui
+ui -> ui : Hiển thị form với dữ liệu hiện tại
+
+user -> ui : Sửa thông tin và nhấn "Cập nhật"
+ui -> ui : Validate form phía client
+
+ui -> ctrl : PUT /api/school/rewards/{rewardId}\n@RequestBody UpdateRewardRequest
+activate ctrl
+
+ctrl -> svc : updateReward(rewardId, request)
+activate svc
+
+svc -> svc : getCurrentUser() → User
+svc -> schoolRepo : findByUserId(userId)
+activate schoolRepo
+schoolRepo --> svc : School
+deactivate schoolRepo
+
+svc -> rewardRepo : findByIdAndSchoolIdAndIsDeleteFalse(rewardId, schoolId)
+activate rewardRepo
+rewardRepo --> svc : Optional<Reward>
+deactivate rewardRepo
+
+alt quà không tìm thấy
+    svc --> ctrl : throw NotFoundException
+    ctrl --> ui : 404 Not Found
+    ui --> user : Hiển thị lỗi
+end
+
+opt rewardName changed
+    svc -> rewardRepo : existsByRewardNameAndSchoolIdAndIsDeleteFalse(newName, schoolId)
+    activate rewardRepo
+    rewardRepo --> svc : boolean
+    deactivate rewardRepo
+    alt tên trùng
+        svc --> ctrl : throw BadRequestException("Tên quà đã tồn tại")
+        ctrl --> ui : 400 Bad Request
+        ui --> user : Hiển thị lỗi
+    end
+end
+
+svc -> svc : Partial update:\nrewardName, rewardType, description,\ncoinCost, imageUrl, isUnlimited,\nstockQuantity, termsConditions
+
+svc -> rewardRepo : save(reward)
+activate rewardRepo
+rewardRepo -> db : UPDATE rewards SET ...
+db --> rewardRepo : Reward
+rewardRepo --> svc : Reward
+deactivate rewardRepo
+
+svc -> s3Svc : generatePresignedUrl(imageUrl)
+svc -> svc : mapToResponse(reward)
+
+svc --> ctrl : RewardResponse
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<RewardResponse>
+deactivate ctrl
+
+ui -> ui : Hiển thị "Cập nhật quà thành công"
+ui --> user : Hiển thị quà đã cập nhật
+deactivate ui
+
+@enduml

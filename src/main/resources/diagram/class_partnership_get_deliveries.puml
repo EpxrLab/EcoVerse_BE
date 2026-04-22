@@ -1,0 +1,79 @@
+@startuml class_partnership_get_deliveries
+title Class Diagram - GET /api/partnership/campaigns/{campaignId}/reward-deliveries
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class CampaignRewardDeliveryController {
+        - deliveryService : ICampaignRewardDeliveryService
+        + getDeliveriesByCampaign(campaignId: UUID, status: PartnershipRewardStatus) : ResponseEntity<ResponseDto<List<CampaignRewardDeliveryResponse>>>
+    }
+}
+
+package "service" {
+    interface ICampaignRewardDeliveryService {
+        + getDeliveriesByCampaign(campaignId: UUID, status: PartnershipRewardStatus) : List<CampaignRewardDeliveryResponse>
+    }
+
+    class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliveryService {
+        - deliveryRepository : CampaignRewardDeliveryRepository
+        - partnershipRepository : PartnershipRepository
+        - s3PresignedUrlService : S3PresignedUrlService
+        + getDeliveriesByCampaign(...) : List<CampaignRewardDeliveryResponse>
+    }
+}
+
+package "dto.response" {
+    class CampaignRewardDeliveryResponse {
+        - id : UUID
+        - campaignId : UUID
+        - campaignName : String
+        - rewardName : String
+        - rewardImageUrl : String
+        - rewardImagePresignedUrl : String
+        - rankPosition : Integer
+        - studentId : UUID
+        - studentName : String
+        - schoolId : UUID
+        - schoolName : String
+        - leaderboardRank : Integer
+        - totalScore : Double
+        - status : PartnershipRewardStatus
+        - shippingTrackingCode : String
+        - deliveryImageUrl : String
+        - deliveryImagePresignedUrl : String
+    }
+}
+
+package "entity" {
+    class CampaignRewardDelivery extends BaseEntity {
+        - campaign : Campaign
+        - campaignReward : CampaignReward
+        - student : Student
+        - school : School
+        - roundLeaderboard : RoundLeaderboard
+        - leaderboardRank : Integer
+        - status : PartnershipRewardStatus
+        - shippedAt : LocalDateTime
+        - arrivedAt : LocalDateTime
+        - deliveredAt : LocalDateTime
+        - confirmedAt : LocalDateTime
+        - shippingTrackingCode : String
+        - deliveryImageUrl : String
+    }
+}
+
+package "enums" {
+    enum PartnershipRewardStatus {
+        PREPARING
+        SHIPPING
+        ARRIVED
+        DELIVERED
+        CONFIRMED
+    }
+}
+
+CampaignRewardDeliveryController --> ICampaignRewardDeliveryService : uses
+CampaignRewardDelivery ..> PartnershipRewardStatus : status
+
+@enduml

@@ -1,0 +1,56 @@
+@startuml class_cancel_reward_request
+title Class Diagram - PUT /api/rewards/requests/{id}/cancel (Hủy yêu cầu đổi quà)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class RewardRequestController {
+        - rewardRequestService : IRewardRequestService
+        + cancelRequest(requestId: UUID, dto: CancelRewardRequestDto) : ResponseEntity<ResponseDto<RewardRequestResponse>>
+    }
+}
+
+package "service" {
+    interface IRewardRequestService {
+        + cancelRequest(requestId: UUID, dto: CancelRewardRequestDto) : RewardRequestResponse
+    }
+
+    class RewardRequestServiceImpl implements IRewardRequestService {
+        - rewardRequestRepository : RewardRequestRepository
+        - rewardRepository : RewardRepository
+        - studentRepository : StudentRepository
+        - coinTransactionRepository : CoinTransactionRepository
+        + cancelRequest(requestId: UUID, dto: CancelRewardRequestDto) : RewardRequestResponse
+        - refundCoins(student: Student, amount: BigDecimal, ...) : void
+        - releaseStock(reward: Reward, quantity: int) : void
+    }
+}
+
+package "dto.request" {
+    class CancelRewardRequestDto {
+        - reason : String
+    }
+}
+
+package "entity" {
+    class RewardRequest extends BaseEntity {
+        - status : RewardRequestStatus
+        - cancelledAt : LocalDateTime
+        - cancelledReason : String
+    }
+}
+
+package "enums" {
+    enum RewardRequestStatus {
+        PENDING
+        APPROVED
+        DELIVERED
+        CONFIRMED
+        REJECTED
+        CANCELLED
+    }
+}
+
+RewardRequestController --> IRewardRequestService : uses
+
+@enduml

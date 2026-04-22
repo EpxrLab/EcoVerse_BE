@@ -1,0 +1,94 @@
+@startuml class_school_create_reward
+title Class Diagram - POST /api/school/rewards (Tạo quà thưởng)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class RewardController {
+        - rewardService : IRewardService
+        + createReward(request: CreateRewardRequest) : ResponseEntity<ResponseDto<RewardResponse>>
+    }
+}
+
+package "service" {
+    interface IRewardService {
+        + createReward(request: CreateRewardRequest) : RewardResponse
+    }
+
+    class RewardServiceImpl implements IRewardService {
+        - rewardRepository : RewardRepository
+        - schoolRepository : SchoolRepository
+        - s3PresignedUrlService : S3PresignedUrlService
+        + createReward(request: CreateRewardRequest) : RewardResponse
+        - getCurrentUser() : User
+        - resolveSchool(userId: UUID) : School
+        - mapToResponse(reward: Reward) : RewardResponse
+    }
+}
+
+package "dto.request" {
+    class CreateRewardRequest {
+        - rewardName : String <<@NotBlank>>
+        - rewardType : RewardType <<@NotNull>>
+        - description : String
+        - coinCost : BigDecimal <<@NotNull>>
+        - imageUrl : String
+        - stockQuantity : Integer
+        - isUnlimited : Boolean
+        - termsConditions : String
+    }
+}
+
+package "dto.response" {
+    class RewardResponse {
+        - id : UUID
+        - rewardName : String
+        - rewardType : RewardType
+        - description : String
+        - coinCost : BigDecimal
+        - imageUrl : String
+        - imagePresignedUrl : String
+        - stockQuantity : Integer
+        - isUnlimited : Boolean
+        - isActive : Boolean
+        - termsConditions : String
+        - createdAt : LocalDateTime
+        - updatedAt : LocalDateTime
+    }
+}
+
+package "entity" {
+    class Reward extends BaseEntity {
+        - school : School
+        - rewardName : String
+        - rewardType : RewardType
+        - coinCost : BigDecimal
+        - imageUrl : String
+        - stockQuantity : Integer
+        - isUnlimited : Boolean
+        - isActive : Boolean
+        - isDelete : Boolean
+        - createdBy : User
+    }
+}
+
+package "enums" {
+    enum RewardType {
+        PHYSICAL
+        DIGITAL
+        VOUCHER
+    }
+}
+
+package "repository" {
+    interface RewardRepository extends JpaRepository {
+        + existsByRewardNameAndSchoolIdAndIsDeleteFalse(name: String, schoolId: UUID) : boolean
+        + save(reward: Reward) : Reward
+    }
+}
+
+RewardController --> IRewardService : uses
+Reward --> RewardType : rewardType
+Reward --> "1" School : school
+
+@enduml

@@ -1,0 +1,43 @@
+@startuml class_school_delete_reward
+title Class Diagram - DELETE /api/school/rewards/{rewardId} (Xóa mềm quà thưởng)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class RewardController {
+        - rewardService : IRewardService
+        + deleteReward(rewardId: UUID) : ResponseEntity<ResponseDto<Void>>
+    }
+}
+
+package "service" {
+    interface IRewardService {
+        + deleteReward(rewardId: UUID) : void
+    }
+
+    class RewardServiceImpl implements IRewardService {
+        - rewardRepository : RewardRepository
+        - schoolRepository : SchoolRepository
+        + deleteReward(rewardId: UUID) : void
+        - assertOwnership(rewardId: UUID, schoolId: UUID) : Reward
+    }
+}
+
+package "entity" {
+    class Reward extends BaseEntity {
+        - isDelete : Boolean
+        - isActive : Boolean
+    }
+}
+
+package "repository" {
+    interface RewardRepository extends JpaRepository {
+        + findByIdAndSchoolIdAndIsDeleteFalse(id: UUID, schoolId: UUID) : Optional<Reward>
+    }
+}
+
+note right of RewardServiceImpl : Soft Delete:\nreward.setIsDelete(true)
+
+RewardController --> IRewardService : uses
+
+@enduml

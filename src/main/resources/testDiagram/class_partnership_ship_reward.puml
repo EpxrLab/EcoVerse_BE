@@ -1,0 +1,43 @@
+@startuml class_partnership_ship_reward
+title Class Diagram - PUT /api/partnership/reward-deliveries/{id}/ship (Partnership gửi quà)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class CampaignRewardDeliveryController {
+        - deliveryService : ICampaignRewardDeliveryService
+        + shipReward(id: UUID, request: ShipRewardDeliveryRequest) : ResponseEntity<ResponseDto<CampaignRewardDeliveryResponse>>
+    }
+}
+
+package "service" {
+    interface ICampaignRewardDeliveryService {
+        + shipReward(deliveryId: UUID, request: ShipRewardDeliveryRequest) : CampaignRewardDeliveryResponse
+    }
+
+    class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliveryService {
+        - deliveryRepository : CampaignRewardDeliveryRepository
+        - partnershipRepository : PartnershipRepository
+        - eventPublisher : ApplicationEventPublisher
+        + shipReward(deliveryId: UUID, request: ShipRewardDeliveryRequest) : CampaignRewardDeliveryResponse
+    }
+}
+
+package "dto.request" {
+    class ShipRewardDeliveryRequest {
+        - trackingCode : String
+        - notes : String
+    }
+}
+
+package "entity" {
+    class CampaignRewardDelivery extends BaseEntity {
+        - status : PartnershipRewardStatus
+        - shippedAt : LocalDateTime
+        - shippingTrackingCode : String
+    }
+}
+
+CampaignRewardDeliveryController --> ICampaignRewardDeliveryService : uses
+
+@enduml
