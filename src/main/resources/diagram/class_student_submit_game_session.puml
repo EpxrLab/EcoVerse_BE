@@ -1,0 +1,101 @@
+@startuml class_student_submit_game_session
+title Class Diagram - POST /api/student/game/sessions/{sessionId}/submit (Submit Game Session)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class StudentGameController {
+        - studentGameService : IStudentGameService
+        + submitGameSession(sessionId: UUID,\n  request: SubmitGameSessionRequest) : ResponseEntity<ResponseDto<StudentGameSessionResultResponse>>
+    }
+}
+
+package "service" {
+    interface IStudentGameService {
+        + submitGameSession(sessionId: UUID,\n  request: SubmitGameSessionRequest) : StudentGameSessionResultResponse
+    }
+
+    class StudentGameServiceImpl implements IStudentGameService {
+        - {static} PASS_THRESHOLD : BigDecimal = 75.00
+        - gameSessionRepository : GameSessionRepository
+        - studentRepository : StudentRepository
+        - coinTransactionRepository : CoinTransactionRepository
+        - defaultCoinConfigRepository : DefaultCoinConfigRepository
+        - roundLeaderboardRepository : RoundLeaderboardRepository
+        - schoolLeaderboardRepository : SchoolLeaderboardRepository
+        + submitGameSession(...) : StudentGameSessionResultResponse
+        - resolveGameCoinAward(session: GameSession) : Integer
+        - awardGameCoins(session: GameSession, coinAwarded: int) : void
+        - updateLeaderboardAfterGameSubmit(participant, round) : void
+        - updateSchoolLeaderboard(participant, campaign) : void
+        - reRankRound(roundId: UUID) : void
+        - reRankSchoolCampaign(campaignId: UUID) : void
+    }
+}
+
+package "dto.request" {
+    class SubmitGameSessionRequest {
+        - totalItems : Integer <<@NotNull>>
+        - correctItems : Integer <<@NotNull>>
+        - incorrectItems : Integer <<@NotNull>>
+        - timeTakenSeconds : Integer
+    }
+}
+
+package "dto.response" {
+    class StudentGameSessionResultResponse {
+        - sessionId : UUID
+        - campaignId : UUID
+        - roundId : UUID
+        - roundGameConfigId : UUID
+        - currentLevel : int
+        - totalItems : Integer
+        - correctItems : Integer
+        - incorrectItems : Integer
+        - accuracyPercentage : BigDecimal
+        - timeTakenSeconds : Integer
+        - isPassed : Boolean
+        - coinAwarded : Integer
+        - feedbackMessage : String
+        - isCompleted : Boolean
+        - sessionStart : LocalDateTime
+        - sessionEnd : LocalDateTime
+    }
+}
+
+package "entity" {
+    class GameSession {
+        - accuracyPercentage : BigDecimal
+        - coinAwarded : Integer
+        - isCompleted : boolean
+        - isPassed : boolean
+    }
+
+    class CoinTransaction {
+        - transactionType : TransactionType
+        - amount : BigDecimal
+        - referenceType : String = "GAME_SESSION"
+    }
+
+    class RoundLeaderboard {
+        - gameAccuracyPercentage : BigDecimal
+        - quizAccuracyPercentage : BigDecimal
+        - combinedAccuracyPercentage : BigDecimal
+        - avgTimeSeconds : BigDecimal
+        - overallRankInRound : Integer
+        - schoolRankInRound : Integer
+        - totalCoinsEarned : Integer
+    }
+
+    class SchoolLeaderboard {
+        - combinedAccuracyPercentage : BigDecimal
+        - avgTimeSeconds : BigDecimal
+        - overallRank : Integer
+        - schoolRank : Integer
+        - totalCoinsEarned : Integer
+    }
+}
+
+StudentGameController --> IStudentGameService : uses
+
+@enduml

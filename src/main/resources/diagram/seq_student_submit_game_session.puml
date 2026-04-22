@@ -1,0 +1,102 @@
+@startuml seq_student_submit_game_session
+title Sequence Diagram - POST /api/student/game/sessions/{sessionId}/submit (Submit Game Session)
+
+actor Student as user
+boundary "Game UI\n(Frontend)" as ui
+participant "StudentGameController" as ctrl
+participant "IStudentGameService\n(StudentGameServiceImpl)" as svc
+participant "GameSessionRepository" as gsRepo
+participant "DefaultCoinConfigRepository" as coinCfgRepo
+participant "StudentRepository" as stuRepo
+participant "CoinTransactionRepository" as txRepo
+participant "RoundLeaderboardRepository" as rlbRepo
+participant "SchoolLeaderboardRepository" as slbRepo
+database "Database" as db
+
+user -> ui : Complete game, press "Submit"
+activate ui
+
+ui -> ctrl : POST /api/student/game/sessions/{sessionId}/submit\n@RequestBody SubmitGameSessionRequest
+activate ctrl
+
+ctrl -> svc : submitGameSession(sessionId, request)
+activate svc
+
+svc -> svc : getCurrentStudent() -> Student
+
+svc -> gsRepo : findById(sessionId)
+activate gsRepo
+gsRepo --> svc : GameSession
+deactivate gsRepo
+
+note over svc : Validate:\n- session belongs to student\n- session not yet completed\n- partnership round access check
+
+svc -> svc : validateSubmitRequest(request)\n(correctItems + incorrectItems <= totalItems)
+
+svc -> svc : Calculate accuracy =\n(correctItems / totalItems) * 100
+svc -> svc : passed = accuracy > 75.00
+
+svc -> svc : Update session:\nsetSessionEnd, setTimeTakenSeconds,\nsetTotalItems, setCorrectItems,\nsetAccuracyPercentage, setPassed,\nsetCompleted(true)
+
+== Coin Award (School Campaign Only) ==
+
+alt campaignType == SCHOOL_INTERNAL && passed
+    alt config.coinPerSession != null
+        svc -> svc : coinAwarded = config.coinPerSession
+    else
+        svc -> coinCfgRepo : findByGameTypeIdAndDifficulty\n(gameTypeId, resolvedDifficulty)
+        activate coinCfgRepo
+        coinCfgRepo --> svc : DefaultCoinConfig
+        deactivate coinCfgRepo
+        svc -> svc : coinAwarded = defaultCoin
+    end
+
+    svc -> stuRepo : save(student)\n[totalCoins += coinAwarded]
+    activate stuRepo
+    stuRepo -> db : UPDATE students SET total_coins = ...
+    stuRepo --> svc : Student
+    deactivate stuRepo
+
+    svc -> txRepo : save(CoinTransaction EARN_GAME)
+    activate txRepo
+    txRepo -> db : INSERT INTO coin_transactions ...
+    txRepo --> svc : CoinTransaction
+    deactivate txRepo
+end
+
+svc -> gsRepo : save(session)
+activate gsRepo
+gsRepo -> db : UPDATE game_sessions ...
+gsRepo --> svc : GameSession
+deactivate gsRepo
+
+== Update Leaderboard ==
+
+svc -> svc : updateLeaderboardAfterGameSubmit\n(participant, round)
+
+svc -> gsRepo : findCompletedByParticipantAndRound(...)
+svc -> svc : Calculate gameAccuracy,\navgGameTime, gamesCompleted
+
+svc -> rlbRepo : findByCampaignRoundIdAndStudentId\nor create new RoundLeaderboard
+svc -> svc : Update combinedAccuracyPercentage,\navgTimeSeconds, totalCoinsEarned
+svc -> rlbRepo : save(roundLeaderboard)
+svc -> svc : reRankRound(roundId)\n-> Sort by accuracy DESC, time ASC
+
+alt campaignType == SCHOOL_INTERNAL
+    svc -> slbRepo : findByCampaignIdAndStudentId\nor create new SchoolLeaderboard
+    svc -> svc : Update metrics and ranking
+    svc -> slbRepo : save(schoolLeaderboard)
+    svc -> svc : reRankSchoolCampaign(campaignId)
+end
+
+svc --> ctrl : StudentGameSessionResultResponse
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<StudentGameSessionResultResponse>
+deactivate ctrl
+
+ui -> ui : Show result screen:\naccuracy, passed/failed,\ncoinAwarded, feedbackMessage
+ui --> user : "Nộp kết quả phiên chơi thành công"
+deactivate ui
+
+@enduml

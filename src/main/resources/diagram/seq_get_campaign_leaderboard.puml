@@ -1,0 +1,75 @@
+@startuml seq_get_campaign_leaderboard
+title Sequence Diagram - GET /api/campaigns/{campaignId}/leaderboard (Get Campaign Leaderboard)
+
+actor "User\n(Student/Parent/School/\nPartnership/Admin)" as user
+boundary "Campaign UI\n(Frontend)" as ui
+participant "StudentCampaignController\n/ SchoolCampaignController\n/ PartnershipCampaignController" as ctrl
+participant "ICampaignService\n(CampaignServiceImpl)" as svc
+participant "CampaignRepository" as campRepo
+participant "SchoolLeaderboardRepository" as slbRepo
+participant "RoundLeaderboardRepository" as rlbRepo
+participant "CampaignRoundRepository" as crRepo
+database "Database" as db
+
+user -> ui : Open campaign leaderboard tab
+activate ui
+
+ui -> ctrl : GET /api/campaigns/{campaignId}/leaderboard\nor GET /api/school/campaigns/{id}/leaderboard\nor GET /api/partnership/campaigns/{id}/leaderboard
+activate ctrl
+note over ctrl : @PreAuthorize("hasAnyAuthority(\n'STUDENT','PARENT','PARTNERSHIP_SCHOOL',\n'THIRD_PARTY_PARTNERSHIP','ADMINISTRATOR')")
+
+ctrl -> svc : getCampaignLeaderboard(campaignId)
+activate svc
+
+svc -> campRepo : findById(campaignId)
+activate campRepo
+campRepo --> svc : Campaign
+deactivate campRepo
+
+alt campaignType == PARTNERSHIP_EVENT && non-Admin role
+    note over svc : Partnership campaigns show\ncurrent/latest round leaderboard
+
+    svc -> crRepo : findByCampaignIdOrderByRoundNumberAsc(campaignId)
+    activate crRepo
+    crRepo --> svc : List<CampaignRound>
+    deactivate crRepo
+
+    svc -> svc : resolvePartnershipDefaultRound(campaign)\n-> Find active round or latest past round
+
+    svc -> rlbRepo : findByCampaignRoundIdOrderBy\nCombinedAccuracyPercentageDescAvgTimeSecondsAsc(roundId)
+    activate rlbRepo
+    rlbRepo -> db : SELECT FROM round_leaderboards\nWHERE campaign_round_id = ?\nORDER BY combined_accuracy_percentage DESC,\navg_time_seconds ASC
+    db --> rlbRepo : List<RoundLeaderboard>
+    rlbRepo --> svc : List<RoundLeaderboard>
+    deactivate rlbRepo
+
+    svc -> svc : mapRoundLeaderboard(entries)
+
+else campaignType == SCHOOL_INTERNAL
+    note over svc : School campaigns use\nSchoolLeaderboard (aggregated)
+
+    svc -> slbRepo : findByCampaignIdOrderBy\nCombinedAccuracyPercentageDescAvgTimeSecondsAsc(campaignId)
+    activate slbRepo
+    slbRepo -> db : SELECT FROM school_leaderboards\nWHERE campaign_id = ?\nORDER BY combined_accuracy_percentage DESC,\navg_time_seconds ASC
+    db --> slbRepo : List<SchoolLeaderboard>
+    slbRepo --> svc : List<SchoolLeaderboard>
+    deactivate slbRepo
+
+    svc -> svc : Map to LeaderboardEntryResponse\n(overallRank, totalCoinsEarned)
+
+else Partnership + Admin
+    svc -> rlbRepo : findByCampaignIdOrderBy\nCombinedAccuracyPercentageDescAvgTimeSecondsAsc(campaignId)
+    svc -> svc : mapRoundLeaderboard(entries)
+end
+
+svc --> ctrl : List<LeaderboardEntryResponse>
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<List<LeaderboardEntryResponse>>
+deactivate ctrl
+
+ui -> ui : Render leaderboard table:\nrank, studentName, schoolName,\ncombinedAccuracy, avgTime, totalCoins
+ui --> user : "Lấy leaderboard campaign thành công"
+deactivate ui
+
+@enduml

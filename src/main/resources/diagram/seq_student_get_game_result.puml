@@ -1,0 +1,46 @@
+@startuml seq_student_get_game_result
+title Sequence Diagram - GET /api/student/game/sessions/{sessionId}/result (Get Game Session Result)
+
+actor Student as user
+boundary "Game UI\n(Frontend)" as ui
+participant "StudentGameController" as ctrl
+participant "IStudentGameService\n(StudentGameServiceImpl)" as svc
+participant "GameSessionRepository" as gsRepo
+database "Database" as db
+
+user -> ui : Open game result screen
+activate ui
+
+ui -> ctrl : GET /api/student/game/sessions/{sessionId}/result
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('STUDENT')")
+
+ctrl -> svc : getGameSessionResult(sessionId)
+activate svc
+
+svc -> svc : getCurrentStudent() -> Student
+
+svc -> gsRepo : findById(sessionId)
+activate gsRepo
+gsRepo -> db : SELECT FROM game_sessions WHERE id = ?
+db --> gsRepo : GameSession
+gsRepo --> svc : GameSession
+deactivate gsRepo
+
+alt session does not belong to student
+    svc --> ctrl : throw BadRequestException\n("Bạn không có quyền xem phiên game này")
+end
+
+svc -> svc : mapResult(session)\n-> Build response with feedbackMessage
+
+svc --> ctrl : StudentGameSessionResultResponse
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<StudentGameSessionResultResponse>
+deactivate ctrl
+
+ui -> ui : Display result:\naccuracy, passed/failed,\ncoinAwarded, feedbackMessage
+ui --> user : "Lấy kết quả phiên chơi thành công"
+deactivate ui
+
+@enduml

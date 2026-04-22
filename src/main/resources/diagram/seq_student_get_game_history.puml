@@ -1,0 +1,60 @@
+@startuml seq_student_get_game_history
+title Sequence Diagram - GET /api/student/game/.../history (Get Game Session History)
+
+actor Student as user
+boundary "Game UI\n(Frontend)" as ui
+participant "StudentGameController" as ctrl
+participant "IStudentGameService\n(StudentGameServiceImpl)" as svc
+participant "CampaignParticipantRepository" as cpRepo
+participant "CampaignRoundRepository" as crRepo
+participant "RoundGameConfigRepository" as rgcRepo
+participant "GameSessionRepository" as gsRepo
+database "Database" as db
+
+user -> ui : Open game history tab
+activate ui
+
+ui -> ctrl : GET /api/student/game/campaigns/{campaignId}\n/rounds/{roundId}/configs/{roundGameConfigId}/history
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('STUDENT')")
+
+ctrl -> svc : getGameSessionHistory(campaignId,\nroundId, roundGameConfigId)
+activate svc
+
+svc -> svc : getCurrentStudent() -> Student
+
+svc -> cpRepo : findByCampaignIdAndStudentIdAndIsActiveTrue\n(campaignId, studentId)
+activate cpRepo
+cpRepo --> svc : CampaignParticipant
+deactivate cpRepo
+
+svc -> crRepo : findByIdAndCampaignId(roundId, campaignId)
+activate crRepo
+crRepo --> svc : CampaignRound
+deactivate crRepo
+
+svc -> rgcRepo : findByIdAndCampaignRoundId\n(roundGameConfigId, roundId)
+activate rgcRepo
+rgcRepo --> svc : RoundGameConfig
+deactivate rgcRepo
+
+svc -> gsRepo : findByParticipantAndRound\n(participantId, roundId)
+activate gsRepo
+gsRepo -> db : SELECT FROM game_sessions\nWHERE campaign_participant_id = ?\nAND round related
+db --> gsRepo : List<GameSession>
+gsRepo --> svc : List<GameSession>
+deactivate gsRepo
+
+svc -> svc : Filter by roundGameConfigId\nMap to StudentGameSessionSummaryResponse
+
+svc --> ctrl : List<StudentGameSessionSummaryResponse>
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<List<StudentGameSessionSummaryResponse>>
+deactivate ctrl
+
+ui -> ui : Render history table:\nsessionId, level, accuracy,\ntimeTaken, passed, coinAwarded
+ui --> user : "Lấy lịch sử phiên chơi thành công"
+deactivate ui
+
+@enduml
