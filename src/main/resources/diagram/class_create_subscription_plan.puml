@@ -1,0 +1,121 @@
+@startuml class_create_subscription_plan
+title Class Diagram - POST /api/subscription-plans (Tạo Gói đăng ký)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class SubscriptionPlanController {
+        - subscriptionPlanService : ISubscriptionPlanService
+        + createPlan(request: CreateSubscriptionPlanRequest, principal: UserPrincipal) : ResponseEntity<ResponseDto<SubscriptionPlanResponse>>
+    }
+}
+
+package "service" {
+    interface ISubscriptionPlanService {
+        + createPlan(request: CreateSubscriptionPlanRequest, adminUserId: UUID) : SubscriptionPlanResponse
+    }
+
+    class SubscriptionPlanServiceImpl implements ISubscriptionPlanService {
+        - subscriptionPlanRepository : SubscriptionPlanRepository
+        - userRepository : UserRepository
+        - subscriptionPlanMapper : SubscriptionPlanMapper
+        + createPlan(request: CreateSubscriptionPlanRequest, adminUserId: UUID) : SubscriptionPlanResponse
+    }
+}
+
+package "mapper" {
+    class SubscriptionPlanMapper {
+        + toEntity(request: CreateSubscriptionPlanRequest) : SubscriptionPlan
+        + toResponse(plan: SubscriptionPlan) : SubscriptionPlanResponse
+    }
+}
+
+package "dto.request" {
+    class CreateSubscriptionPlanRequest <<record>> {
+        + planCode : String <<@NotBlank>>
+        + planName : String <<@NotBlank>>
+        + subscriberType : SubscriberType <<@NotNull>>
+        + description : String
+        + durationDays : Integer <<@NotNull @Min(1)>>
+        + price : BigDecimal <<@NotNull @DecimalMin("0.00")>>
+        + currency : String
+        + maxStudents : Integer
+        + maxCampaignsPerMonth : Integer
+        + maxRoundsPerCampaign : Integer
+        + maxSchoolsPerCampaign : Integer
+        + maxAiQuizGenerationsPerPeriod : Integer
+        + features : Map<String, Object>
+        + gracePeriodDays : Integer
+        + displayOrder : Integer
+    }
+}
+
+package "dto.response" {
+    class SubscriptionPlanResponse <<record>> {
+        + id : UUID
+        + planCode : String
+        + planName : String
+        + subscriberType : SubscriberType
+        + description : String
+        + durationDays : int
+        + price : BigDecimal
+        + currency : String
+        + maxStudents : Integer
+        + maxCampaignsPerMonth : Integer
+        + maxRoundsPerCampaign : Integer
+        + maxSchoolsPerCampaign : Integer
+        + maxAiQuizGenerationsPerPeriod : Integer
+        + features : Map<String, Object>
+        + gracePeriodDays : int
+        + isActive : boolean
+        + displayOrder : int
+        + createdByEmail : String
+        + createdAt : LocalDateTime
+        + updatedAt : LocalDateTime
+    }
+}
+
+package "entity" {
+    class SubscriptionPlan {
+        - id : UUID
+        - planCode : String
+        - planName : String
+        - subscriberType : SubscriberType
+        - description : String
+        - durationDays : int
+        - price : BigDecimal
+        - currency : String
+        - maxStudents : Integer
+        - maxCampaignsPerMonth : Integer
+        - maxRoundsPerCampaign : Integer
+        - maxSchoolsPerCampaign : Integer
+        - maxAiQuizGenerationsPerPeriod : Integer
+        - features : Map<String, Object>
+        - gracePeriodDays : int
+        - isActive : boolean
+        - displayOrder : int
+        - createdBy : User
+    }
+}
+
+package "repository" {
+    interface SubscriptionPlanRepository extends JpaRepository {
+        + existsByPlanCode(planCode: String) : boolean
+        + existsByPlanName(planName: String) : boolean
+        + save(plan: SubscriptionPlan) : SubscriptionPlan
+    }
+}
+
+package "enums" {
+    enum SubscriberType {
+        SCHOOL
+        PARTNERSHIP
+    }
+}
+
+SubscriptionPlanController --> ISubscriptionPlanService : uses
+SubscriptionPlanServiceImpl --> SubscriptionPlanRepository : uses
+SubscriptionPlanServiceImpl --> SubscriptionPlanMapper : uses
+SubscriptionPlan --> SubscriberType : subscriberType
+
+@enduml

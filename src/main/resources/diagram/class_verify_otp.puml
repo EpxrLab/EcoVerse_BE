@@ -1,0 +1,54 @@
+@startuml class_verify_otp
+title Class Diagram - POST /api/auth/verify-otp (Xác thực OTP)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class AuthenticationController {
+        - authenticationService : IAuthenticationService
+        + verifyOtp(request: VerifyOtpRequest) : ResponseEntity<ResponseDto<Void>>
+    }
+}
+
+package "service" {
+    interface IAuthenticationService {
+        + verifyOtpOrThrow(email: String, otp: String) : void
+    }
+
+    class AuthenticationServiceImpl implements IAuthenticationService {
+        - otpService : IOtpService
+        + verifyOtpOrThrow(email: String, otp: String) : void
+    }
+
+    interface IOtpService {
+        + verifyOtp(email: String, otp: String) : boolean
+        + markAsVerified(email: String) : void
+    }
+}
+
+package "dto.request" {
+    class VerifyOtpRequest {
+        - email : String
+        - otp : String
+    }
+}
+
+package "dto.response" {
+    class ResponseDto<T> {
+        - status : int
+        - message : String
+        - data : T
+    }
+}
+
+package "exception" {
+    class NotFoundException extends RuntimeException
+}
+
+AuthenticationController --> IAuthenticationService : uses
+AuthenticationServiceImpl --> IOtpService : uses
+AuthenticationController ..> VerifyOtpRequest : receives
+AuthenticationController ..> ResponseDto : returns
+AuthenticationServiceImpl ..> NotFoundException : throws
+
+@enduml

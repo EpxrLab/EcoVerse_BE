@@ -1,0 +1,82 @@
+@startuml seq_update_subscription_plan
+title Sequence Diagram - PUT /api/subscription-plans/{id} (Cập nhật Gói đăng ký)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "SubscriptionPlanController" as ctrl
+participant "ISubscriptionPlanService\n(SubscriptionPlanServiceImpl)" as svc
+participant "SubscriptionPlanRepository" as planRepo
+participant "SubscriptionPlanMapper" as mapper
+database "Database" as db
+
+admin -> ui : Mở trang chi tiết Gói đăng ký
+activate ui
+admin -> ui : Nhấn "Chỉnh sửa"
+ui -> ui : Hiển thị form chỉnh sửa\nvới dữ liệu hiện tại
+
+admin -> ui : Sửa thông tin và nhấn "Cập nhật"
+ui -> ui : Validate form phía client
+
+ui -> ctrl : PUT /api/subscription-plans/{id}\n@RequestBody UpdateSubscriptionPlanRequest
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('ADMINISTRATOR')")
+
+ctrl -> svc : updatePlan(id, request)
+activate svc
+
+svc -> planRepo : findById(planId)
+activate planRepo
+planRepo -> db : SELECT FROM subscription_plans WHERE id=?
+db --> planRepo : result
+planRepo --> svc : Optional<SubscriptionPlan>
+deactivate planRepo
+
+alt plan not found
+    svc --> ctrl : throw ResourceNotFoundException\n("Subscription plan not found")
+    ctrl --> ui : 404 Not Found
+    ui --> admin : Hiển thị lỗi
+end
+
+opt planName changed
+    svc -> planRepo : existsByPlanNameAndIdNot(planName, planId)
+    activate planRepo
+    planRepo --> svc : boolean
+    deactivate planRepo
+
+    alt planName exists
+        svc --> ctrl : throw FuncErrorException\n("Plan name already exists")
+        ctrl --> ui : 400 Bad Request
+        ui --> admin : Hiển thị lỗi
+    end
+end
+
+svc -> mapper : updateEntity(plan, request)
+activate mapper
+mapper --> svc : void (plan updated in-place)
+deactivate mapper
+
+svc -> planRepo : save(plan)
+activate planRepo
+planRepo -> db : UPDATE subscription_plans SET ...
+db --> planRepo : updated plan
+planRepo --> svc : SubscriptionPlan
+deactivate planRepo
+
+svc -> mapper : toResponse(updatedPlan)
+activate mapper
+mapper --> svc : SubscriptionPlanResponse
+deactivate mapper
+
+svc --> ctrl : SubscriptionPlanResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response,\n"Subscription plan updated successfully.")
+ctrl --> ui : 200 OK\nResponseDto<SubscriptionPlanResponse>
+deactivate ctrl
+
+ui -> ui : Hiển thị thông báo thành công
+ui -> ui : Cập nhật dữ liệu hiển thị
+ui --> admin : Hiển thị gói đã cập nhật
+deactivate ui
+
+@enduml

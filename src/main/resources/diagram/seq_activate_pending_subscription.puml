@@ -1,0 +1,71 @@
+@startuml seq_activate_pending_subscription
+title Sequence Diagram - PATCH /api/subscriptions/{id}/activate (Kích hoạt Gói chờ)
+
+actor "School/Partnership" as user
+boundary "Subscription UI\n(Frontend)" as ui
+participant "SubscriptionController" as ctrl
+participant "ISubscriptionService\n(SubscriptionServiceImpl)" as svc
+participant "SubscriptionRepository" as subRepo
+participant "SubscriptionMapper" as mapper
+database "Database" as db
+
+user -> ui : Xem gói đăng ký trạng thái PENDING_RENEWAL
+activate ui
+
+user -> ui : Nhấn "Kích hoạt gói"
+
+ui -> ctrl : PATCH /api/subscriptions/{id}/activate
+activate ctrl
+note over ctrl : @PreAuthorize("hasAnyAuthority(\n'PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
+
+ctrl -> svc : activatePendingSubscription(id, userId)
+activate svc
+
+svc -> subRepo : findById(id)
+activate subRepo
+subRepo -> db : SELECT FROM subscriptions WHERE id=?
+db --> subRepo : result
+subRepo --> svc : Optional<Subscription>
+deactivate subRepo
+
+alt subscription not found
+    svc --> ctrl : throw ResourceNotFoundException
+    ctrl --> ui : 404 Not Found
+    ui --> user : Hiển thị lỗi
+end
+
+alt status != PENDING_RENEWAL
+    svc --> ctrl : throw FuncErrorException\n("Only pending renewal subscriptions can be activated.")
+    ctrl --> ui : 400 Bad Request
+    ui --> user : Hiển thị lỗi
+end
+
+svc -> svc : verifyOwnership(subscription, userId)
+
+note over svc : retirePreviousActiveSubscription
+svc -> svc : Nếu có gói active trước đó\n→ set CANCELLED, lý do "Upgraded to..."
+
+svc -> svc : subscription.setStatus(ACTIVE)\nsubscription.setStartDate(now)\nsubscription.setEndDate(now + durationDays)
+
+svc -> subRepo : save(subscription)
+activate subRepo
+subRepo -> db : UPDATE subscriptions SET status=ACTIVE, ...
+db --> subRepo : updated
+subRepo --> svc : Subscription
+deactivate subRepo
+
+svc -> svc : toSubscriptionResponse(subscription)
+
+svc --> ctrl : SubscriptionResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response,\n"Subscription activated.")
+ctrl --> ui : 200 OK\nResponseDto<SubscriptionResponse>
+deactivate ctrl
+
+ui -> ui : Hiển thị "Gói đăng ký đã được kích hoạt!"
+ui -> ui : Cập nhật trạng thái gói
+ui --> user : Hiển thị gói đang hoạt động
+deactivate ui
+
+@enduml

@@ -1,0 +1,59 @@
+@startuml seq_toggle_subscription_plan_active
+title Sequence Diagram - PATCH /api/subscription-plans/{id}/toggle-active (Bật/tắt trạng thái gói)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "SubscriptionPlanController" as ctrl
+participant "ISubscriptionPlanService\n(SubscriptionPlanServiceImpl)" as svc
+participant "SubscriptionPlanRepository" as planRepo
+database "Database" as db
+
+admin -> ui : Xem danh sách gói đăng ký
+activate ui
+
+admin -> ui : Nhấn nút toggle Active/Inactive\ntrên một gói
+ui -> ui : Hiển thị confirm dialog\n"Bạn có muốn thay đổi trạng thái gói này?"
+
+admin -> ui : Xác nhận
+
+ui -> ctrl : PATCH /api/subscription-plans/{id}/toggle-active
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('ADMINISTRATOR')")
+
+ctrl -> svc : toggleActiveStatus(id)
+activate svc
+
+svc -> planRepo : findById(id)
+activate planRepo
+planRepo -> db : SELECT FROM subscription_plans WHERE id=?
+db --> planRepo : result
+planRepo --> svc : Optional<SubscriptionPlan>
+deactivate planRepo
+
+alt plan not found
+    svc --> ctrl : throw ResourceNotFoundException
+    ctrl --> ui : 404 Not Found
+    ui --> admin : Hiển thị lỗi
+end
+
+svc -> svc : plan.setActive(!plan.isActive())
+
+svc -> planRepo : save(plan)
+activate planRepo
+planRepo -> db : UPDATE subscription_plans\nSET is_active = !current
+db --> planRepo : updated plan
+planRepo --> svc : SubscriptionPlan
+deactivate planRepo
+
+svc --> ctrl : void
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(null,\n"Subscription plan active status toggled successfully.")
+ctrl --> ui : 200 OK\nResponseDto<Void>
+deactivate ctrl
+
+ui -> ui : Cập nhật trạng thái hiển thị
+ui --> admin : Hiển thị trạng thái mới
+deactivate ui
+
+@enduml

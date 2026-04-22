@@ -1,0 +1,68 @@
+@startuml class_get_subscription_plan_by_id
+title Class Diagram - GET /api/subscription-plans/{id} (Lấy Gói đăng ký theo ID)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class SubscriptionPlanController {
+        - subscriptionPlanService : ISubscriptionPlanService
+        + getPlanById(id: UUID) : ResponseEntity<ResponseDto<SubscriptionPlanResponse>>
+    }
+}
+
+package "service" {
+    interface ISubscriptionPlanService {
+        + getPlanById(planId: UUID) : SubscriptionPlanResponse
+    }
+
+    class SubscriptionPlanServiceImpl implements ISubscriptionPlanService {
+        - subscriptionPlanRepository : SubscriptionPlanRepository
+        - subscriptionPlanMapper : SubscriptionPlanMapper
+        + getPlanById(planId: UUID) : SubscriptionPlanResponse
+    }
+}
+
+package "mapper" {
+    class SubscriptionPlanMapper {
+        + toResponse(plan: SubscriptionPlan) : SubscriptionPlanResponse
+    }
+}
+
+package "dto.response" {
+    class SubscriptionPlanResponse <<record>> {
+        + id : UUID
+        + planCode : String
+        + planName : String
+        + subscriberType : SubscriberType
+        + description : String
+        + durationDays : int
+        + price : BigDecimal
+        + maxStudents : Integer
+        + maxCampaignsPerMonth : Integer
+        + isActive : boolean
+    }
+}
+
+package "entity" {
+    class SubscriptionPlan {
+        - id : UUID
+        - planCode : String
+        - planName : String
+        - subscriberType : SubscriberType
+        - price : BigDecimal
+        - durationDays : int
+        - isActive : boolean
+    }
+}
+
+package "repository" {
+    interface SubscriptionPlanRepository extends JpaRepository {
+        + findById(id: UUID) : Optional<SubscriptionPlan>
+    }
+}
+
+SubscriptionPlanController --> ISubscriptionPlanService : uses
+SubscriptionPlanServiceImpl --> SubscriptionPlanRepository : uses
+SubscriptionPlanServiceImpl --> SubscriptionPlanMapper : uses
+
+@enduml

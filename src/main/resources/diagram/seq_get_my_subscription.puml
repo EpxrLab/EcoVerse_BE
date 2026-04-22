@@ -1,0 +1,82 @@
+@startuml seq_get_my_subscription
+title Sequence Diagram - GET /api/subscriptions/my (Lấy Gói đang sử dụng)
+
+actor "School/Partnership" as user
+boundary "Dashboard UI\n(Frontend)" as ui
+participant "SubscriptionController" as ctrl
+participant "ISubscriptionService\n(SubscriptionServiceImpl)" as svc
+participant "UserRepository" as userRepo
+participant "SchoolRepository" as schoolRepo
+participant "PartnershipRepository" as partRepo
+participant "SubscriptionRepository" as subRepo
+participant "PaymentRepository" as payRepo
+participant "SubscriptionMapper" as mapper
+database "Database" as db
+
+user -> ui : Mở trang Dashboard / Gói đăng ký
+activate ui
+
+ui -> ctrl : GET /api/subscriptions/my
+activate ctrl
+note over ctrl : @PreAuthorize("hasAnyAuthority(\n'PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
+
+ctrl -> svc : getMySubscription(userId)
+activate svc
+
+svc -> userRepo : findById(userId)
+activate userRepo
+userRepo --> svc : User
+deactivate userRepo
+
+svc -> svc : resolveSubscriberType(user)
+
+alt subscriberType == SCHOOL
+    svc -> schoolRepo : findByUserId(userId)
+    activate schoolRepo
+    schoolRepo --> svc : School
+    deactivate schoolRepo
+    svc -> subRepo : findBySchoolIdAndStatus(schoolId, ACTIVE)
+    activate subRepo
+    subRepo --> svc : Optional<Subscription>
+    deactivate subRepo
+else subscriberType == PARTNERSHIP
+    svc -> partRepo : findByUserId(userId)
+    activate partRepo
+    partRepo --> svc : Partnership
+    deactivate partRepo
+    svc -> subRepo : findByPartnershipIdAndStatus(partnershipId, ACTIVE)
+    activate subRepo
+    subRepo --> svc : Optional<Subscription>
+    deactivate subRepo
+end
+
+alt no active subscription
+    svc --> ctrl : throw ResourceNotFoundException\n("No active subscription found.")
+    ctrl --> ui : 404 Not Found
+    ui --> user : Hiển thị "Chưa có gói đăng ký"
+end
+
+svc -> payRepo : findAllBySubscriptionIdOrderByCreatedAtDesc(subscriptionId)
+activate payRepo
+payRepo --> svc : List<Payment>
+deactivate payRepo
+
+svc -> svc : Calculate usage stats\n(usedStudents, usedCampaigns, usedAiQuiz)
+
+svc -> mapper : toResponse(subscription, transactions, usageStats)
+activate mapper
+mapper --> svc : SubscriptionResponse
+deactivate mapper
+
+svc --> ctrl : SubscriptionResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response, "Current subscription retrieved.")
+ctrl --> ui : 200 OK\nResponseDto<SubscriptionResponse>
+deactivate ctrl
+
+ui -> ui : Render thông tin gói hiện tại\n(planName, status, startDate, endDate,\nusedStudents/maxStudents,\nusedCampaigns/maxCampaigns, ...)
+ui --> user : Hiển thị gói đăng ký hiện tại
+deactivate ui
+
+@enduml

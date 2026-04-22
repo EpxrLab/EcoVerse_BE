@@ -1,0 +1,95 @@
+@startuml seq_create_subscription_plan
+title Sequence Diagram - POST /api/subscription-plans (Tạo Gói đăng ký)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "SubscriptionPlanController" as ctrl
+participant "ISubscriptionPlanService\n(SubscriptionPlanServiceImpl)" as svc
+participant "SubscriptionPlanRepository" as planRepo
+participant "UserRepository" as userRepo
+participant "SubscriptionPlanMapper" as mapper
+database "Database" as db
+
+admin -> ui : Vào trang quản lý Gói đăng ký
+activate ui
+ui -> ui : Hiển thị danh sách gói với nút "Tạo mới"
+
+admin -> ui : Nhấn "Tạo gói đăng ký mới"
+ui -> ui : Hiển thị form tạo gói\n(planCode, planName, subscriberType,\ndescription, durationDays, price,\nmaxStudents, maxCampaignsPerMonth,\nmaxAiQuizGenerationsPerPeriod, ...)
+
+admin -> ui : Điền thông tin và nhấn "Lưu"
+ui -> ui : Validate form phía client
+
+ui -> ctrl : POST /api/subscription-plans\n@RequestBody CreateSubscriptionPlanRequest
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('ADMINISTRATOR')")
+ctrl -> ctrl : @Valid validate request
+
+ctrl -> svc : createPlan(request, adminUserId)
+activate svc
+
+svc -> planRepo : existsByPlanCode(planCode)
+activate planRepo
+planRepo -> db : SELECT EXISTS ...
+db --> planRepo : boolean
+planRepo --> svc : boolean
+deactivate planRepo
+
+alt planCode already exists
+    svc --> ctrl : throw FuncErrorException\n("Plan code already exists")
+    ctrl --> ui : 400 Bad Request
+    ui --> admin : Hiển thị lỗi
+end
+
+svc -> planRepo : existsByPlanName(planName)
+activate planRepo
+planRepo -> db : SELECT EXISTS ...
+db --> planRepo : boolean
+planRepo --> svc : boolean
+deactivate planRepo
+
+alt planName already exists
+    svc --> ctrl : throw FuncErrorException\n("Plan name already exists")
+    ctrl --> ui : 400 Bad Request
+    ui --> admin : Hiển thị lỗi
+end
+
+svc -> userRepo : findById(adminUserId)
+activate userRepo
+userRepo -> db : SELECT FROM users WHERE id=?
+db --> userRepo : User
+userRepo --> svc : Optional<User>
+deactivate userRepo
+
+svc -> mapper : toEntity(request)
+activate mapper
+mapper --> svc : SubscriptionPlan
+deactivate mapper
+
+svc -> svc : plan.setCreatedBy(admin)
+
+svc -> planRepo : save(plan)
+activate planRepo
+planRepo -> db : INSERT INTO subscription_plans ...
+db --> planRepo : saved plan
+planRepo --> svc : SubscriptionPlan
+deactivate planRepo
+
+svc -> mapper : toResponse(savedPlan)
+activate mapper
+mapper --> svc : SubscriptionPlanResponse
+deactivate mapper
+
+svc --> ctrl : SubscriptionPlanResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.created(response,\n"Subscription plan created successfully.")
+ctrl --> ui : 201 Created\nResponseDto<SubscriptionPlanResponse>
+deactivate ctrl
+
+ui -> ui : Hiển thị thông báo thành công
+ui -> ui : Cập nhật danh sách gói
+ui --> admin : Hiển thị gói đăng ký mới
+deactivate ui
+
+@enduml

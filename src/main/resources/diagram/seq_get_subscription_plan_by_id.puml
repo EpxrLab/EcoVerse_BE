@@ -1,0 +1,50 @@
+@startuml seq_get_subscription_plan_by_id
+title Sequence Diagram - GET /api/subscription-plans/{id} (Lấy Gói đăng ký theo ID)
+
+actor "Người dùng" as user
+boundary "UI\n(Frontend)" as ui
+participant "SubscriptionPlanController" as ctrl
+participant "ISubscriptionPlanService\n(SubscriptionPlanServiceImpl)" as svc
+participant "SubscriptionPlanRepository" as planRepo
+participant "SubscriptionPlanMapper" as mapper
+database "Database" as db
+
+user -> ui : Mở trang chi tiết gói đăng ký
+activate ui
+
+ui -> ctrl : GET /api/subscription-plans/{id}
+activate ctrl
+
+ctrl -> svc : getPlanById(id)
+activate svc
+
+svc -> planRepo : findById(planId)
+activate planRepo
+planRepo -> db : SELECT FROM subscription_plans WHERE id=?
+db --> planRepo : result
+planRepo --> svc : Optional<SubscriptionPlan>
+deactivate planRepo
+
+alt plan not found
+    svc --> ctrl : throw ResourceNotFoundException\n("Subscription plan not found")
+    ctrl --> ui : 404 Not Found
+    ui --> user : Hiển thị lỗi
+end
+
+svc -> mapper : toResponse(plan)
+activate mapper
+mapper --> svc : SubscriptionPlanResponse
+deactivate mapper
+
+svc --> ctrl : SubscriptionPlanResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response, "Subscription plan retrieved successfully.")
+ctrl --> ui : 200 OK\nResponseDto<SubscriptionPlanResponse>
+deactivate ctrl
+
+ui -> ui : Render chi tiết gói đăng ký\n(planCode, planName, price, durationDays,\nmaxStudents, maxCampaignsPerMonth, ...)
+ui --> user : Hiển thị trang chi tiết gói
+deactivate ui
+
+@enduml
