@@ -6,7 +6,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Getter
@@ -44,11 +45,11 @@ public class CampaignRewardDeliveryResponse {
     private PartnershipRewardStatus status;
 
     // Timestamps
-    private LocalDateTime preparingAt;
-    private LocalDateTime shippedAt;
-    private LocalDateTime arrivedAt;
-    private LocalDateTime deliveredAt;
-    private LocalDateTime confirmedAt;
+    private OffsetDateTime preparingAt;
+    private OffsetDateTime shippedAt;
+    private OffsetDateTime arrivedAt;
+    private OffsetDateTime deliveredAt;
+    private OffsetDateTime confirmedAt;
 
     // Shipping
     private String shippingTrackingCode;
@@ -64,6 +65,6 @@ public class CampaignRewardDeliveryResponse {
 
     private String notes;
 
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 }

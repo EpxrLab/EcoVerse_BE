@@ -4,7 +4,8 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -56,7 +57,7 @@ public class StudentProfileResponse {
         private String criteriaType;
         private String displayText;
         private String metricValue;
-        private LocalDateTime earnedAt;
+        private OffsetDateTime earnedAt;
         private Boolean isDisplayed;
     }
 }

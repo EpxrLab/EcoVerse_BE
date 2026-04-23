@@ -15,7 +15,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
@@ -38,8 +39,8 @@ public class SubscriptionScheduler {
     public void checkExpiringSubscriptions() {
         log.info("Running subscription expiry check...");
 
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime sevenDaysLater = now.plusDays(7);
+        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime sevenDaysLater = now.plusDays(7);
 
         List<Subscription> expiringSubscriptions = subscriptionRepository
                 .findByStatusAndEndDateBetween(SubscriptionStatus.ACTIVE, now, sevenDaysLater);
@@ -82,7 +83,7 @@ public class SubscriptionScheduler {
     public void expireSubscriptions() {
         log.info("Running subscription expiration job...");
 
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
 
         List<Subscription> expiredSubscriptions = subscriptionRepository.findExpiredSubscriptions(now);
 
@@ -123,18 +124,18 @@ public class SubscriptionScheduler {
     public void cancelStalePendingSubscriptions() {
         log.info("Running stale pending subscription cleanup...");
 
-        LocalDateTime cutoff = LocalDateTime.now().minusHours(24);
+        OffsetDateTime cutoff = OffsetDateTime.now().minusHours(24);
 
         List<Subscription> staleSubscriptions = subscriptionRepository
                 .findByStatusAndEndDateBetween(SubscriptionStatus.PENDING_RENEWAL,
-                        LocalDateTime.of(2000, 1, 1, 0, 0), cutoff);
+                        OffsetDateTime.of(2000, 1, 1, 0, 0, 0, 0, java.time.ZoneOffset.UTC), cutoff);
 
         int count = 0;
         for (Subscription subscription : staleSubscriptions) {
             if (subscription.getCreatedAt() != null && subscription.getCreatedAt().isBefore(cutoff)) {
                 subscription.setStatus(SubscriptionStatus.CANCELLED);
                 subscription.setCancellationReason("Payment not received within 24 hours");
-                subscription.setCancelledAt(LocalDateTime.now());
+                subscription.setCancelledAt(OffsetDateTime.now());
                 subscriptionRepository.save(subscription);
                 count++;
             }
@@ -190,8 +191,8 @@ public class SubscriptionScheduler {
         freeSub.setPartnership(expiredSubscription.getPartnership());
         freeSub.setPlan(freePlan);
         freeSub.setStatus(SubscriptionStatus.ACTIVE);
-        freeSub.setStartDate(LocalDateTime.now());
-        freeSub.setEndDate(LocalDateTime.now().plusDays(freePlan.getDurationDays()));
+        freeSub.setStartDate(OffsetDateTime.now());
+        freeSub.setEndDate(OffsetDateTime.now().plusDays(freePlan.getDurationDays()));
         freeSub.setRenewedFrom(expiredSubscription);
         subscriptionRepository.save(freeSub);
 

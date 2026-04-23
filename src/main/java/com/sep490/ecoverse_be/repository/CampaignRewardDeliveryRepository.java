@@ -6,7 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -32,7 +33,7 @@ public interface CampaignRewardDeliveryRepository extends JpaRepository<Campaign
 
     // Auto-confirm scheduler: tim cac DELIVERED qua deadline
     List<CampaignRewardDelivery> findByStatusAndDeliveredAtBefore(
-            PartnershipRewardStatus status, LocalDateTime deadline);
+            PartnershipRewardStatus status, OffsetDateTime deadline);
 
     // Tim tat ca deliveries theo campaign (cho partnership de get notifications)
     @Query("SELECT d FROM CampaignRewardDelivery d WHERE d.campaign.id = :campaignId AND d.campaign.creatorPartnership.id = :partnershipId ORDER BY d.leaderboardRank ASC")

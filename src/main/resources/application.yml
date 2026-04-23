@@ -21,8 +21,6 @@ spring:
       hibernate:
         format_sql: true
   jackson:
-    serialization:
-      write-dates-as-timestamps: false
     time-zone: UTC
   data:
     redis:

@@ -2,7 +2,8 @@ package com.sep490.ecoverse_be.dto.response;
 
 import com.sep490.ecoverse_be.enums.FileCategory;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 public record FileResponse(
@@ -14,6 +15,6 @@ public record FileResponse(
         Long fileSize,
         String uploadedByEmail,
         FileCategory category,
-        LocalDateTime createdAt
+        OffsetDateTime createdAt
 ) {
 }

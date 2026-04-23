@@ -14,7 +14,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -43,8 +44,8 @@ public class ReportController {
     public ResponseEntity<ResponseDto<StudentReportSummaryResponse>> getStudentSummary(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(defaultValue = "THIS_MONTH") ReportPeriod period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime toDate) {
         UUID userId = principal.getUser().getId();
         return ResponseEntity.ok(ResponseDto.success(
                 reportService.getStudentSummary(userId, period, fromDate, toDate),
@@ -59,8 +60,8 @@ public class ReportController {
     public ResponseEntity<ResponseDto<StudentPerformanceResponse>> getStudentPerformance(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(defaultValue = "THIS_MONTH") ReportPeriod period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime toDate) {
         UUID userId = principal.getUser().getId();
         return ResponseEntity.ok(ResponseDto.success(
                 reportService.getStudentPerformance(userId, period, fromDate, toDate),
@@ -75,8 +76,8 @@ public class ReportController {
     public ResponseEntity<ResponseDto<StudentCoinReportResponse>> getStudentCoinReport(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(defaultValue = "THIS_MONTH") ReportPeriod period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime toDate) {
         UUID userId = principal.getUser().getId();
         return ResponseEntity.ok(ResponseDto.success(
                 reportService.getStudentCoinReport(userId, period, fromDate, toDate),
@@ -95,8 +96,8 @@ public class ReportController {
     public ResponseEntity<ResponseDto<SchoolReportSummaryResponse>> getSchoolSummary(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(defaultValue = "THIS_MONTH") ReportPeriod period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime toDate) {
         UUID userId = principal.getUser().getId();
         return ResponseEntity.ok(ResponseDto.success(
                 reportService.getSchoolSummary(userId, period, fromDate, toDate),
@@ -143,8 +144,8 @@ public class ReportController {
     public ResponseEntity<ResponseDto<PartnershipReportSummaryResponse>> getPartnershipSummary(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(defaultValue = "THIS_MONTH") ReportPeriod period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime toDate) {
         UUID userId = principal.getUser().getId();
         return ResponseEntity.ok(ResponseDto.success(
                 reportService.getPartnershipSummary(userId, period, fromDate, toDate),

@@ -5,7 +5,8 @@ import com.sep490.ecoverse_be.enums.RewardType;
 import lombok.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Getter
@@ -40,12 +41,12 @@ public class RewardRequestResponse {
     private String deliveryImagePresignedUrl;
 
     private UUID approvedBy;
-    private LocalDateTime approvedAt;
-    private LocalDateTime rejectedAt;
-    private LocalDateTime deliveredAt;
-    private LocalDateTime confirmedAt;
-    private LocalDateTime cancelledAt;
+    private OffsetDateTime approvedAt;
+    private OffsetDateTime rejectedAt;
+    private OffsetDateTime deliveredAt;
+    private OffsetDateTime confirmedAt;
+    private OffsetDateTime cancelledAt;
 
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 }

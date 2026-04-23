@@ -6,7 +6,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -64,8 +65,8 @@ public interface GameSessionRepository extends JpaRepository<GameSession, UUID> 
           UUID roundGameConfigId,
           UUID gameLevelPresetId,
           int currentLevel,
-          LocalDateTime from,
-          LocalDateTime to
+          OffsetDateTime from,
+          OffsetDateTime to
         );
 
         boolean existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndCoinAwardedIsNotNullAndCoinAwardedGreaterThan(
@@ -105,10 +106,10 @@ public interface GameSessionRepository extends JpaRepository<GameSession, UUID> 
     java.math.BigDecimal maxAccuracyByStudentId(@Param("studentId") UUID studentId);
 
     @Query("SELECT COUNT(gs) FROM GameSession gs WHERE gs.campaignParticipant.student.id = :studentId AND gs.isCompleted = true AND gs.createdAt BETWEEN :from AND :to")
-    long countCompletedByStudentIdAndDateRange(@Param("studentId") UUID studentId, @Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+    long countCompletedByStudentIdAndDateRange(@Param("studentId") UUID studentId, @Param("from") java.time.OffsetDateTime from, @Param("to") java.time.OffsetDateTime to);
 
     @Query("SELECT AVG(gs.accuracyPercentage) FROM GameSession gs WHERE gs.campaignParticipant.student.id = :studentId AND gs.isCompleted = true AND gs.createdAt BETWEEN :from AND :to")
-    Double avgAccuracyByStudentIdAndDateRange(@Param("studentId") UUID studentId, @Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+    Double avgAccuracyByStudentIdAndDateRange(@Param("studentId") UUID studentId, @Param("from") java.time.OffsetDateTime from, @Param("to") java.time.OffsetDateTime to);
 
     @Query("SELECT AVG(gs.accuracyPercentage) FROM GameSession gs WHERE gs.campaignParticipant.school.id = :schoolId AND gs.isCompleted = true")
     Double avgAccuracyBySchoolId(@Param("schoolId") UUID schoolId);

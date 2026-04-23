@@ -8,7 +8,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 
 @Entity
 @Table(name = "coin_expiration_records", indexes = {
@@ -45,13 +46,13 @@ public class CoinExpirationRecord extends BaseEntity {
     private BigDecimal coinsAmount;
 
     @Column(name = "scheduled_date", nullable = false)
-    private LocalDateTime scheduledDate;
+    private OffsetDateTime scheduledDate;
 
     @Column(name = "executed_at")
-    private LocalDateTime executedAt;
+    private OffsetDateTime executedAt;
 
     @Column(name = "cancelled_at")
-    private LocalDateTime cancelledAt;
+    private OffsetDateTime cancelledAt;
 
     @Column(name = "cancellation_reason")
     private String cancellationReason;

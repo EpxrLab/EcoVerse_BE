@@ -10,7 +10,8 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -68,10 +69,10 @@ public class GameSession {
     // ── Timing ────────────────────────────────────────────────────────────────
 
     @Column(name = "session_start")
-    private LocalDateTime sessionStart;
+    private OffsetDateTime sessionStart;
 
     @Column(name = "session_end")
-    private LocalDateTime sessionEnd;
+    private OffsetDateTime sessionEnd;
 
     /**
      * Total seconds from sessionStart to sessionEnd.
@@ -146,7 +147,7 @@ public class GameSession {
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
     // ── Inverse ───────────────────────────────────────────────────────────────
 

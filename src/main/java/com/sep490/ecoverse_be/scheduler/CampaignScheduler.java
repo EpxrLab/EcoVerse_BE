@@ -18,7 +18,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -46,7 +47,7 @@ public class CampaignScheduler {
     @Scheduled(fixedDelay = 60_000)
     @Transactional
     public void autoTransitionSchoolCampaignStatuses() {
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
 
         transitionToInviting(now);
         transitionToOnGoing(now);
@@ -59,7 +60,7 @@ public class CampaignScheduler {
     @Scheduled(fixedDelay = 60_000)
     @Transactional
     public void autoTransitionPartnershipCampaignStatuses() {
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         partnershipToJoining(now);
         partnershipToInviting(now);
         partnershipToOnGoing(now);
@@ -67,7 +68,7 @@ public class CampaignScheduler {
     }
 
     // SCHEDULED → INVITING: khi invitationDate đã đến
-    private void transitionToInviting(LocalDateTime now) {
+    private void transitionToInviting(OffsetDateTime now) {
         List<Campaign> campaigns = campaignRepository.findSchoolCampaignsReadyForInviting(now);
         if (campaigns.isEmpty()) return;
 
@@ -102,7 +103,7 @@ public class CampaignScheduler {
     }
 
     // INVITING / EXTENDED → ON_GOING: khi startDate đã đến
-    private void transitionToOnGoing(LocalDateTime now) {
+    private void transitionToOnGoing(OffsetDateTime now) {
         List<Campaign> campaigns = campaignRepository.findSchoolCampaignsReadyForOnGoing(now);
         if (campaigns.isEmpty()) return;
 
@@ -143,7 +144,7 @@ public class CampaignScheduler {
     }
 
     // ON_GOING → COMPLETED: khi endDate đã đến
-    private void transitionToCompleted(LocalDateTime now) {
+    private void transitionToCompleted(OffsetDateTime now) {
         List<Campaign> campaigns = campaignRepository.findSchoolCampaignsReadyForCompleted(now);
         if (campaigns.isEmpty()) return;
 
@@ -179,7 +180,7 @@ public class CampaignScheduler {
         log.info("[CampaignScheduler] {} campaign(s) transitioned to COMPLETED", campaigns.size());
     }
 
-    private void partnershipToJoining(LocalDateTime now) {
+    private void partnershipToJoining(OffsetDateTime now) {
         List<Campaign> campaigns = campaignRepository.findPartnershipCampaignsReadyForJoining(now);
         if (campaigns.isEmpty()) return;
 
@@ -218,7 +219,7 @@ public class CampaignScheduler {
         log.info("[CampaignScheduler] {} partnership campaign(s) transitioned to JOINING", campaigns.size());
     }
 
-    private void partnershipToInviting(LocalDateTime now) {
+    private void partnershipToInviting(OffsetDateTime now) {
         List<Campaign> campaigns = campaignRepository.findPartnershipCampaignsReadyForInviting(now);
         if (campaigns.isEmpty()) return;
 
@@ -255,7 +256,7 @@ public class CampaignScheduler {
         log.info("[CampaignScheduler] {} partnership campaign(s) transitioned to INVITING", campaigns.size());
     }
 
-    private void partnershipToOnGoing(LocalDateTime now) {
+    private void partnershipToOnGoing(OffsetDateTime now) {
         List<Campaign> campaigns = campaignRepository.findPartnershipCampaignsReadyForOnGoing(now);
         if (campaigns.isEmpty()) return;
 
@@ -295,7 +296,7 @@ public class CampaignScheduler {
         log.info("[CampaignScheduler] {} partnership campaign(s) transitioned to ON_GOING", campaigns.size());
     }
 
-    private void partnershipToCompleted(LocalDateTime now) {
+    private void partnershipToCompleted(OffsetDateTime now) {
         List<Campaign> campaigns = campaignRepository.findPartnershipCampaignsReadyForCompleted(now);
         if (campaigns.isEmpty()) return;
 
@@ -390,7 +391,7 @@ public class CampaignScheduler {
             delivery.setSchool(winner.getSchool());
             delivery.setLeaderboardRank(rank);
             delivery.setStatus(PartnershipRewardStatus.PREPARING);
-            delivery.setPreparingAt(LocalDateTime.now());
+            delivery.setPreparingAt(OffsetDateTime.now());
             CampaignRewardDelivery saved = campaignRewardDeliveryRepository.save(delivery);
             created++;
 
@@ -569,7 +570,7 @@ public class CampaignScheduler {
 
         if (pendingParticipants.isEmpty()) return;
 
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         for (CampaignParticipant participant : pendingParticipants) {
             participant.setParentApprovalStatus(ParticipationStatus.REJECTED);
             participant.setRejectionReason("Tự động từ chối vì không phản hồi trong thời gian được mời");

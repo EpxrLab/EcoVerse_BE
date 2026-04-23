@@ -2,7 +2,8 @@ package com.sep490.ecoverse_be.dto.response;
 
 import lombok.Builder;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,7 +19,7 @@ public record StudentQuizDetailResponse(
         UUID attemptId,
         int attemptNumber,
         int maxAttempts,
-        LocalDateTime startTime,
+        OffsetDateTime startTime,
         // Danh sach cau hoi (dap an da duoc xao tron, khong co isCorrect)
         List<StudentQuestionResponse> questions
 ) {}

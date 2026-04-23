@@ -519,8 +519,8 @@ public class AdminController {
             """)
     public ResponseEntity<ResponseDto<AdminReportSummaryResponse>> getAdminReportSummary(
             @RequestParam(defaultValue = "THIS_MONTH") ReportPeriod period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime toDate) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.OffsetDateTime fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.OffsetDateTime toDate) {
         return ResponseEntity.ok(ResponseDto.success(
                 reportService.getAdminSummary(period, fromDate, toDate),
                 "Lấy báo cáo tổng quan hệ thống thành công"));
@@ -535,8 +535,8 @@ public class AdminController {
             """)
     public ResponseEntity<ResponseDto<AdminRevenueReportResponse>> getAdminRevenueReport(
             @RequestParam(defaultValue = "THIS_MONTH") ReportPeriod period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime toDate) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.OffsetDateTime fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.OffsetDateTime toDate) {
         return ResponseEntity.ok(ResponseDto.success(
                 reportService.getAdminRevenue(period, fromDate, toDate),
                 "Lấy báo cáo doanh thu thành công"));

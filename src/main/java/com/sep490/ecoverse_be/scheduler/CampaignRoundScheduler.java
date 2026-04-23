@@ -17,7 +17,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,12 +37,12 @@ public class CampaignRoundScheduler {
     @Scheduled(fixedDelay = 60_000)
     @Transactional
     public void autoTransitionRoundStatuses() {
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         transitionToActive(now);
         transitionToCompleted(now);
     }
 
-    private void transitionToActive(LocalDateTime now) {
+    private void transitionToActive(OffsetDateTime now) {
         List<CampaignRound> rounds = campaignRoundRepository.findRoundsReadyToActivate(RoundStatus.UPCOMING, now);
         if (rounds.isEmpty()) {
             return;
@@ -55,7 +56,7 @@ public class CampaignRoundScheduler {
         log.info("[CampaignRoundScheduler] {} round(s) transitioned to ACTIVE", rounds.size());
     }
 
-    private void transitionToCompleted(LocalDateTime now) {
+    private void transitionToCompleted(OffsetDateTime now) {
         List<CampaignRound> rounds = campaignRoundRepository.findRoundsReadyToComplete(RoundStatus.ACTIVE, now);
         if (rounds.isEmpty()) {
             return;
@@ -128,7 +129,7 @@ public class CampaignRoundScheduler {
             crp.setTotalTimeSeconds(entry.getAvgTimeSeconds() == null ? 0 : entry.getAvgTimeSeconds().intValue());
             crp.setRankInRound(entry.getOverallRankInRound());
             crp.setIsAdvanced(entry.isAdvanced());
-            crp.setCompletedAt(LocalDateTime.now());
+            crp.setCompletedAt(OffsetDateTime.now());
             campaignRoundParticipantRepository.save(crp);
         }
 

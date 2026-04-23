@@ -3,7 +3,8 @@ package com.sep490.ecoverse_be.dto.response.report;
 import com.sep490.ecoverse_be.enums.PartnershipCampaignStatus;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Getter
@@ -17,8 +18,8 @@ public class PartnershipCampaignReportResponse {
     private String campaignCode;
     private String campaignName;
     private PartnershipCampaignStatus status;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
+    private OffsetDateTime startDate;
+    private OffsetDateTime endDate;
     private int totalRounds;
 
     private long schoolsParticipated;

@@ -3,7 +3,8 @@ package com.sep490.ecoverse_be.dto.response;
 import com.sep490.ecoverse_be.enums.CampaignType;
 import lombok.Builder;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -15,12 +16,12 @@ public record CampaignDetailResponse(
         CampaignType campaignType,
         String description,
         String status,
-        LocalDateTime startDate,
-        LocalDateTime endDate,
-        LocalDateTime registrationDate,
-        LocalDateTime registrationDeadline,
-        LocalDateTime invitationDate,
-        LocalDateTime invitationDeadline,
+        OffsetDateTime startDate,
+        OffsetDateTime endDate,
+        OffsetDateTime registrationDate,
+        OffsetDateTime registrationDeadline,
+        OffsetDateTime invitationDate,
+        OffsetDateTime invitationDeadline,
         Integer maxStudentsPerSchool,
         Integer totalStudentQuota,
         Integer topRankingCount,

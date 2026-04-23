@@ -1,6 +1,7 @@
 package com.sep490.ecoverse_be.dto.response;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.UUID;
 
@@ -15,6 +16,6 @@ public record NotificationResponse(
         UUID referenceId,
         String actionUrl,
         Map<String, Object> metadata,
-        LocalDateTime readAt,
-        LocalDateTime createdAt
+        OffsetDateTime readAt,
+        OffsetDateTime createdAt
 ) {}

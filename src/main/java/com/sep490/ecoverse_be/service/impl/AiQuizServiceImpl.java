@@ -19,7 +19,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -147,7 +148,7 @@ public class AiQuizServiceImpl implements IAiQuizService {
         genLog.setPromptUsed(userPrompt);
         genLog.setStatus("SUCCESS");
         genLog.setUsageCharged(true); // trừ quota ngay
-        genLog.setUsageChargedAt(LocalDateTime.now());
+        genLog.setUsageChargedAt(OffsetDateTime.now());
         genLog.setCreatedBy(currentUser);
 
         // Lưu waste item context snapshot

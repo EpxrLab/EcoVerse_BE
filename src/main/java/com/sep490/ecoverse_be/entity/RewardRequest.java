@@ -8,7 +8,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 
 @Entity
 @Table(name = "reward_requests", indexes = {
@@ -56,13 +57,13 @@ public class RewardRequest extends BaseEntity {
     @JoinColumn(name = "approved_by")
     private User approvedBy;
 
-    private LocalDateTime approvedAt;
+    private OffsetDateTime approvedAt;
 
-    private LocalDateTime rejectedAt;
+    private OffsetDateTime rejectedAt;
 
-    private LocalDateTime deliveredAt;
+    private OffsetDateTime deliveredAt;
 
-    private LocalDateTime confirmedAt;
+    private OffsetDateTime confirmedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "confirmed_by")
@@ -71,7 +72,7 @@ public class RewardRequest extends BaseEntity {
     @Column(columnDefinition = "text")
     private String rejectedReason;
 
-    private LocalDateTime cancelledAt;
+    private OffsetDateTime cancelledAt;
 
     @Column(columnDefinition = "text")
     private String cancelledReason;
