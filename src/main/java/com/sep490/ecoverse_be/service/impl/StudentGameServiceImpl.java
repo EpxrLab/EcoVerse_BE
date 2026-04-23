@@ -11,6 +11,7 @@ import com.sep490.ecoverse_be.enums.ParticipationStatus;
 import com.sep490.ecoverse_be.enums.Role;
 import com.sep490.ecoverse_be.enums.RoundStatus;
 import com.sep490.ecoverse_be.enums.TransactionType;
+import com.sep490.ecoverse_be.enums.WasteCategory;
 import com.sep490.ecoverse_be.exception.BadRequestException;
 import com.sep490.ecoverse_be.exception.NotFoundException;
 import com.sep490.ecoverse_be.model.UserPrincipal;
@@ -328,31 +329,34 @@ public class StudentGameServiceImpl implements IStudentGameService {
                     .toList();
         }
 
-        Map<UUID, List<WasteItem>> itemsBySubCategory = candidates.stream()
-                .collect(Collectors.groupingBy(item -> item.getSubCategory().getId()));
+        // Group by top-level WasteCategory to ensure items from ALL available categories
+        // are distributed evenly (critical for sorting games with multiple bins).
+        Map<WasteCategory, List<WasteItem>> itemsByCategory = candidates.stream()
+                .collect(Collectors.groupingBy(WasteItem::getCategory));
 
-        List<List<WasteItem>> listOfSubCategoryItems = new ArrayList<>();
-        for (List<WasteItem> list : itemsBySubCategory.values()) {
+        List<List<WasteItem>> listOfCategoryItems = new ArrayList<>();
+        for (List<WasteItem> list : itemsByCategory.values()) {
             List<WasteItem> mutableList = new ArrayList<>(list);
             Collections.shuffle(mutableList);
-            listOfSubCategoryItems.add(mutableList);
+            listOfCategoryItems.add(mutableList);
         }
 
-        Collections.shuffle(listOfSubCategoryItems);
+        Collections.shuffle(listOfCategoryItems);
 
         List<WasteItem> finalItems = new ArrayList<>();
         int limit = Math.max(0, levelItem.getItemCount());
         boolean hasLimit = limit > 0;
 
+        // Round-robin across categories so every category contributes items
         boolean addedInRound = true;
         while (addedInRound && (!hasLimit || finalItems.size() < limit)) {
             addedInRound = false;
-            for (List<WasteItem> subCategoryItems : listOfSubCategoryItems) {
+            for (List<WasteItem> categoryItems : listOfCategoryItems) {
                 if (hasLimit && finalItems.size() >= limit) {
                     break;
                 }
-                if (!subCategoryItems.isEmpty()) {
-                    finalItems.add(subCategoryItems.remove(0));
+                if (!categoryItems.isEmpty()) {
+                    finalItems.add(categoryItems.remove(0));
                     addedInRound = true;
                 }
             }
