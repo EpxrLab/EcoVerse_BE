@@ -1,0 +1,1195 @@
+// =============================================================================
+// EcoVerse_BE — Logical ERD (DBML format)
+// Generated from JPA entity classes
+// Compatible with https://dbdiagram.io
+// =============================================================================
+
+// ─── ENUMS ───────────────────────────────────────────────────────────────────
+
+Enum Role {
+  STUDENT
+  PARENT
+  PARTNERSHIP_SCHOOL
+  THIRD_PARTY_PARTNERSHIP
+  ADMINISTRATOR
+}
+
+Enum AccountStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+Enum Gender {
+  MALE
+  FEMALE
+}
+
+Enum SchoolType {
+  PRIVATE
+  PUBLIC
+}
+
+Enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+Enum PartnershipType {
+  YOUTH_UNION
+  WARD_GOVERNMENT
+  COMMUNE_GOVERNMENT
+  PUBLIC_ORGANIZATION
+  NGO
+  OTHER
+}
+
+Enum CampaignType {
+  SCHOOL_INTERNAL
+  INTER_SCHOOL
+  PARTNERSHIP_EVENT
+}
+
+Enum SchoolCampaignStatus {
+  DRAFT
+  SCHEDULED
+  INVITING
+  EXTENDED
+  ON_GOING
+  COMPLETED
+  CANCELLED
+}
+
+Enum PartnershipCampaignStatus {
+  DRAFT
+  SCHEDULED
+  JOINING
+  INVITING
+  ON_GOING
+  COMPLETED
+  CANCELLED
+}
+
+Enum RoundStatus {
+  UPCOMING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+Enum ParticipationStatus {
+  PREPARED
+  INVITED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+Enum PartnershipRewardStatus {
+  PREPARING
+  SHIPPING
+  ARRIVED
+  DELIVERED
+  CONFIRMED
+}
+
+Enum TitleCriteriaType {
+  FASTEST_COMPLETION
+  HIGHEST_ACCURACY
+  BEST_ACCURACY_AND_TIME
+  MOST_GAMES_COMPLETED
+  MOST_QUIZZES_PASSED
+  CUSTOM
+}
+
+Enum QuizDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+Enum QuizSource {
+  AI_GENERATED
+  MANUAL
+}
+
+Enum QuizCreated {
+  AI
+  USER
+  IMPORT
+}
+
+Enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  DRAG_DROP
+}
+
+Enum GameTypeCode {
+  WASTE_SORTING
+  IMAGE_MATCHING
+  SPEED_CLASSIFY
+  RUN_SORTING
+  COLLECT_SORTING
+}
+
+Enum WasteCategory {
+  RECYCLABLE
+  ORGANIC
+  HAZARDOUS
+  GENERAL
+}
+
+Enum TransactionType {
+  EARN_GAME
+  EARN_QUIZ
+  EARN_TITLE
+  SPEND_REWARD
+  REFUND
+  ADJUSTMENT
+  COIN_EXPIRED
+}
+
+Enum CoinExpirationStatus {
+  SCHEDULED
+  EXECUTED
+  CANCELLED
+  GRACE_PERIOD
+}
+
+Enum RewardType {
+  PHYSICAL
+  DIGITAL
+  VOUCHER
+}
+
+Enum RewardRequestStatus {
+  PENDING
+  APPROVED
+  DELIVERED
+  CONFIRMED
+  REJECTED
+  CANCELLED
+}
+
+Enum SubscriberType {
+  SCHOOL
+  PARTNERSHIP
+}
+
+Enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  PENDING_RENEWAL
+}
+
+Enum PaymentMethod {
+  PAYOS
+  OTHER
+}
+
+Enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+Enum NotificationType {
+  CAMPAIGN_INVITE
+  CAMPAIGN_START
+  CAMPAIGN_END
+  CAMPAIGN_CANCELLED
+  CAMPAIGN_JOINING
+  PARENT_APPROVAL_REQUEST
+  REWARD_AVAILABLE
+  REWARD_DELIVERED
+  PARTNERSHIP_REWARD_PREPARING
+  PARTNERSHIP_REWARD_SHIPPING
+  PARTNERSHIP_REWARD_ARRIVED
+  PARTNERSHIP_REWARD_DELIVERED
+  PARTNERSHIP_REWARD_CONFIRMED
+  LEADERBOARD_UPDATE
+  SYSTEM_ANNOUNCEMENT
+  SUBSCRIPTION_EXPIRING
+  SUBSCRIPTION_EXPIRED
+  COINS_EXPIRATION_WARNING
+  ROUND_ADVANCED
+  TITLE_EARNED
+}
+
+Enum NotificationStatus {
+  UNREAD
+  READ
+  ARCHIVED
+}
+
+Enum AuditActionType {
+  LOGIN
+  LOGOUT
+  CREATE
+  UPDATE
+  DELETE
+  APPROVE
+  REJECT
+  EXPORT
+  IMPORT
+}
+
+Enum FileCategory {
+  CONTRACT
+  MODEL
+  DOCUMENT
+  IMAGE
+}
+
+// ─── TABLES ──────────────────────────────────────────────────────────────────
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// USER & IDENTITY MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Table users {
+  id uuid [pk]
+  email varchar [unique, note: 'Unique email']
+  username varchar [unique]
+  password_hash varchar [not null]
+  role Role [not null]
+  status AccountStatus [default: 'PENDING']
+  is_active boolean [default: true]
+  last_login_at timestamptz
+  created_at timestamptz [not null]
+  updated_at timestamptz
+}
+
+Table students {
+  id uuid [pk]
+  user_id uuid [not null, unique, ref: - users.id, note: 'One-to-One']
+  school_id uuid [not null, ref: > schools.id]
+  student_code varchar(50) [not null, note: 'UK: school_id + student_code']
+  full_name varchar [not null]
+  date_of_birth date
+  gender Gender
+  grade_level varchar(50)
+  class_name varchar(100)
+  address varchar(200)
+  total_coins decimal(10,2) [default: 0]
+  avatar_url varchar(500)
+  is_first_login boolean [default: true]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+}
+
+Table parents {
+  id uuid [pk]
+  user_id uuid [not null, unique, ref: - users.id, note: 'One-to-One']
+  full_name varchar [not null]
+  phone_number varchar(20)
+  is_first_login boolean [default: true]
+  credential_email_sent boolean [default: false]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+}
+
+Table student_parent_links {
+  id uuid [pk]
+  student_id uuid [not null, ref: > students.id]
+  parent_id uuid [not null, ref: > parents.id]
+  relationship varchar(50)
+  created_at timestamptz [not null]
+
+  indexes {
+    (student_id, parent_id) [unique, name: 'uk_student_parent']
+  }
+}
+
+Table parental_consents {
+  id uuid [pk]
+  student_id uuid [not null, ref: > students.id]
+  parent_id uuid [not null, ref: > parents.id]
+  consent_type varchar(100) [not null]
+  consent_given boolean [not null]
+  consent_text text
+  consent_version varchar(20)
+  ip_address varchar(45)
+  user_agent text
+  given_at timestamptz [not null]
+  revoked_at timestamptz
+}
+
+Table refresh_tokens {
+  id uuid [pk]
+  user_id uuid [not null, ref: > users.id]
+  token_hash varchar [not null]
+  expires_at timestamptz [not null]
+  is_revoked boolean [default: false]
+  revoked_at timestamptz
+  created_at timestamptz [not null]
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ORGANIZATION MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Table schools {
+  id uuid [pk]
+  user_id uuid [not null, unique, ref: - users.id, note: 'One-to-One']
+  school_name varchar [not null]
+  school_type SchoolType [not null]
+  tax_code varchar(50) [unique]
+  address text
+  ward varchar(100)
+  province varchar(100)
+  country varchar(100) [default: 'Vietnam']
+  phone_number varchar(10)
+  principal_name varchar
+  contact_email varchar
+  position varchar(100)
+  link_web varchar(100)
+  description text
+  approval_status ApprovalStatus [default: 'PENDING']
+  approved_by uuid [ref: > users.id]
+  approved_at timestamptz
+  logo_url varchar(500)
+  license_url varchar(500)
+  created_at timestamptz [not null]
+  updated_at timestamptz
+}
+
+Table partnerships {
+  id uuid [pk]
+  user_id uuid [not null, unique, ref: - users.id, note: 'One-to-One']
+  organization_name varchar [not null]
+  partnership_type PartnershipType [not null]
+  contact_email varchar
+  description text
+  phone_number varchar(10)
+  registered_address text
+  geographic_scope_ward varchar(100)
+  geographic_scope_province varchar(100)
+  contact_person varchar
+  position varchar(100)
+  tax_code varchar(100)
+  link_web varchar(100)
+  approval_status ApprovalStatus [default: 'PENDING']
+  approved_by uuid [ref: > users.id]
+  approved_at timestamptz
+  logo_url varchar(500)
+  license_url varchar(500)
+  created_at timestamptz [not null]
+  updated_at timestamptz
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CAMPAIGN MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Table campaigns {
+  id uuid [pk]
+  campaign_code varchar(50) [not null, unique]
+  campaign_name varchar(255) [not null]
+  campaign_type CampaignType [not null]
+  description text
+  creator_school_id uuid [ref: > schools.id]
+  creator_partnership_id uuid [ref: > partnerships.id]
+  start_date timestamptz [not null]
+  end_date timestamptz [not null]
+  registration_date timestamptz
+  registration_deadline timestamptz
+  invitation_date timestamptz
+  invitation_deadline timestamptz
+  school_status SchoolCampaignStatus [default: 'DRAFT']
+  partnership_status PartnershipCampaignStatus [default: 'DRAFT']
+  max_students_per_school integer
+  total_student_quota integer
+  top_ranking_count integer [default: 10]
+  total_rounds integer
+  rules_config jsonb
+  banner_image_url varchar(500)
+  is_active boolean [not null, default: true]
+  created_by uuid [ref: > users.id]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+}
+
+Table campaign_rounds {
+  id uuid [pk]
+  campaign_id uuid [not null, ref: > campaigns.id]
+  round_number integer [not null, note: 'UK: campaign_id + round_number']
+  round_name varchar(255) [not null]
+  status RoundStatus [default: 'UPCOMING']
+  start_time timestamptz [not null]
+  end_time timestamptz [not null]
+  max_participants integer
+  advance_count integer
+  advance_criteria varchar(100) [default: 'BEST_ACCURACY_THEN_TIME']
+  advance_threshold decimal(5,2)
+  is_final_round boolean [default: false]
+  quiz_id uuid [ref: > quizzes.id]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+
+  indexes {
+    (campaign_id, round_number) [unique]
+  }
+}
+
+Table campaign_round_quizzes {
+  id uuid [pk]
+  campaign_round_id uuid [not null, ref: > campaign_rounds.id]
+  quiz_id uuid [not null, ref: > quizzes.id]
+  display_order integer [not null, default: 1]
+  max_attempts integer [not null, default: 3]
+  is_required boolean [not null, default: true]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+
+  indexes {
+    (campaign_round_id, quiz_id) [unique, name: 'uk_crq_round_quiz']
+  }
+}
+
+Table campaign_schools_participate {
+  id uuid [pk]
+  campaign_id uuid [not null, ref: > campaigns.id]
+  school_id uuid [not null, ref: > schools.id]
+  students_enrolled integer [not null, default: 0]
+  invitation_sent_at timestamptz
+  participation_confirmed_at timestamptz
+  status ParticipationStatus [default: 'PREPARED']
+  rejection_reason text
+  created_at timestamptz [not null]
+
+  indexes {
+    (campaign_id, school_id) [unique, name: 'uk_campaign_schools_participate_campaign_school']
+  }
+}
+
+Table campaign_participants {
+  id uuid [pk]
+  campaign_id uuid [not null, ref: > campaigns.id]
+  student_id uuid [not null, ref: > students.id]
+  school_id uuid [not null, ref: > schools.id]
+  enrollment_date timestamptz
+  invitation_sent_at timestamptz
+  parent_approval_status ParticipationStatus [default: 'PREPARED']
+  parent_approved_by uuid [ref: > parents.id]
+  parent_approved_at timestamptz
+  rejection_reason varchar
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+
+  indexes {
+    (campaign_id, student_id) [unique, name: 'uk_campaign_participants_campaign_student']
+  }
+}
+
+Table campaign_round_participants {
+  id uuid [pk]
+  campaign_round_id uuid [not null, ref: > campaign_rounds.id]
+  campaign_participant_id uuid [not null, ref: > campaign_participants.id]
+  total_correct_items integer [default: 0]
+  total_items integer [default: 0]
+  accuracy_percentage decimal(5,2)
+  total_time_seconds integer [default: 0]
+  rank_in_round integer
+  is_advanced boolean [default: false]
+  completed_at timestamptz
+  created_at timestamptz [not null]
+  updated_at timestamptz
+
+  indexes {
+    (campaign_round_id, campaign_participant_id) [unique]
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CAMPAIGN REWARDS (Partnership campaigns)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Table campaign_rewards {
+  id uuid [pk]
+  campaign_id uuid [not null, ref: > campaigns.id]
+  partnership_id uuid [not null, ref: > partnerships.id]
+  rank_position integer [not null, note: 'UK: campaign_id + rank_position']
+  reward_name varchar [not null]
+  description text
+  image_url varchar(500)
+  sponsor_name varchar
+  status PartnershipRewardStatus [default: 'PREPARING']
+  created_by uuid [ref: > users.id]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+
+  indexes {
+    (campaign_id, rank_position) [unique]
+  }
+}
+
+Table campaign_reward_deliveries {
+  id uuid [pk]
+  campaign_reward_id uuid [not null, ref: > campaign_rewards.id]
+  campaign_id uuid [not null, ref: > campaigns.id]
+  campaign_round_id uuid [not null, ref: > campaign_rounds.id]
+  round_leaderboard_id uuid [not null, ref: > round_leaderboards.id]
+  student_id uuid [not null, ref: > students.id]
+  school_id uuid [not null, ref: > schools.id]
+  leaderboard_rank integer [not null]
+  status PartnershipRewardStatus [default: 'PREPARING']
+  preparing_at timestamptz
+  shipped_at timestamptz
+  shipping_tracking_code varchar(100)
+  arrived_at timestamptz
+  arrived_confirmed_by uuid [ref: > users.id]
+  delivered_at timestamptz
+  delivered_by uuid [ref: > users.id]
+  confirmed_at timestamptz
+  confirmed_by uuid [ref: > parents.id]
+  delivery_image_url varchar(500)
+  notes text
+  created_at timestamptz [not null]
+  updated_at timestamptz
+
+  indexes {
+    (campaign_reward_id, student_id) [unique]
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CAMPAIGN TITLES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Table campaign_titles {
+  id uuid [pk]
+  campaign_id uuid [not null, ref: > campaigns.id]
+  school_id uuid [ref: > schools.id]
+  partnership_id uuid [ref: > partnerships.id]
+  title_name varchar [not null]
+  display_format varchar(500) [not null]
+  description text
+  criteria_type TitleCriteriaType [not null]
+  criteria_config jsonb
+  icon_url varchar(500)
+  max_recipients integer [default: 1]
+  is_active boolean [default: true]
+  created_by uuid [ref: > users.id]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+}
+
+Table student_titles {
+  id uuid [pk]
+  student_id uuid [not null, ref: > students.id]
+  campaign_title_id uuid [not null, ref: > campaign_titles.id]
+  campaign_id uuid [not null, ref: > campaigns.id]
+  display_text varchar(500) [not null]
+  earned_at timestamptz [not null]
+  metric_value varchar(100)
+  is_displayed boolean [default: true]
+  created_at timestamptz [not null]
+
+  indexes {
+    (student_id, campaign_title_id) [unique]
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LEADERBOARDS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Table round_leaderboards {
+  id uuid [pk]
+  campaign_id uuid [not null, ref: > campaigns.id]
+  campaign_round_id uuid [not null, ref: > campaign_rounds.id]
+  student_id uuid [not null, ref: > students.id]
+  school_id uuid [not null, ref: > schools.id]
+  game_accuracy_percentage decimal(5,2)
+  quiz_accuracy_percentage decimal(5,2)
+  combined_accuracy_percentage decimal(5,2) [note: 'Primary ranking metric']
+  avg_time_seconds decimal(8,2) [note: 'Tiebreaker (lower = better)']
+  games_completed integer [not null, default: 0]
+  quizzes_completed integer [not null, default: 0]
+  total_coins_earned integer
+  overall_rank_in_round integer
+  school_rank_in_round integer
+  is_advanced boolean [not null, default: false]
+  last_updated timestamptz
+
+  indexes {
+    (campaign_round_id, student_id) [unique, name: 'uk_rl_round_student']
+  }
+}
+
+Table school_leaderboards {
+  id uuid [pk]
+  campaign_id uuid [not null, ref: > campaigns.id]
+  student_id uuid [not null, ref: > students.id]
+  school_id uuid [not null, ref: > schools.id]
+  game_accuracy_percentage decimal(5,2)
+  quiz_accuracy_percentage decimal(5,2)
+  combined_accuracy_percentage decimal(5,2) [note: 'Primary ranking metric']
+  avg_time_seconds decimal(8,2) [note: 'Tiebreaker (lower = better)']
+  games_completed integer [not null, default: 0]
+  quizzes_completed integer [not null, default: 0]
+  total_coins_earned integer
+  overall_rank integer
+  school_rank integer
+  last_updated timestamptz
+
+  indexes {
+    (campaign_id, student_id) [unique, name: 'uk_sl_campaign_student']
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// QUIZ MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Table quizzes {
+  id uuid [pk]
+  school_id uuid [ref: > schools.id]
+  partnership_id uuid [ref: > partnerships.id]
+  title varchar(255) [not null]
+  description text
+  difficulty QuizDifficulty [not null]
+  source QuizSource [not null]
+  target_grade integer
+  question_count integer
+  source_document_url varchar(500)
+  generated_for_round_game_config_id uuid [ref: > round_game_configs.id]
+  time_per_question integer
+  pass_score_percentage integer [not null, default: 70]
+  coins_on_pass integer
+  is_published boolean [not null, default: false]
+  is_active boolean [not null, default: true]
+  created_by QuizCreated [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+}
+
+Table quiz_questions {
+  id uuid [pk]
+  quiz_id uuid [not null, ref: > quizzes.id]
+  question_order integer [not null]
+  question_type QuestionType [not null]
+  question_text text [not null]
+  question_image_url varchar(500)
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+}
+
+Table quiz_answers {
+  id uuid [pk]
+  question_id uuid [not null, ref: > quiz_questions.id]
+  answer_text text [not null]
+  is_correct boolean [not null]
+  created_at timestamptz [not null]
+}
+
+Table quiz_attempts {
+  id uuid [pk]
+  campaign_participant_id uuid [not null, ref: > campaign_participants.id]
+  campaign_round_id uuid [not null, ref: > campaign_rounds.id]
+  quiz_id uuid [not null, ref: > quizzes.id]
+  attempt_number integer [not null, default: 1]
+  start_time timestamptz
+  end_time timestamptz
+  total_questions integer [not null]
+  correct_answers integer [not null, default: 0]
+  score_percentage decimal(5,2) [note: 'Primary ranking metric for quiz']
+  time_taken_seconds integer [note: 'Tiebreaker for leaderboard']
+  coins_earned integer [note: 'School campaigns only']
+  is_passed boolean [not null, default: false]
+  is_completed boolean [not null, default: false]
+  created_at timestamptz [not null]
+
+  indexes {
+    (campaign_participant_id, campaign_round_id, quiz_id, attempt_number) [unique, name: 'uk_qa_participant_round_quiz_attempt']
+  }
+}
+
+Table quiz_attempt_answers {
+  id uuid [pk]
+  quiz_attempt_id uuid [not null, ref: > quiz_attempts.id]
+  question_id uuid [not null, ref: > quiz_questions.id]
+  selected_answer_id uuid [ref: > quiz_answers.id]
+  is_correct boolean
+  time_taken_seconds integer
+  created_at timestamptz [not null]
+
+  indexes {
+    (quiz_attempt_id, question_id) [unique]
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// GAME MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Table game_types {
+  id uuid [pk]
+  type_code GameTypeCode [not null]
+  name varchar(255) [not null]
+  short_description varchar(500) [not null]
+  full_description text
+  how_to_play text [not null]
+  thumbnail_url varchar(500)
+  icon_url varchar(500)
+  features jsonb [not null]
+  supports_coin boolean [not null, default: true]
+  max_levels integer [not null]
+  is_active boolean [not null, default: true]
+  is_delete boolean [not null, default: false]
+  display_order integer [default: 0]
+  created_by uuid [ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+}
+
+Table game_type_sub_categories {
+  game_type_id uuid [ref: > game_types.id]
+  sub_category_id uuid [ref: > waste_sub_categories.id]
+
+  indexes {
+    (game_type_id, sub_category_id) [pk]
+  }
+
+  Note: 'M:N join table between GameType and WasteSubCategory'
+}
+
+Table game_level_presets {
+  id uuid [pk]
+  game_type_id uuid [not null, ref: > game_types.id]
+  difficulty QuizDifficulty [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+
+  indexes {
+    (game_type_id, difficulty) [unique, name: 'uk_glp_game_type_difficulty']
+  }
+}
+
+Table game_level_preset_items {
+  id uuid [pk]
+  preset_id uuid [not null, ref: > game_level_presets.id]
+  level_number integer [not null]
+  item_count integer [not null]
+  time_limit_seconds integer [not null]
+  score_per_correct integer [not null, default: 10]
+  lives integer
+  config_json jsonb
+  created_at timestamptz [not null]
+  updated_at timestamptz
+
+  indexes {
+    (preset_id, level_number) [unique, name: 'uk_glpi_preset_level']
+  }
+}
+
+Table game_level_preset_item_waste_categories {
+  preset_item_id uuid [ref: > game_level_preset_items.id]
+  waste_category WasteCategory [not null]
+
+  indexes {
+    (preset_item_id, waste_category) [pk]
+  }
+
+  Note: 'ElementCollection for GameLevelPresetItem.wasteCategories'
+}
+
+Table round_game_configs {
+  id uuid [pk]
+  campaign_round_id uuid [not null, ref: > campaign_rounds.id]
+  game_type_id uuid [not null, ref: > game_types.id]
+  preset_sub_category_config jsonb [note: 'Per-preset sub-category selections']
+  difficulty_override QuizDifficulty
+  resolved_difficulty QuizDifficulty
+  resolved_preset_id uuid [ref: > game_level_presets.id]
+  coin_per_session integer [note: 'School campaigns only']
+  display_order integer [not null, default: 1]
+  is_required boolean [not null, default: true]
+  created_by uuid [ref: > users.id]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+
+  indexes {
+    (campaign_round_id, display_order) [unique, name: 'uk_rgc_round_order']
+  }
+}
+
+Table round_game_config_presets {
+  round_game_config_id uuid [ref: > round_game_configs.id]
+  preset_id uuid [ref: > game_level_presets.id]
+
+  indexes {
+    (round_game_config_id, preset_id) [pk]
+  }
+
+  Note: 'M:N join table between RoundGameConfig and GameLevelPreset'
+}
+
+Table difficulty_recommendations {
+  id uuid [pk]
+  game_type_id uuid [not null, ref: > game_types.id]
+  grade_min integer [not null]
+  grade_max integer [not null]
+  suggested_difficulty QuizDifficulty [not null]
+  suggested_level_start integer [not null, default: 1]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+
+  indexes {
+    (game_type_id, grade_min, grade_max) [unique, name: 'uk_dr_game_type_grade_range']
+  }
+}
+
+Table default_coin_configs {
+  id uuid [pk]
+  game_type_id uuid [not null, ref: > game_types.id]
+  difficulty QuizDifficulty [not null]
+  default_coin integer [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+
+  indexes {
+    (game_type_id, difficulty) [unique, name: 'uk_dcc_game_type_difficulty']
+  }
+}
+
+Table game_sessions {
+  id uuid [pk]
+  campaign_participant_id uuid [not null, ref: > campaign_participants.id]
+  round_game_config_id uuid [not null, ref: > round_game_configs.id]
+  game_level_preset_id uuid [ref: > game_level_presets.id]
+  current_level integer [not null, default: 1]
+  session_start timestamptz
+  session_end timestamptz
+  time_taken_seconds integer
+  total_items integer [not null, default: 0]
+  correct_items integer [not null, default: 0]
+  incorrect_items integer [not null, default: 0]
+  accuracy_percentage decimal(5,2)
+  coin_awarded integer [note: 'School campaigns only']
+  is_completed boolean [not null, default: false]
+  is_passed boolean [not null, default: false]
+  preset_snapshot jsonb [not null, note: 'Frozen preset config at session start']
+  created_at timestamptz [not null]
+}
+
+Table game_session_items {
+  id uuid [pk]
+  game_session_id uuid [not null, ref: > game_sessions.id]
+  waste_item_id uuid [not null, ref: > waste_items.id]
+  level_number integer [not null]
+  presented_order integer [not null]
+  selected_category WasteCategory
+  correct_category WasteCategory [not null]
+  is_correct boolean
+  time_taken_seconds integer
+  created_at timestamptz [not null]
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WASTE MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Table waste_sub_categories {
+  id uuid [pk]
+  category WasteCategory [not null]
+  sub_category_code varchar(50) [not null]
+  display_name varchar(100) [not null]
+  description text
+  icon_url varchar(500)
+  display_order integer [default: 0]
+  is_active boolean [not null, default: true]
+  is_delete boolean [not null, default: false]
+  created_by uuid [ref: > users.id]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+}
+
+Table waste_items {
+  id uuid [pk]
+  item_name varchar(255) [not null]
+  category WasteCategory [not null, note: 'Denormalized from sub_category']
+  sub_category_id uuid [not null, ref: > waste_sub_categories.id]
+  description text
+  fun_fact text
+  image_url varchar(500)
+  decomposition_time varchar(100)
+  recycling_tips text
+  model_3d_url varchar(500)
+  tripo_task_id varchar(50)
+  tripo_status varchar(20)
+  is_active boolean [not null, default: true]
+  is_delete boolean [not null, default: false]
+  created_by uuid [ref: > users.id]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COIN ECONOMY (School campaigns)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Table coin_transactions {
+  id uuid [pk]
+  transaction_code varchar(50) [not null, unique]
+  student_id uuid [not null, ref: > students.id]
+  transaction_type TransactionType [not null]
+  amount decimal(10,2) [not null]
+  balance_before decimal(10,2) [not null]
+  balance_after decimal(10,2) [not null]
+  reference_type varchar(50)
+  reference_id uuid
+  description text
+  campaign_id uuid [ref: > campaigns.id]
+  created_by uuid [ref: > users.id]
+  created_at timestamptz [not null]
+}
+
+Table coin_expiration_records {
+  id uuid [pk]
+  student_id uuid [not null, ref: > students.id]
+  school_id uuid [not null, ref: > schools.id]
+  subscription_id uuid [not null, ref: > subscriptions.id]
+  status CoinExpirationStatus [default: 'SCHEDULED']
+  coins_amount decimal(10,2) [not null]
+  scheduled_date timestamptz [not null]
+  executed_at timestamptz
+  cancelled_at timestamptz
+  cancellation_reason varchar
+  transaction_id uuid [ref: > coin_transactions.id]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REWARD SHOP (School campaigns)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Table rewards {
+  id uuid [pk]
+  school_id uuid [not null, ref: > schools.id]
+  reward_name varchar [not null]
+  reward_type RewardType [not null]
+  description text
+  coin_cost decimal(10,2) [not null]
+  image_url varchar(500)
+  stock_quantity integer
+  is_unlimited boolean [default: false]
+  is_active boolean [default: true]
+  is_delete boolean [not null, default: false]
+  terms_conditions text
+  created_by uuid [ref: > users.id]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+}
+
+Table reward_requests {
+  id uuid [pk]
+  request_code varchar(50) [not null, unique]
+  student_id uuid [not null, ref: > students.id]
+  reward_id uuid [not null, ref: > rewards.id]
+  school_id uuid [not null, ref: > schools.id]
+  requested_by_parent uuid [ref: > parents.id]
+  quantity integer [default: 1]
+  total_coins decimal(10,2) [not null]
+  status RewardRequestStatus [default: 'PENDING']
+  approved_by uuid [ref: > users.id]
+  approved_at timestamptz
+  rejected_at timestamptz
+  delivered_at timestamptz
+  confirmed_at timestamptz
+  confirmed_by_parent uuid [ref: > parents.id]
+  rejected_reason text
+  cancelled_at timestamptz
+  cancelled_reason text
+  notes text
+  delivery_image_url varchar(500)
+  created_at timestamptz [not null]
+  updated_at timestamptz
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SUBSCRIPTION & PAYMENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Table subscription_plans {
+  id uuid [pk]
+  plan_code varchar(50) [not null, unique]
+  plan_name varchar [not null]
+  subscriber_type SubscriberType [not null]
+  description text
+  duration_days integer [not null, default: 365]
+  price decimal(12,2) [not null]
+  currency varchar(10) [default: 'VND']
+  max_students integer
+  max_campaigns_per_month integer
+  max_rounds_per_campaign integer
+  max_schools_per_campaign integer
+  max_ai_quiz_generations integer [note: 'NULL = unlimited']
+  features jsonb
+  grace_period_days integer [default: 30]
+  is_active boolean [default: true]
+  display_order integer [default: 0]
+  created_by uuid [ref: > users.id]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+}
+
+Table subscriptions {
+  id uuid [pk]
+  subscription_code varchar(50) [not null, unique]
+  subscriber_type SubscriberType [not null]
+  school_id uuid [ref: > schools.id]
+  partnership_id uuid [ref: > partnerships.id]
+  plan_id uuid [not null, ref: > subscription_plans.id]
+  status SubscriptionStatus [default: 'ACTIVE']
+  start_date timestamptz [not null]
+  end_date timestamptz [not null]
+  renewed_from_id uuid [ref: > subscriptions.id, note: 'Self-reference for renewal chain']
+  auto_renew boolean [default: false]
+  cancellation_reason text
+  cancelled_at timestamptz
+  notes text
+  created_at timestamptz [not null]
+  updated_at timestamptz
+}
+
+Table payments {
+  id uuid [pk]
+  payment_code varchar(50) [not null, unique]
+  subscriber_type SubscriberType [not null]
+  school_id uuid [ref: > schools.id]
+  partnership_id uuid [ref: > partnerships.id]
+  subscription_id uuid [not null, ref: > subscriptions.id]
+  amount decimal(12,2) [not null]
+  currency varchar(10) [default: 'VND']
+  payment_method PaymentMethod [not null]
+  status PaymentStatus [default: 'PENDING']
+  transaction_ref varchar
+  gateway_response jsonb
+  paid_at timestamptz
+  failed_at timestamptz
+  failure_reason text
+  refunded_at timestamptz
+  refund_amount decimal(12,2)
+  refund_reason text
+  invoice_number varchar(100)
+  invoice_url varchar(500)
+  payer_name varchar
+  payer_email varchar
+  payer_phone varchar(20)
+  notes text
+  created_by uuid [ref: > users.id]
+  created_at timestamptz [not null]
+  updated_at timestamptz
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AI GENERATION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Table ai_generation_logs {
+  id uuid [pk]
+  school_id uuid [ref: > schools.id]
+  partnership_id uuid [ref: > partnerships.id]
+  round_game_config_id uuid [ref: > round_game_configs.id]
+  waste_item_context_snapshot jsonb [note: 'Snapshot of waste item IDs used']
+  target_grade integer
+  requested_question_count integer
+  document_url varchar(500)
+  document_type varchar(50)
+  ai_provider varchar(50)
+  ai_model varchar(100)
+  prompt_used text
+  token_count integer
+  generation_duration_ms integer
+  cost_usd decimal(10,4)
+  questions_generated integer
+  status varchar(50) [note: 'SUCCESS, FAILED, TIMEOUT']
+  error_message text
+  quiz_id uuid [ref: > quizzes.id]
+  is_usage_charged boolean [not null, default: false]
+  usage_charged_at timestamptz
+  created_by uuid [ref: > users.id]
+  created_at timestamptz [not null]
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SYSTEM & AUDIT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Table notifications {
+  id uuid [pk]
+  recipient_user_id uuid [not null, ref: > users.id]
+  notification_type NotificationType [not null]
+  title varchar [not null]
+  message text [not null]
+  status NotificationStatus [default: 'UNREAD']
+  reference_type varchar(50)
+  reference_id uuid
+  action_url varchar(500)
+  metadata jsonb
+  read_at timestamptz
+  created_at timestamptz [not null]
+}
+
+Table audit_logs {
+  id uuid [pk]
+  actor_user_id uuid [ref: > users.id]
+  action_type AuditActionType [not null]
+  resource_type varchar(100)
+  resource_id uuid
+  ip_address varchar(45)
+  user_agent text
+  request_details jsonb
+  response_status integer
+  is_success boolean
+  error_message text
+  created_at timestamptz [not null]
+}
+
+Table files {
+  id uuid [pk]
+  file_name varchar [not null]
+  file_url varchar(500) [not null]
+  public_id varchar [not null]
+  file_type varchar(100)
+  file_size bigint
+  uploaded_by uuid [ref: > users.id]
+  file_category FileCategory
+  created_at timestamptz [not null]
+  updated_at timestamptz
+}
+
+Table system_settings {
+  id uuid [pk]
+  setting_key varchar(100) [not null, unique]
+  setting_value jsonb [not null]
+  description text
+  is_public boolean [default: false]
+  updated_by uuid [ref: > users.id]
+  updated_at timestamptz
+}
+
+Table data_deletion_requests {
+  id uuid [pk]
+  requested_by_user_id uuid [not null, ref: > users.id]
+  student_id uuid [ref: > students.id]
+  request_reason text
+  status ApprovalStatus [default: 'PENDING']
+  approved_by uuid [ref: > users.id]
+  approved_at timestamptz
+  processed_at timestamptz
+  deletion_metadata jsonb
+  created_at timestamptz [not null]
+}
