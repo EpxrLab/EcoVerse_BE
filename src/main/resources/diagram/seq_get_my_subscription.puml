@@ -1,5 +1,5 @@
 @startuml seq_get_my_subscription
-title Sequence Diagram - GET /api/subscriptions/my (Lấy Gói đang sử dụng)
+title Sequence Diagram - GET /api/subscriptions/my (Lấy Plan in use)
 
 actor "School/Partnership" as user
 boundary "Dashboard UI\n(Frontend)" as ui
@@ -13,7 +13,7 @@ participant "PaymentRepository" as payRepo
 participant "SubscriptionMapper" as mapper
 database "Database" as db
 
-user -> ui : Mở trang Dashboard / Gói đăng ký
+user -> ui : Open page Dashboard / Subscription plan
 activate ui
 
 ui -> ctrl : GET /api/subscriptions/my
@@ -31,29 +31,29 @@ deactivate userRepo
 svc -> svc : resolveSubscriberType(user)
 
 alt subscriberType == SCHOOL
-    svc -> schoolRepo : findByUserId(userId)
-    activate schoolRepo
-    schoolRepo --> svc : School
-    deactivate schoolRepo
-    svc -> subRepo : findBySchoolIdAndStatus(schoolId, ACTIVE)
-    activate subRepo
-    subRepo --> svc : Optional<Subscription>
-    deactivate subRepo
+ svc -> schoolRepo : findByUserId(userId)
+ activate schoolRepo
+ schoolRepo --> svc : School
+ deactivate schoolRepo
+ svc -> subRepo : findBySchoolIdAndStatus(schoolId, ACTIVE)
+ activate subRepo
+ subRepo --> svc : Optional<Subscription>
+ deactivate subRepo
 else subscriberType == PARTNERSHIP
-    svc -> partRepo : findByUserId(userId)
-    activate partRepo
-    partRepo --> svc : Partnership
-    deactivate partRepo
-    svc -> subRepo : findByPartnershipIdAndStatus(partnershipId, ACTIVE)
-    activate subRepo
-    subRepo --> svc : Optional<Subscription>
-    deactivate subRepo
+ svc -> partRepo : findByUserId(userId)
+ activate partRepo
+ partRepo --> svc : Partnership
+ deactivate partRepo
+ svc -> subRepo : findByPartnershipIdAndStatus(partnershipId, ACTIVE)
+ activate subRepo
+ subRepo --> svc : Optional<Subscription>
+ deactivate subRepo
 end
 
 alt no active subscription
-    svc --> ctrl : throw ResourceNotFoundException\n("No active subscription found.")
-    ctrl --> ui : 404 Not Found
-    ui --> user : Hiển thị "Chưa có gói đăng ký"
+ svc --> ctrl : throw ResourceNotFoundException\n("No active subscription found.")
+ ctrl --> ui : 404 Not Found
+ ui --> user : Display "Chưa có gói đăng ký"
 end
 
 svc -> payRepo : findAllBySubscriptionIdOrderByCreatedAtDesc(subscriptionId)
@@ -75,8 +75,8 @@ ctrl -> ctrl : ResponseDto.success(response, "Current subscription retrieved.")
 ctrl --> ui : 200 OK\nResponseDto<SubscriptionResponse>
 deactivate ctrl
 
-ui -> ui : Render thông tin gói hiện tại\n(planName, status, startDate, endDate,\nusedStudents/maxStudents,\nusedCampaigns/maxCampaigns, ...)
-ui --> user : Hiển thị gói đăng ký hiện tại
+ui -> ui : Render thông tin plan hiện tại\n(planName, status, startDate, endDate,\nusedStudents/maxStudents,\nusedCampaigns/maxCampaigns, ...)
+ui --> user : Display Subscription plan current
 deactivate ui
 
 @enduml

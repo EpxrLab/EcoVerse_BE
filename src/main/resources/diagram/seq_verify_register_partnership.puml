@@ -1,5 +1,5 @@
 @startuml seq_verify_register_partnership
-title Sequence Diagram - POST /api/auth/verify-register/partnership (Đăng ký Đối tác)
+title Sequence Diagram - POST /api/auth/verify-register/partnership (Register Partnership)
 
 actor "Người dùng\n(Đối tác)" as user
 boundary "Registration UI\n(Frontend)" as ui
@@ -11,11 +11,11 @@ participant "PartnershipRepository" as partRepo
 participant "BCryptPasswordEncoder" as encoder
 database "Database" as db
 
-user -> ui : Điền thông tin đối tác\n(organizationName, contactEmail, phoneNumber,\nprovince, ward, streetAddress,\ncontactPerson, position, taxCode,\npartnershipType, password, logoUrl, licenseUrl)
+user -> ui : Fill details đối tác\n(organizationName, contactEmail, phoneNumber,\nprovince, ward, streetAddress,\ncontactPerson, position, taxCode,\npartnershipType, password, logoUrl, licenseUrl)
 activate ui
 
-user -> ui : Nhấn "Đăng ký"
-ui -> ui : Validate form phía client
+user -> ui : Click "Đăng ký"
+ui -> ui : Validate form client side
 
 ui -> ctrl : POST /api/auth/verify-register/partnership\n@RequestBody VerifyRegisterPartnershipRequest
 activate ctrl
@@ -29,10 +29,10 @@ activate otpSvc
 otpSvc --> svc : boolean
 deactivate otpSvc
 
-alt email chưa verified OTP
-    svc --> ctrl : throw IllegalArgumentException\n("Email chưa được xác thực OTP")
-    ctrl --> ui : 400 Bad Request
-    ui --> user : Hiển thị lỗi
+alt email not yet verified OTP
+ svc --> ctrl : throw IllegalArgumentException\n("Email chưa được xác thực OTP")
+ ctrl --> ui : 400 Bad Request
+ ui --> user : Display error
 end
 
 note over svc : buildUser(contactEmail, password, THIRD_PARTY_PARTNERSHIP)
@@ -72,8 +72,8 @@ ctrl -> ctrl : ResponseDto.success(userResponse,\n"Đăng ký thành công, ch�
 ctrl --> ui : 200 OK\nResponseDto<UserResponse>
 deactivate ctrl
 
-ui -> ui : Hiển thị thông báo thành công\n"Đăng ký thành công!\nTài khoản đang chờ Admin xét duyệt"
-ui --> user : Chuyển đến trang đăng nhập
+ui -> ui : Display notification Successfully\n"Đăng ký thành công!\nTài khoản đang chờ Admin xét duyệt"
+ui --> user : Navigate to page login
 deactivate ui
 
 @enduml

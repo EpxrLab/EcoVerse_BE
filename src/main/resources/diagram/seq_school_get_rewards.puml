@@ -1,5 +1,5 @@
 @startuml seq_school_get_rewards
-title Sequence Diagram - GET /api/school/rewards (Lấy danh sách quà của trường)
+title Sequence Diagram - GET /api/school/rewards (Lấy List of reward of field )
 
 actor "Trường học" as user
 boundary "School Reward UI\n(Frontend)" as ui
@@ -10,7 +10,7 @@ participant "RewardRepository" as rewardRepo
 participant "S3PresignedUrlService" as s3Svc
 database "Database" as db
 
-user -> ui : Mở trang quản lý quà thưởng
+user -> ui : Open page Management Reward
 activate ui
 
 ui -> ctrl : GET /api/school/rewards?rewardType=PHYSICAL
@@ -27,9 +27,9 @@ schoolRepo --> svc : School
 deactivate schoolRepo
 
 alt rewardType != null
-    svc -> rewardRepo : findBySchoolIdAndRewardTypeAndIsDeleteFalseOrderByCreatedAtDesc(schoolId, rewardType)
+ svc -> rewardRepo : findBySchoolIdAndRewardTypeAndIsDeleteFalseOrderByCreatedAtDesc(schoolId, rewardType)
 else rewardType == null
-    svc -> rewardRepo : findBySchoolIdAndIsDeleteFalseOrderByCreatedAtDesc(schoolId)
+ svc -> rewardRepo : findBySchoolIdAndIsDeleteFalseOrderByCreatedAtDesc(schoolId)
 end
 activate rewardRepo
 rewardRepo -> db : SELECT FROM rewards WHERE ...
@@ -38,8 +38,8 @@ rewardRepo --> svc : List<Reward>
 deactivate rewardRepo
 
 loop for each Reward
-    svc -> s3Svc : generatePresignedUrl(imageUrl)
-    svc -> svc : mapToResponse(reward)
+ svc -> s3Svc : generatePresignedUrl(imageUrl)
+ svc -> svc : mapToResponse(reward)
 end
 
 svc --> ctrl : List<RewardResponse>
@@ -48,8 +48,8 @@ deactivate svc
 ctrl --> ui : 200 OK\nResponseDto<List<RewardResponse>>
 deactivate ctrl
 
-ui -> ui : Render danh sách quà\n(rewardName, coinCost, stockQuantity,\nrewardType, imagePresignedUrl)
-ui --> user : Hiển thị danh sách quà
+ui -> ui : Render List of reward\n(rewardName, coinCost, stockQuantity,\nrewardType, imagePresignedUrl)
+ui --> user : Display List of reward
 deactivate ui
 
 @enduml

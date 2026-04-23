@@ -9,16 +9,16 @@ participant "GameTypeRepository" as gtRepo
 participant "GameLevelPresetRepository" as glpRepo
 database "Database" as db
 
-admin -> ui : Mở trang chi tiết Game Type
+admin -> ui : Open page Details Game Type
 activate ui
-ui -> ui : Hiển thị danh sách Preset hiện có\nvới nút "Tạo Preset mới"
+ui -> ui : Display List of Preset hiện có\nwith button "Tạo Preset mới"
 
-admin -> ui : Nhấn nút "Tạo Preset mới"
-ui -> ui : Hiển thị form tạo Preset\n(difficulty, danh sách items:\nlevelNumber, itemCount,\ntimeLimitSeconds, scorePerCorrect,\nlives, wasteCategories, configJson)
+admin -> ui : Click button "Tạo Preset mới"
+ui -> ui : Display form create Preset\n(difficulty, List of items:\nlevelNumber, itemCount,\ntimeLimitSeconds, scorePerCorrect,\nlives, wasteCategories, configJson)
 
-admin -> ui : Điền thông tin preset\nvà thêm các level items
-admin -> ui : Nhấn "Lưu"
-ui -> ui : Validate form phía client\n(kiểm tra các trường bắt buộc,\nlevelNumber >= 1, itemCount >= 1)
+admin -> ui : Fill details preset\nvà Add the level items
+admin -> ui : Click "Lưu"
+ui -> ui : Validate form client side\n(Check the field required,\nlevelNumber >= 1, itemCount >= 1)
 
 ui -> ctrl : POST /api/admin/game-types/{gameTypeId}/presets\n@RequestBody AdminGameLevelPresetUpsertRequest
 activate ctrl
@@ -36,10 +36,10 @@ gtRepo --> svc : Optional<GameType>
 deactivate gtRepo
 
 alt GameType not found
-    svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
-    ctrl --> ui : 404 Not Found
-    ui -> ui : Hiển thị thông báo lỗi\n"Không tìm thấy game type"
-    ui --> admin : Hiển thị lỗi
+ svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
+ ctrl --> ui : 404 Not Found
+ ui -> ui : Display thông Report error\n"Không tìm thấy game type"
+ ui --> admin : Display error
 end
 
 svc -> glpRepo : existsByGameTypeIdAndDifficulty(gameTypeId, difficulty)
@@ -50,10 +50,10 @@ glpRepo --> svc : boolean
 deactivate glpRepo
 
 alt preset for difficulty exists
-    svc --> ctrl : throw BadRequestException("Preset cho difficulty này đã tồn tại")
-    ctrl --> ui : 400 Bad Request
-    ui -> ui : Hiển thị thông báo lỗi\n"Preset cho difficulty này đã tồn tại"
-    ui --> admin : Hiển thị lỗi trên form
+ svc --> ctrl : throw BadRequestException("Preset cho difficulty này đã tồn tại")
+ ctrl --> ui : 400 Bad Request
+ ui -> ui : Display thông Report error\n"Preset cho difficulty này đã tồn tại"
+ ui --> admin : Display error on form
 end
 
 svc -> svc : new GameLevelPreset()
@@ -65,23 +65,23 @@ svc -> svc : preset.setDifficulty(request.getDifficulty())
 svc -> svc : Validate: check duplicate levelNumbers
 
 alt duplicate levelNumber found
-    svc --> ctrl : throw BadRequestException("levelNumber trong items không được trùng nhau")
-    ctrl --> ui : 400 Bad Request
-    ui --> admin : Hiển thị lỗi trên form
+ svc --> ctrl : throw BadRequestException("levelNumber trong items không được trùng nhau")
+ ctrl --> ui : 400 Bad Request
+ ui --> admin : Display error on form
 end
 
 loop for each AdminGameLevelPresetItemUpsertRequest
-    svc -> svc : new GameLevelPresetItem()
-    svc -> svc : applyPresetItemRequest(item, request, preset)
-    note right : set preset, levelNumber, itemCount,\ntimeLimitSeconds, scorePerCorrect,\nlives, wasteCategories, configJson
+ svc -> svc : new GameLevelPresetItem()
+ svc -> svc : applyPresetItemRequest(item, request, preset)
+ note right : set preset, levelNumber, itemCount,\ntimeLimitSeconds, scorePerCorrect,\nlives, wasteCategories, configJson
 end
 
 svc -> svc : Validate: each item has >= 1 wasteCategory
 
 alt any item missing wasteCategories
-    svc --> ctrl : throw BadRequestException("Mỗi preset item phải có ít nhất 1 wasteCategory")
-    ctrl --> ui : 400 Bad Request
-    ui --> admin : Hiển thị lỗi trên form
+ svc --> ctrl : throw BadRequestException("Mỗi preset item phải có ít nhất 1 wasteCategory")
+ ctrl --> ui : 400 Bad Request
+ ui --> admin : Display error on form
 end
 
 svc -> svc : preset.setItems(items)
@@ -102,9 +102,9 @@ ctrl -> ctrl : ResponseDto.created(response, "Tạo preset thành công")
 ctrl --> ui : 201 Created\nResponseDto<AdminGameLevelPresetResponse>
 deactivate ctrl
 
-ui -> ui : Hiển thị thông báo thành công\n"Tạo preset thành công"
-ui -> ui : Cập nhật danh sách Preset
-ui --> admin : Hiển thị Preset mới trong danh sách
+ui -> ui : Display notification Successfully\n"Tạo preset thành công"
+ui -> ui : Update List of Preset
+ui --> admin : Display Preset new in List of
 deactivate ui
 
 @enduml

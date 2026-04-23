@@ -9,14 +9,14 @@ participant "GameTypeRepository" as gtRepo
 participant "GameLevelPresetRepository" as glpRepo
 database "Database" as db
 
-admin -> ui : Mở trang danh sách Preset\ncủa một Game Type
+admin -> ui : Open page List of Preset\ncủa một Game Type
 activate ui
-ui -> ui : Hiển thị danh sách Preset\nvới nút "Xóa" cho mỗi item
+ui -> ui : Display List of Preset\nwith button "Xóa" for each item
 
-admin -> ui : Nhấn nút "Xóa" trên Preset cần xóa
-ui -> ui : Hiển thị dialog xác nhận\n"Bạn có chắc muốn xóa preset này?\nTất cả level items sẽ bị xóa theo."
+admin -> ui : Click button "Xóa" trên Preset needs to delete
+ui -> ui : Display confirmation dialog\n"Bạn có chắc muốn xóa preset này?\nTất cả level items sẽ bị xóa theo."
 
-admin -> ui : Nhấn "Xác nhận xóa"
+admin -> ui : Click "Xác nhận xóa"
 
 ui -> ctrl : DELETE /api/admin/game-types/{gameTypeId}/presets/{presetId}
 activate ctrl
@@ -33,10 +33,10 @@ gtRepo --> svc : Optional<GameType>
 deactivate gtRepo
 
 alt GameType not found
-    svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
-    ctrl --> ui : 404 Not Found
-    ui -> ui : Hiển thị thông báo lỗi
-    ui --> admin : Hiển thị lỗi
+ svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
+ ctrl --> ui : 404 Not Found
+ ui -> ui : Display thông Report error
+ ui --> admin : Display error
 end
 
 note over svc : getPresetOrThrow(gameTypeId, presetId)
@@ -50,9 +50,9 @@ deactivate glpRepo
 svc -> svc : filter: preset.gameType.id == gameTypeId
 
 alt Preset not found or wrong gameType
-    svc --> ctrl : throw NotFoundException("Không tìm thấy preset")
-    ctrl --> ui : 404 Not Found
-    ui --> admin : Hiển thị lỗi
+ svc --> ctrl : throw NotFoundException("Không tìm thấy preset")
+ ctrl --> ui : 404 Not Found
+ ui --> admin : Display error
 end
 
 svc -> glpRepo : delete(preset)
@@ -69,9 +69,9 @@ ctrl -> ctrl : ResponseDto.success(null, "Xóa preset thành công")
 ctrl --> ui : 200 OK\nResponseDto<Void>
 deactivate ctrl
 
-ui -> ui : Hiển thị thông báo thành công\n"Xóa preset thành công"
-ui -> ui : Xóa Preset khỏi danh sách hiển thị
-ui --> admin : Danh sách Preset đã được cập nhật
+ui -> ui : Display notification Successfully\n"Xóa preset thành công"
+ui -> ui : Delete Preset khỏi List of Display
+ui --> admin : List of Preset has been Update
 deactivate ui
 
 @enduml

@@ -1,5 +1,5 @@
 @startuml seq_school_approve_reject_reward_request
-title Sequence Diagram - PUT /api/school/rewards/requests/{id}/approve (Duyệt/Từ chối yêu cầu đổi quà)
+title Sequence Diagram - PUT /api/school/rewards/requests/{id}/approve (Approve/Reject Reward request)
 
 actor "Trường học" as user
 boundary "School Reward UI\n(Frontend)" as ui
@@ -13,10 +13,10 @@ participant "CoinTransactionRepository" as txRepo
 participant "ApplicationEventPublisher" as eventPub
 database "Database" as db
 
-user -> ui : Xem yêu cầu đổi quà PENDING
+user -> ui : View Reward request PENDING
 activate ui
 
-user -> ui : Nhấn "Duyệt" hoặc "Từ chối"\n(nếu từ chối: nhập lý do)
+user -> ui : Click "Duyệt" or "Từ chối"\n( if Reject: Enter Reason)
 
 ui -> ctrl : PUT /api/school/rewards/requests/{id}/approve\n{ "approved": true/false, "reason": "..." }
 activate ctrl
@@ -37,24 +37,24 @@ rrRepo --> svc : Optional<RewardRequest>
 deactivate rrRepo
 
 alt request not found
-    svc --> ctrl : throw NotFoundException
+ svc --> ctrl : throw NotFoundException
 end
 
 alt status != PENDING
-    svc --> ctrl : throw BadRequestException\n("Chỉ có thể duyệt khi status là PENDING")
+ svc --> ctrl : throw BadRequestException\n("Chỉ có thể duyệt khi status là PENDING")
 end
 
 alt dto.approved == true
-    svc -> svc : request.setStatus(APPROVED)\nrequest.setApprovedAt(now)
+ svc -> svc : request.setStatus(APPROVED)\nrequest.setApprovedAt(now)
 else dto.approved == false
-    svc -> svc : request.setStatus(REJECTED)\nrequest.setRejectedReason(reason)\nrequest.setRejectedAt(now)
+ svc -> svc : request.setStatus(REJECTED)\nrequest.setRejectedReason(reason)\nrequest.setRejectedAt(now)
 
-    note over svc : Hoàn coin cho học sinh
-    svc -> stuRepo : save(student) [totalCoins += totalCoins]
-    svc -> txRepo : save(CoinTransaction REFUND)
+ note over svc : refund coins for Student
+ svc -> stuRepo : save(student) [totalCoins += totalCoins]
+ svc -> txRepo : save(CoinTransaction REFUND)
 
-    note over svc : Hoàn stock cho reward
-    svc -> rewardRepo : save(reward) [stockQuantity += quantity]
+ note over svc : refund stock for reward
+ svc -> rewardRepo : save(reward) [stockQuantity += quantity]
 end
 
 svc -> rrRepo : save(request)
@@ -64,7 +64,7 @@ db --> rrRepo : done
 rrRepo --> svc : RewardRequest
 deactivate rrRepo
 
-svc -> eventPub : publishEvent(NotificationEvent)\n→ Thông báo học sinh + phụ huynh
+svc -> eventPub : publishEvent(NotificationEvent)\n→ notification Student + Parent
 activate eventPub
 eventPub --> svc : void
 deactivate eventPub
@@ -75,9 +75,9 @@ deactivate svc
 ctrl --> ui : 200 OK\nResponseDto<RewardRequestResponse>
 deactivate ctrl
 
-ui -> ui : Hiển thị thông báo thành công
-ui -> ui : Cập nhật trạng thái yêu cầu
-ui --> user : Hiển thị yêu cầu đã duyệt/từ chối
+ui -> ui : Display notification Successfully
+ui -> ui : Update status Request
+ui --> user : Display Request has Approve/Reject
 deactivate ui
 
 @enduml

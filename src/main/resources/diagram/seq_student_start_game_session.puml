@@ -46,7 +46,7 @@ rgcRepo --> svc : RoundGameConfig
 deactivate rgcRepo
 
 alt Partnership campaign
-    svc -> svc : ensurePartnershipRoundAccess(participant, round)\n-> Check round advancement from previous round
+ svc -> svc : ensurePartnershipRoundAccess(participant, round)\n-> Check round advancement from previous round
 end
 
 svc -> svc : resolvePreset(config, presetId)\n-> GameLevelPreset
@@ -63,7 +63,7 @@ deactivate wiRepo
 svc -> svc : Shuffle and limit items\nby levelItem.itemCount
 
 loop for each WasteItem
-    svc -> s3Svc : generatePresignedUrl(imageUrl)
+ svc -> s3Svc : generatePresignedUrl(imageUrl)
 end
 
 svc -> svc : buildPresetSnapshot(config, preset, levelItem)

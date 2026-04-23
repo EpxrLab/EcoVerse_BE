@@ -1,5 +1,5 @@
 @startuml seq_parent_confirm_partnership_reward
-title Sequence Diagram - PUT /api/rewards/deliveries/{id}/confirm (Phụ huynh xác nhận nhận quà Partnership)
+title Sequence Diagram - PUT /api/rewards/deliveries/{id}/confirm (Parent Confirm receiving reward Partnership)
 
 actor "Phụ huynh" as user
 boundary "Parent UI\n(Frontend)" as ui
@@ -11,9 +11,9 @@ participant "StudentParentLinkRepository" as splRepo
 participant "ApplicationEventPublisher" as eventPub
 database "Database" as db
 
-user -> ui : Xem quà trạng thái DELIVERED
+user -> ui : View reward status DELIVERED
 activate ui
-user -> ui : Nhấn "Xác nhận đã nhận quà"
+user -> ui : Click "Xác nhận đã nhận quà"
 
 ui -> ctrl : PUT /api/rewards/deliveries/{id}/confirm
 activate ctrl
@@ -38,12 +38,12 @@ activate splRepo
 splRepo --> svc : boolean
 deactivate splRepo
 
-alt phụ huynh không liên kết với học sinh
-    svc --> ctrl : throw BadRequestException\n("Bạn không có quyền xác nhận")
+alt Parent not liên kết with Student
+ svc --> ctrl : throw BadRequestException\n("Bạn không có quyền xác nhận")
 end
 
 alt status != DELIVERED
-    svc --> ctrl : throw BadRequestException
+ svc --> ctrl : throw BadRequestException
 end
 
 svc -> svc : delivery.setStatus(CONFIRMED)\ndelivery.setConfirmedAt(now)\ndelivery.setConfirmedBy(parent)
@@ -55,9 +55,9 @@ db --> delRepo : done
 delRepo --> svc : CampaignRewardDelivery
 deactivate delRepo
 
-svc -> eventPub : publishEvent → Thông báo Học sinh
-svc -> eventPub : publishEvent → Thông báo Trường
-svc -> eventPub : publishEvent → Thông báo Partnership
+svc -> eventPub : publishEvent → notification Student
+svc -> eventPub : publishEvent → notification Trường
+svc -> eventPub : publishEvent → notification Partnership
 
 svc --> ctrl : CampaignRewardDeliveryResponse
 deactivate svc
@@ -65,8 +65,8 @@ deactivate svc
 ctrl --> ui : 200 OK
 deactivate ctrl
 
-ui -> ui : Hiển thị "Xác nhận nhận quà thành công"
-ui --> user : Cập nhật status → CONFIRMED
+ui -> ui : Display "Xác nhận nhận quà thành công"
+ui --> user : Update status → CONFIRMED
 deactivate ui
 
 @enduml

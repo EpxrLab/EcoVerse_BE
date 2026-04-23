@@ -1,5 +1,5 @@
 @startuml seq_school_get_reward_requests
-title Sequence Diagram - GET /api/school/rewards/requests (Trường xem yêu cầu đổi quà)
+title Sequence Diagram - GET /api/school/rewards/requests (Trường View Reward request)
 
 actor "Trường học" as user
 boundary "School Reward UI\n(Frontend)" as ui
@@ -10,7 +10,7 @@ participant "RewardRequestRepository" as rrRepo
 participant "S3PresignedUrlService" as s3Svc
 database "Database" as db
 
-user -> ui : Mở trang "Yêu cầu đổi quà"
+user -> ui : Open page "Yêu cầu đổi quà"
 activate ui
 
 ui -> ctrl : GET /api/school/rewards/requests?status=PENDING
@@ -27,9 +27,9 @@ schoolRepo --> svc : School
 deactivate schoolRepo
 
 alt status != null
-    svc -> rrRepo : findBySchoolIdAndStatusOrderByCreatedAtDesc(schoolId, status)
+ svc -> rrRepo : findBySchoolIdAndStatusOrderByCreatedAtDesc(schoolId, status)
 else
-    svc -> rrRepo : findBySchoolIdOrderByCreatedAtDesc(schoolId)
+ svc -> rrRepo : findBySchoolIdOrderByCreatedAtDesc(schoolId)
 end
 activate rrRepo
 rrRepo -> db : SELECT FROM reward_requests WHERE ...
@@ -38,8 +38,8 @@ rrRepo --> svc : List<RewardRequest>
 deactivate rrRepo
 
 loop for each RewardRequest
-    svc -> s3Svc : generatePresignedUrl(rewardImageUrl)
-    svc -> svc : mapToResponse(request)
+ svc -> s3Svc : generatePresignedUrl(rewardImageUrl)
+ svc -> svc : mapToResponse(request)
 end
 
 svc --> ctrl : List<RewardRequestResponse>
@@ -48,8 +48,8 @@ deactivate svc
 ctrl --> ui : 200 OK\nResponseDto<List<RewardRequestResponse>>
 deactivate ctrl
 
-ui -> ui : Render bảng yêu cầu\n(requestCode, studentName, rewardName,\nquantity, totalCoins, status)
-ui --> user : Hiển thị danh sách yêu cầu
+ui -> ui : Render Table Request\n(requestCode, studentName, rewardName,\nquantity, totalCoins, status)
+ui --> user : Display List of Request
 deactivate ui
 
 @enduml

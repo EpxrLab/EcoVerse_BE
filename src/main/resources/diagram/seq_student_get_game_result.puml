@@ -28,7 +28,7 @@ gsRepo --> svc : GameSession
 deactivate gsRepo
 
 alt session does not belong to student
-    svc --> ctrl : throw BadRequestException\n("Bạn không có quyền xem phiên game này")
+ svc --> ctrl : throw BadRequestException\n("Bạn không có quyền xem phiên game này")
 end
 
 svc -> svc : mapResult(session)\n-> Build response with feedbackMessage

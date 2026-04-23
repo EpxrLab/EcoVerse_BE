@@ -7,11 +7,11 @@ participant "AuthenticationController" as ctrl
 participant "IAuthenticationService\n(AuthenticationServiceImpl)" as svc
 participant "IOtpService" as otpSvc
 
-user -> ui : Nhập mã OTP nhận được từ email
+user -> ui : Enter code OTP receive được from email
 activate ui
 
-user -> ui : Nhấn "Xác thực OTP"
-ui -> ui : Validate form (email, otp không trống)
+user -> ui : Click "Xác thực OTP"
+ui -> ui : Validate form (email, otp not empty)
 
 ui -> ctrl : POST /api/auth/verify-otp\n{ "email": "user@example.com", "otp": "123456" }
 activate ctrl
@@ -25,11 +25,11 @@ activate otpSvc
 otpSvc --> svc : boolean (true/false)
 deactivate otpSvc
 
-alt OTP không hợp lệ hoặc hết hạn
-    svc --> ctrl : throw NotFoundException("OTP không hợp lệ hoặc đã hết hạn")
-    ctrl --> ui : 404 Not Found
-    ui -> ui : Hiển thị lỗi "OTP không hợp lệ"
-    ui --> user : Hiển thị lỗi
+alt OTP invalid or expired
+ svc --> ctrl : throw NotFoundException("OTP không hợp lệ hoặc đã hết hạn")
+ ctrl --> ui : 404 Not Found
+ ui -> ui : Display error "OTP không hợp lệ"
+ ui --> user : Display error
 end
 
 svc -> otpSvc : markAsVerified(email)
@@ -44,9 +44,9 @@ ctrl -> ctrl : ResponseDto.success(null, "Xác thực otp thành công")
 ctrl --> ui : 200 OK\nResponseDto<Void>
 deactivate ctrl
 
-ui -> ui : Hiển thị thông báo "OTP xác thực thành công"
-ui -> ui : Chuyển sang form điền thông tin đăng ký\n(School hoặc Partnership)
-ui --> user : Hiển thị form đăng ký chi tiết
+ui -> ui : Display notification "OTP xác thực thành công"
+ui -> ui : Switch to form fill thông tin đăng ký\n(School or Partnership)
+ui --> user : Display form đăng ký Details
 deactivate ui
 
 @enduml

@@ -1,5 +1,5 @@
 @startuml seq_parent_confirm_school_reward
-title Sequence Diagram - PUT /api/rewards/requests/{id}/confirm (Phụ huynh xác nhận nhận quà School)
+title Sequence Diagram - PUT /api/rewards/requests/{id}/confirm (Parent Confirm receiving reward School)
 
 actor "Phụ huynh" as user
 boundary "Parent UI\n(Frontend)" as ui
@@ -10,9 +10,9 @@ participant "StudentParentLinkRepository" as splRepo
 participant "RewardRequestRepository" as rrRepo
 database "Database" as db
 
-user -> ui : Xem yêu cầu đổi quà trạng thái DELIVERED
+user -> ui : View Reward request status DELIVERED
 activate ui
-user -> ui : Nhấn "Xác nhận đã nhận quà"
+user -> ui : Click "Xác nhận đã nhận quà"
 
 ui -> ctrl : PUT /api/rewards/requests/{id}/confirm
 activate ctrl
@@ -38,11 +38,11 @@ rrRepo --> svc : Optional<RewardRequest>
 deactivate rrRepo
 
 alt not found
-    svc --> ctrl : throw NotFoundException
+ svc --> ctrl : throw NotFoundException
 end
 
 alt status != DELIVERED
-    svc --> ctrl : throw BadRequestException\n("Chỉ có thể xác nhận khi status là DELIVERED")
+ svc --> ctrl : throw BadRequestException\n("Chỉ có thể xác nhận khi status là DELIVERED")
 end
 
 svc -> svc : request.setStatus(CONFIRMED)\nrequest.setConfirmedAt(now)\nrequest.setConfirmedByParent(parent)
@@ -60,8 +60,8 @@ deactivate svc
 ctrl --> ui : 200 OK\nResponseDto<RewardRequestResponse>
 deactivate ctrl
 
-ui -> ui : Hiển thị "Xác nhận nhận quà thành công"
-ui --> user : Cập nhật trạng thái → CONFIRMED
+ui -> ui : Display "Xác nhận nhận quà thành công"
+ui --> user : Update status → CONFIRMED
 deactivate ui
 
 @enduml

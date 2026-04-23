@@ -1,5 +1,5 @@
 @startuml seq_school_create_reward
-title Sequence Diagram - POST /api/school/rewards (Tạo quà thưởng)
+title Sequence Diagram - POST /api/school/rewards ( Create Reward)
 
 actor "Trường học" as user
 boundary "School Reward UI\n(Frontend)" as ui
@@ -10,13 +10,13 @@ participant "RewardRepository" as rewardRepo
 participant "S3PresignedUrlService" as s3Svc
 database "Database" as db
 
-user -> ui : Mở trang quản lý quà thưởng
+user -> ui : Open page Management Reward
 activate ui
-user -> ui : Nhấn "Tạo quà mới"
-ui -> ui : Hiển thị form tạo quà\n(rewardName, rewardType, coinCost,\nimageUrl, stockQuantity, isUnlimited, ...)
+user -> ui : Click "Tạo quà mới"
+ui -> ui : Display form create reward\n(rewardName, rewardType, coinCost,\nimageUrl, stockQuantity, isUnlimited, ...)
 
-user -> ui : Điền thông tin và nhấn "Lưu"
-ui -> ui : Validate form phía client
+user -> ui : Fill details and Click "Lưu"
+ui -> ui : Validate form client side
 
 ui -> ctrl : POST /api/school/rewards\n@RequestBody CreateRewardRequest
 activate ctrl
@@ -37,16 +37,16 @@ activate rewardRepo
 rewardRepo --> svc : boolean
 deactivate rewardRepo
 
-alt tên quà đã tồn tại
-    svc --> ctrl : throw BadRequestException\n("Tên quà đã tồn tại trong trường này")
-    ctrl --> ui : 400 Bad Request
-    ui --> user : Hiển thị lỗi
+alt tên reward already exists
+ svc --> ctrl : throw BadRequestException\n("Tên quà đã tồn tại trong trường này")
+ ctrl --> ui : 400 Bad Request
+ ui --> user : Display error
 end
 
 alt !isUnlimited && stockQuantity == null
-    svc --> ctrl : throw BadRequestException\n("Phải nhập số lượng tồn kho")
-    ctrl --> ui : 400 Bad Request
-    ui --> user : Hiển thị lỗi
+ svc --> ctrl : throw BadRequestException\n("Phải nhập số lượng tồn kho")
+ ctrl --> ui : 400 Bad Request
+ ui --> user : Display error
 end
 
 svc -> svc : new Reward()\nset school, createdBy, rewardName,\nrewardType, coinCost, imageUrl,\nisUnlimited, stockQuantity, isActive=true
@@ -71,9 +71,9 @@ deactivate svc
 ctrl --> ui : 201 Created\nResponseDto<RewardResponse>
 deactivate ctrl
 
-ui -> ui : Hiển thị thông báo "Tạo quà thành công"
-ui -> ui : Cập nhật danh sách quà
-ui --> user : Hiển thị quà mới
+ui -> ui : Display notification "Tạo quà thành công"
+ui -> ui : Update List of reward
+ui --> user : Display reward new
 deactivate ui
 
 @enduml

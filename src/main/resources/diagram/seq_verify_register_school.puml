@@ -1,5 +1,5 @@
 @startuml seq_verify_register_school
-title Sequence Diagram - POST /api/auth/verify-register/school (Đăng ký Trường học)
+title Sequence Diagram - POST /api/auth/verify-register/school (Register School)
 
 actor "Người dùng\n(Trường học)" as user
 boundary "Registration UI\n(Frontend)" as ui
@@ -11,11 +11,11 @@ participant "SchoolRepository" as schoolRepo
 participant "BCryptPasswordEncoder" as encoder
 database "Database" as db
 
-user -> ui : Điền thông tin trường học\n(schoolName, contactEmail, phoneNumber,\nprovince, ward, streetAddress,\nprincipalName, position, taxCode,\nschoolType, password, logoUrl, licenseUrl)
+user -> ui : Fill details School\n(schoolName, contactEmail, phoneNumber,\nprovince, ward, streetAddress,\nprincipalName, position, taxCode,\nschoolType, password, logoUrl, licenseUrl)
 activate ui
 
-user -> ui : Nhấn "Đăng ký"
-ui -> ui : Validate form phía client
+user -> ui : Click "Đăng ký"
+ui -> ui : Validate form client side
 
 ui -> ctrl : POST /api/auth/verify-register/school\n@RequestBody VerifyRegisterSchoolRequest
 activate ctrl
@@ -29,10 +29,10 @@ activate otpSvc
 otpSvc --> svc : boolean
 deactivate otpSvc
 
-alt email chưa verified OTP
-    svc --> ctrl : throw IllegalArgumentException\n("Email chưa được xác thực OTP")
-    ctrl --> ui : 400 Bad Request
-    ui --> user : Hiển thị lỗi "Vui lòng xác thực OTP trước"
+alt email not yet verified OTP
+ svc --> ctrl : throw IllegalArgumentException\n("Email chưa được xác thực OTP")
+ ctrl --> ui : 400 Bad Request
+ ui --> user : Display error "Vui lòng xác thực OTP trước"
 end
 
 note over svc : buildUser(contactEmail, password, PARTNERSHIP_SCHOOL)
@@ -72,8 +72,8 @@ ctrl -> ctrl : ResponseDto.success(userResponse,\n"Đăng ký thành công, ch�
 ctrl --> ui : 200 OK\nResponseDto<UserResponse>
 deactivate ctrl
 
-ui -> ui : Hiển thị thông báo thành công\n"Đăng ký thành công!\nTài khoản đang chờ Admin xét duyệt"
-ui --> user : Chuyển đến trang đăng nhập
+ui -> ui : Display notification Successfully\n"Đăng ký thành công!\nTài khoản đang chờ Admin xét duyệt"
+ui --> user : Navigate to page login
 deactivate ui
 
 @enduml

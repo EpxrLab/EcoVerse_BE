@@ -1,5 +1,5 @@
 @startuml seq_admin_get_all_subscriptions
-title Sequence Diagram - GET /api/subscriptions/admin/all (Admin - Danh sách tất cả Subscriptions)
+title Sequence Diagram - GET /api/subscriptions/admin/all (Admin - List of All Subscriptions)
 
 actor "Admin" as admin
 boundary "Admin UI\n(Frontend)" as ui
@@ -10,9 +10,9 @@ participant "PaymentRepository" as payRepo
 participant "SubscriptionMapper" as mapper
 database "Database" as db
 
-admin -> ui : Mở trang quản lý Subscriptions
+admin -> ui : Open page Management Subscriptions
 activate ui
-ui -> ui : Hiển thị filter\n(subscriberType, status, keyword)
+ui -> ui : Display filter\n(subscriberType, status, keyword)
 
 ui -> ctrl : GET /api/subscriptions/admin/all\n?subscriberType=SCHOOL&status=ACTIVE\n&keyword=&page=0&size=10
 activate ctrl
@@ -38,10 +38,10 @@ deactivate payRepo
 svc -> svc : Build transactionMap
 
 loop for each Subscription in page
-    svc -> mapper : toResponse(subscription, transactions, null, null, null)
-    activate mapper
-    mapper --> svc : SubscriptionResponse
-    deactivate mapper
+ svc -> mapper : toResponse(subscription, transactions, null, null, null)
+ activate mapper
+ mapper --> svc : SubscriptionResponse
+ deactivate mapper
 end
 
 svc --> ctrl : PageResponse<SubscriptionResponse>
@@ -51,8 +51,8 @@ ctrl -> ctrl : ResponseDto.success(response,\n"Subscriptions retrieved.")
 ctrl --> ui : 200 OK\nResponseDto<PageResponse<SubscriptionResponse>>
 deactivate ctrl
 
-ui -> ui : Render bảng danh sách subscriptions\n(code, subscriber, plan, status,\nstartDate, endDate)
-ui --> admin : Hiển thị danh sách subscriptions
+ui -> ui : Render Table List of subscriptions\n(code, subscriber, plan, status,\nstartDate, endDate)
+ui --> admin : Display List of subscriptions
 deactivate ui
 
 @enduml

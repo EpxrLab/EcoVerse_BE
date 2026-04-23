@@ -10,15 +10,15 @@ participant "S3PresignedUrlService" as s3
 participant "SecurityContextHolder" as sec
 database "Database" as db
 
-admin -> ui : Nhấn vào menu "Quản lý Game Type"
+admin -> ui : Click on menu "Quản lý Game Type"
 activate ui
-ui -> ui : Hiển thị trang danh sách Game Type\nvới nút "Tạo mới"
+ui -> ui : Display page List of Game Type\nwith button "Tạo mới"
 
-admin -> ui : Nhấn nút "Tạo mới Game Type"
-ui -> ui : Hiển thị form tạo Game Type\n(typeCode, name, shortDescription,\nfullDescription, howToPlay,\nthumbnailUrl, iconUrl, features,\nsupportsCoin, maxLevels, displayOrder)
+admin -> ui : Click button "Tạo mới Game Type"
+ui -> ui : Display form create Game Type\n(typeCode, name, shortDescription,\nfullDescription, howToPlay,\nthumbnailUrl, iconUrl, features,\nsupportsCoin, maxLevels, displayOrder)
 
-admin -> ui : Điền thông tin và nhấn "Lưu"
-ui -> ui : Validate form phía client
+admin -> ui : Fill details and Click "Lưu"
+ui -> ui : Validate form client side
 
 ui -> ctrl : POST /api/admin/game-types\n@RequestBody AdminGameTypeUpsertRequest
 activate ctrl
@@ -35,10 +35,10 @@ gtRepo --> svc : boolean
 deactivate gtRepo
 
 alt typeCode already exists
-    svc --> ctrl : throw BadRequestException("Game type code đã tồn tại")
-    ctrl --> ui : 400 Bad Request
-    ui -> ui : Hiển thị thông báo lỗi\n"Game type code đã tồn tại"
-    ui --> admin : Hiển thị lỗi trên form
+ svc --> ctrl : throw BadRequestException("Game type code đã tồn tại")
+ ctrl --> ui : 400 Bad Request
+ ui -> ui : Display thông Report error\n"Game type code đã tồn tại"
+ ui --> admin : Display error on form
 end
 
 svc -> gtRepo : existsByNameIgnoreCaseAndIsDeleteFalse(request.getName())
@@ -49,10 +49,10 @@ gtRepo --> svc : boolean
 deactivate gtRepo
 
 alt name already exists
-    svc --> ctrl : throw BadRequestException("Tên game type đã tồn tại")
-    ctrl --> ui : 400 Bad Request
-    ui -> ui : Hiển thị thông báo lỗi\n"Tên game type đã tồn tại"
-    ui --> admin : Hiển thị lỗi trên form
+ svc --> ctrl : throw BadRequestException("Tên game type đã tồn tại")
+ ctrl --> ui : 400 Bad Request
+ ui -> ui : Display thông Report error\n"Tên game type đã tồn tại"
+ ui --> admin : Display error on form
 end
 
 svc -> svc : new GameType()
@@ -90,9 +90,9 @@ ctrl -> ctrl : ResponseDto.created(response, "Tạo game type thành công")
 ctrl --> ui : 201 Created\nResponseDto<AdminGameTypeResponse>
 deactivate ctrl
 
-ui -> ui : Hiển thị thông báo thành công\n"Tạo game type thành công"
-ui -> ui : Cập nhật danh sách Game Type
-ui --> admin : Hiển thị Game Type mới
+ui -> ui : Display notification Successfully\n"Tạo game type thành công"
+ui -> ui : Update List of Game Type
+ui --> admin : Display Game Type new
 deactivate ui
 
 @enduml

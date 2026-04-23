@@ -1,5 +1,5 @@
 @startuml seq_school_get_partnership_deliveries
-title Sequence Diagram - GET /api/school/campaigns/{campaignId}/reward-deliveries (Trường xem quà Partnership)
+title Sequence Diagram - GET /api/school/campaigns/{campaignId}/reward-deliveries (Trường View reward Partnership)
 
 actor "Trường học" as user
 boundary "School UI\n(Frontend)" as ui
@@ -10,7 +10,7 @@ participant "CampaignRewardDeliveryRepository" as delRepo
 participant "S3PresignedUrlService" as s3Svc
 database "Database" as db
 
-user -> ui : Mở chiến dịch Partnership → tab "Quà thưởng"
+user -> ui : Open chiến dịch Partnership → tab "Quà thưởng"
 activate ui
 
 ui -> ctrl : GET /api/school/campaigns/{campaignId}/reward-deliveries\n?status=ARRIVED
@@ -27,9 +27,9 @@ schoolRepo --> svc : School
 deactivate schoolRepo
 
 alt status != null
-    svc -> delRepo : findBySchoolIdAndCampaignIdAndStatusOrderByLeaderboardRankAsc(schoolId, campaignId, status)
+ svc -> delRepo : findBySchoolIdAndCampaignIdAndStatusOrderByLeaderboardRankAsc(schoolId, campaignId, status)
 else
-    svc -> delRepo : findBySchoolIdAndCampaignIdOrderByLeaderboardRankAsc(schoolId, campaignId)
+ svc -> delRepo : findBySchoolIdAndCampaignIdOrderByLeaderboardRankAsc(schoolId, campaignId)
 end
 activate delRepo
 delRepo -> db : SELECT FROM campaign_reward_deliveries ...
@@ -38,8 +38,8 @@ delRepo --> svc : List<CampaignRewardDelivery>
 deactivate delRepo
 
 loop for each delivery
-    svc -> s3Svc : generatePresignedUrl(rewardImageUrl)
-    svc -> svc : mapToResponse(delivery)
+ svc -> s3Svc : generatePresignedUrl(rewardImageUrl)
+ svc -> svc : mapToResponse(delivery)
 end
 
 svc --> ctrl : List<CampaignRewardDeliveryResponse>
@@ -48,8 +48,8 @@ deactivate svc
 ctrl --> ui : 200 OK
 deactivate ctrl
 
-ui -> ui : Render bảng quà\n(studentName, rewardName, rank,\nstatus, trackingCode)
-ui --> user : Hiển thị danh sách quà
+ui -> ui : Render Table reward\n(studentName, rewardName, rank,\nstatus, trackingCode)
+ui --> user : Display List of reward
 deactivate ui
 
 @enduml

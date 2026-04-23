@@ -1,5 +1,5 @@
 @startuml seq_renew_subscription
-title Sequence Diagram - POST /api/subscriptions/renew (Gia hạn Gói đăng ký)
+title Sequence Diagram - POST /api/subscriptions/renew (Renew Subscription plan)
 
 actor "School/Partnership" as user
 boundary "Subscription UI\n(Frontend)" as ui
@@ -12,11 +12,11 @@ participant "PaymentRepository" as payRepo
 participant "IPaymentService" as paySvc
 database "Database" as db
 
-user -> ui : Xem gói đăng ký đã hết hạn
+user -> ui : View Subscription plan has expired
 activate ui
-ui -> ui : Hiển thị nút "Gia hạn"
+ui -> ui : Display nút "Gia hạn"
 
-user -> ui : Nhấn "Gia hạn" (có thể chọn gói mới)
+user -> ui : Click "Gia hạn" (can Select plan new )
 
 ui -> ctrl : POST /api/subscriptions/renew\n{ "subscriptionId": "uuid", "planId": "uuid" (optional) }
 activate ctrl
@@ -36,39 +36,39 @@ subRepo --> svc : Subscription (old)
 deactivate subRepo
 
 alt status != EXPIRED && status != PENDING_RENEWAL
-    svc --> ctrl : throw FuncErrorException\n("Only expired subscriptions can be renewed.")
-    ctrl --> ui : 400 Bad Request
-    ui --> user : Hiển thị lỗi
+ svc --> ctrl : throw FuncErrorException\n("Only expired subscriptions can be renewed.")
+ ctrl --> ui : 400 Bad Request
+ ui --> user : Display error
 end
 
 svc -> svc : verifyOwnership(oldSubscription, userId)
 
 alt planId provided
-    svc -> planRepo : findById(planId)
-    activate planRepo
-    planRepo --> svc : SubscriptionPlan (new)
-    deactivate planRepo
-    svc -> svc : Validate: plan.isActive\n&& plan.subscriberType matches
+ svc -> planRepo : findById(planId)
+ activate planRepo
+ planRepo --> svc : SubscriptionPlan (new)
+ deactivate planRepo
+ svc -> svc : Validate: plan.isActive\n&& plan.subscriberType matches
 else planId == null
-    svc -> svc : plan = oldSubscription.getPlan()
+ svc -> svc : plan = oldSubscription.getPlan()
 end
 
 svc -> svc : new Subscription()\nset code, subscriberType, school/partnership,\nplan, renewedFrom, startDate, endDate
 
-alt gói miễn phí
-    svc -> svc : status = ACTIVE
-    svc -> subRepo : save(newSubscription)
-    svc -> svc : createFreePaymentRecord(...)
-    svc -> payRepo : save(freePayment)
-    svc --> ctrl : PaymentResponse
-else gói trả phí
-    svc -> svc : status = PENDING_RENEWAL
-    svc -> subRepo : save(newSubscription)
-    svc -> paySvc : createPayment(newSubscription, user)
-    activate paySvc
-    paySvc --> svc : PaymentResponse (with checkoutUrl)
-    deactivate paySvc
-    svc --> ctrl : PaymentResponse
+alt plan miễn phí
+ svc -> svc : status = ACTIVE
+ svc -> subRepo : save(newSubscription)
+ svc -> svc : createFreePaymentRecord(...)
+ svc -> payRepo : save(freePayment)
+ svc --> ctrl : PaymentResponse
+else plan trả phí
+ svc -> svc : status = PENDING_RENEWAL
+ svc -> subRepo : save(newSubscription)
+ svc -> paySvc : createPayment(newSubscription, user)
+ activate paySvc
+ paySvc --> svc : PaymentResponse (with checkoutUrl)
+ deactivate paySvc
+ svc --> ctrl : PaymentResponse
 end
 
 deactivate svc
@@ -77,12 +77,12 @@ ctrl -> ctrl : ResponseDto.created(response,\n"Subscription renewal initiated.")
 ctrl --> ui : 201 Created\nResponseDto<PaymentResponse>
 deactivate ctrl
 
-alt gói miễn phí
-    ui -> ui : "Gia hạn gói miễn phí thành công!"
-    ui --> user : Cập nhật dashboard
-else gói trả phí
-    ui -> ui : Redirect đến trang thanh toán PayOS
-    ui --> user : Trang thanh toán
+alt plan miễn phí
+ ui -> ui : "Gia hạn gói miễn phí thành công!"
+ ui --> user : Update dashboard
+else plan trả phí
+ ui -> ui : Redirect đến page thanh toán PayOS
+ ui --> user : Page thanh toán
 end
 deactivate ui
 

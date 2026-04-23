@@ -1,5 +1,5 @@
 @startuml seq_school_delete_reward
-title Sequence Diagram - DELETE /api/school/rewards/{rewardId} (Xóa mềm quà thưởng)
+title Sequence Diagram - DELETE /api/school/rewards/{rewardId} (Soft delete Reward)
 
 actor "Trường học" as user
 boundary "School Reward UI\n(Frontend)" as ui
@@ -9,12 +9,12 @@ participant "SchoolRepository" as schoolRepo
 participant "RewardRepository" as rewardRepo
 database "Database" as db
 
-user -> ui : Xem danh sách quà thưởng
+user -> ui : View List of Reward
 activate ui
-user -> ui : Nhấn nút "Xóa" trên quà cần xóa
-ui -> ui : Hiển thị dialog xác nhận\n"Bạn có chắc muốn xóa quà này?"
+user -> ui : Click button "Xóa" trên reward needs to delete
+ui -> ui : Display confirmation dialog\n"Bạn có chắc muốn xóa quà này?"
 
-user -> ui : Nhấn "Xác nhận"
+user -> ui : Click "Xác nhận"
 
 ui -> ctrl : DELETE /api/school/rewards/{rewardId}
 activate ctrl
@@ -33,10 +33,10 @@ activate rewardRepo
 rewardRepo --> svc : Optional<Reward>
 deactivate rewardRepo
 
-alt quà không tìm thấy
-    svc --> ctrl : throw NotFoundException
-    ctrl --> ui : 404 Not Found
-    ui --> user : Hiển thị lỗi
+alt reward Not found
+ svc --> ctrl : throw NotFoundException
+ ctrl --> ui : 404 Not Found
+ ui --> user : Display error
 end
 
 svc -> svc : reward.setIsDelete(true)
@@ -54,9 +54,9 @@ deactivate svc
 ctrl --> ui : 200 OK\nResponseDto<Void>
 deactivate ctrl
 
-ui -> ui : Hiển thị "Xóa quà thành công"
-ui -> ui : Xóa quà khỏi danh sách
-ui --> user : Danh sách quà đã cập nhật
+ui -> ui : Display "Xóa quà thành công"
+ui -> ui : Delete reward khỏi List of
+ui --> user : List of reward has Update
 deactivate ui
 
 @enduml

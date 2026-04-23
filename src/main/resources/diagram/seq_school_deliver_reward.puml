@@ -1,5 +1,5 @@
 @startuml seq_school_deliver_reward
-title Sequence Diagram - PUT /api/school/rewards/requests/{id}/deliver (Trường giao quà cho học sinh)
+title Sequence Diagram - PUT /api/school/rewards/requests/{id}/deliver (Trường deliver reward for Student)
 
 actor "Trường học" as user
 boundary "School Reward UI\n(Frontend)" as ui
@@ -10,10 +10,10 @@ participant "RewardRequestRepository" as rrRepo
 participant "ApplicationEventPublisher" as eventPub
 database "Database" as db
 
-user -> ui : Xem yêu cầu đổi quà trạng thái APPROVED
+user -> ui : View Reward request status APPROVED
 activate ui
 
-user -> ui : Upload ảnh bằng chứng giao quà\nvà nhấn "Xác nhận giao quà"
+user -> ui : Upload ảnh equals chứng deliver reward\nvà Click "Xác nhận giao quà"
 
 ui -> ctrl : PUT /api/school/rewards/requests/{id}/deliver\n{ "imageUrl": "s3-key" }
 activate ctrl
@@ -33,7 +33,7 @@ rrRepo --> svc : Optional<RewardRequest>
 deactivate rrRepo
 
 alt status != APPROVED
-    svc --> ctrl : throw BadRequestException\n("Chỉ có thể giao khi status là APPROVED")
+ svc --> ctrl : throw BadRequestException\n("Chỉ có thể giao khi status là APPROVED")
 end
 
 svc -> svc : request.setStatus(DELIVERED)\nrequest.setDeliveredAt(now)\nrequest.setDeliveryImageUrl(imageUrl)
@@ -45,7 +45,7 @@ db --> rrRepo : done
 rrRepo --> svc : RewardRequest
 deactivate rrRepo
 
-svc -> eventPub : publishEvent(NotificationEvent)\n→ Thông báo phụ huynh cần xác nhận nhận quà
+svc -> eventPub : publishEvent(NotificationEvent)\n→ notification Parent needs to Confirm receiving reward
 activate eventPub
 eventPub --> svc : void
 deactivate eventPub
@@ -56,8 +56,8 @@ deactivate svc
 ctrl --> ui : 200 OK\nResponseDto<RewardRequestResponse>
 deactivate ctrl
 
-ui -> ui : Hiển thị "Xác nhận giao quà thành công"
-ui --> user : Cập nhật trạng thái → DELIVERED
+ui -> ui : Display "Xác nhận giao quà thành công"
+ui --> user : Update status → DELIVERED
 deactivate ui
 
 @enduml

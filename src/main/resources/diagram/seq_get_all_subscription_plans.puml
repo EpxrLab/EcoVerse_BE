@@ -1,5 +1,5 @@
 @startuml seq_get_all_subscription_plans
-title Sequence Diagram - GET /api/subscription-plans (Lấy danh sách Gói đăng ký)
+title Sequence Diagram - GET /api/subscription-plans (Lấy List of Subscription plan)
 
 actor "Người dùng" as user
 boundary "UI\n(Frontend)" as ui
@@ -9,9 +9,9 @@ participant "SubscriptionPlanRepository" as planRepo
 participant "SubscriptionPlanMapper" as mapper
 database "Database" as db
 
-user -> ui : Mở trang chọn gói đăng ký
+user -> ui : Open page Select Subscription plan
 activate ui
-ui -> ui : Chuẩn bị filter params\n(subscriberType, isActive, keyword)
+ui -> ui : Chuẩn be filter params\n(subscriberType, isActive, keyword)
 
 ui -> ctrl : GET /api/subscription-plans\n?subscriberType=SCHOOL&isActive=true\n&keyword=&page=0&size=10
 activate ctrl
@@ -31,10 +31,10 @@ deactivate planRepo
 svc -> svc : PageResponse.from(page, mapper::toResponse)
 
 loop for each SubscriptionPlan in page
-    svc -> mapper : toResponse(plan)
-    activate mapper
-    mapper --> svc : SubscriptionPlanResponse
-    deactivate mapper
+ svc -> mapper : toResponse(plan)
+ activate mapper
+ mapper --> svc : SubscriptionPlanResponse
+ deactivate mapper
 end
 
 svc --> ctrl : PageResponse<SubscriptionPlanResponse>
@@ -44,8 +44,8 @@ ctrl -> ctrl : ResponseDto.success(response,\n"Subscription plans retrieved succ
 ctrl --> ui : 200 OK\nResponseDto<PageResponse<SubscriptionPlanResponse>>
 deactivate ctrl
 
-ui -> ui : Render danh sách gói đăng ký\n(planName, price, durationDays,\nmaxStudents, features, ...)
-ui --> user : Hiển thị danh sách gói
+ui -> ui : Render List of Subscription plan\n(planName, price, durationDays,\nmaxStudents, features, ...)
+ui --> user : Display List of plan
 deactivate ui
 
 @enduml

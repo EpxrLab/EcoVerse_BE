@@ -1,5 +1,5 @@
 @startuml seq_get_my_partnership_deliveries
-title Sequence Diagram - GET /api/rewards/deliveries/my (Xem lịch sử nhận quà Partnership)
+title Sequence Diagram - GET /api/rewards/deliveries/my (View History receive reward Partnership)
 
 actor "Học sinh/Phụ huynh" as user
 boundary "Reward UI\n(Frontend)" as ui
@@ -12,7 +12,7 @@ participant "CampaignRewardDeliveryRepository" as delRepo
 participant "S3PresignedUrlService" as s3Svc
 database "Database" as db
 
-user -> ui : Mở trang "Quà từ chiến dịch"
+user -> ui : Open page "Quà từ chiến dịch"
 activate ui
 
 ui -> ctrl : GET /api/rewards/deliveries/my
@@ -25,20 +25,20 @@ activate svc
 svc -> svc : getCurrentUser() → User
 
 alt role == STUDENT
-    svc -> stuRepo : findByUserId(userId)
-    activate stuRepo
-    stuRepo --> svc : Student
-    deactivate stuRepo
-    svc -> delRepo : findByStudentIdOrderByCreatedAtDesc(studentId)
+ svc -> stuRepo : findByUserId(userId)
+ activate stuRepo
+ stuRepo --> svc : Student
+ deactivate stuRepo
+ svc -> delRepo : findByStudentIdOrderByCreatedAtDesc(studentId)
 else role == PARENT
-    svc -> parRepo : findByUserId(userId)
-    activate parRepo
-    parRepo --> svc : Parent
-    deactivate parRepo
-    svc -> splRepo : findByParentId(parentId)
-    loop for each child
-        svc -> delRepo : findByStudentIdOrderByCreatedAtDesc(childId)
-    end
+ svc -> parRepo : findByUserId(userId)
+ activate parRepo
+ parRepo --> svc : Parent
+ deactivate parRepo
+ svc -> splRepo : findByParentId(parentId)
+ loop for each child
+ svc -> delRepo : findByStudentIdOrderByCreatedAtDesc(childId)
+ end
 end
 
 activate delRepo
@@ -48,8 +48,8 @@ delRepo --> svc : List<CampaignRewardDelivery>
 deactivate delRepo
 
 loop for each delivery
-    svc -> s3Svc : generatePresignedUrl(rewardImageUrl)
-    svc -> svc : mapToResponse(delivery)
+ svc -> s3Svc : generatePresignedUrl(rewardImageUrl)
+ svc -> svc : mapToResponse(delivery)
 end
 
 svc --> ctrl : List<CampaignRewardDeliveryResponse>
@@ -58,8 +58,8 @@ deactivate svc
 ctrl --> ui : 200 OK\nResponseDto<List<CampaignRewardDeliveryResponse>>
 deactivate ctrl
 
-ui -> ui : Render danh sách quà\n(campaignName, rewardName, rank,\nstatus, deliveryImageUrl)
-ui --> user : Hiển thị lịch sử nhận quà
+ui -> ui : Render List of reward\n(campaignName, rewardName, rank,\nstatus, deliveryImageUrl)
+ui --> user : Display History receive reward
 deactivate ui
 
 @enduml

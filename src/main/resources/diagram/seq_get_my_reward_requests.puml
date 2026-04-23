@@ -1,5 +1,5 @@
 @startuml seq_get_my_reward_requests
-title Sequence Diagram - GET /api/rewards/requests/my (Xem lịch sử yêu cầu đổi quà)
+title Sequence Diagram - GET /api/rewards/requests/my (View History Reward request)
 
 actor "Học sinh/Phụ huynh" as user
 boundary "Reward UI\n(Frontend)" as ui
@@ -12,7 +12,7 @@ participant "RewardRequestRepository" as rrRepo
 participant "S3PresignedUrlService" as s3Svc
 database "Database" as db
 
-user -> ui : Mở trang "Lịch sử đổi quà"
+user -> ui : Open page "Lịch sử đổi quà"
 activate ui
 
 ui -> ctrl : GET /api/rewards/requests/my
@@ -25,37 +25,37 @@ activate svc
 svc -> svc : getCurrentUser() → User
 
 alt role == STUDENT
-    svc -> stuRepo : findByUserId(userId)
-    activate stuRepo
-    stuRepo --> svc : Student
-    deactivate stuRepo
+ svc -> stuRepo : findByUserId(userId)
+ activate stuRepo
+ stuRepo --> svc : Student
+ deactivate stuRepo
 
-    svc -> rrRepo : findByStudentIdOrderByCreatedAtDesc(studentId)
-    activate rrRepo
-    rrRepo -> db : SELECT FROM reward_requests\nWHERE student_id=? ORDER BY created_at DESC
-    db --> rrRepo : List<RewardRequest>
-    rrRepo --> svc : List<RewardRequest>
-    deactivate rrRepo
+ svc -> rrRepo : findByStudentIdOrderByCreatedAtDesc(studentId)
+ activate rrRepo
+ rrRepo -> db : SELECT FROM reward_requests\nWHERE student_id=? ORDER BY created_at DESC
+ db --> rrRepo : List<RewardRequest>
+ rrRepo --> svc : List<RewardRequest>
+ deactivate rrRepo
 
 else role == PARENT
-    svc -> parRepo : findByUserId(userId)
-    activate parRepo
-    parRepo --> svc : Parent
-    deactivate parRepo
+ svc -> parRepo : findByUserId(userId)
+ activate parRepo
+ parRepo --> svc : Parent
+ deactivate parRepo
 
-    svc -> splRepo : findByParentId(parentId)
-    activate splRepo
-    splRepo --> svc : List<StudentParentLink>
-    deactivate splRepo
+ svc -> splRepo : findByParentId(parentId)
+ activate splRepo
+ splRepo --> svc : List<StudentParentLink>
+ deactivate splRepo
 
-    loop for each child link
-        svc -> rrRepo : findByStudentIdOrderByCreatedAtDesc(childStudentId)
-    end
+ loop for each child link
+ svc -> rrRepo : findByStudentIdOrderByCreatedAtDesc(childStudentId)
+ end
 end
 
 loop for each RewardRequest
-    svc -> s3Svc : generatePresignedUrl(rewardImageUrl)
-    svc -> svc : mapToResponse(request)
+ svc -> s3Svc : generatePresignedUrl(rewardImageUrl)
+ svc -> svc : mapToResponse(request)
 end
 
 svc --> ctrl : List<RewardRequestResponse>
@@ -64,8 +64,8 @@ deactivate svc
 ctrl --> ui : 200 OK\nResponseDto<List<RewardRequestResponse>>
 deactivate ctrl
 
-ui -> ui : Render lịch sử đổi quà\n(requestCode, rewardName, quantity,\ntotalCoins, status, createdAt)
-ui --> user : Hiển thị lịch sử
+ui -> ui : Render History đổi reward\n(requestCode, rewardName, quantity,\ntotalCoins, status, createdAt)
+ui --> user : Display History
 deactivate ui
 
 @enduml

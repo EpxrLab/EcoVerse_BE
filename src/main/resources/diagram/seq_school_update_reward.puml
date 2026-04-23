@@ -1,5 +1,5 @@
 @startuml seq_school_update_reward
-title Sequence Diagram - PUT /api/school/rewards/{rewardId} (Cập nhật quà thưởng)
+title Sequence Diagram - PUT /api/school/rewards/{rewardId} (Update Reward)
 
 actor "Trường học" as user
 boundary "School Reward UI\n(Frontend)" as ui
@@ -10,12 +10,11 @@ participant "RewardRepository" as rewardRepo
 participant "S3PresignedUrlService" as s3Svc
 database "Database" as db
 
-user -> ui : Mở chi tiết quà, nhấn "Chỉnh sửa"
+user -> ui : Open Details reward, Click "Chỉnh sửa"
 activate ui
-ui -> ui : Hiển thị form với dữ liệu hiện tại
-
-user -> ui : Sửa thông tin và nhấn "Cập nhật"
-ui -> ui : Validate form phía client
+ui -> ui : Display form with data current
+user -> ui : Edit thông tin and Click "Cập nhật"
+ui -> ui : Validate form client side
 
 ui -> ctrl : PUT /api/school/rewards/{rewardId}\n@RequestBody UpdateRewardRequest
 activate ctrl
@@ -34,22 +33,22 @@ activate rewardRepo
 rewardRepo --> svc : Optional<Reward>
 deactivate rewardRepo
 
-alt quà không tìm thấy
-    svc --> ctrl : throw NotFoundException
-    ctrl --> ui : 404 Not Found
-    ui --> user : Hiển thị lỗi
+alt reward Not found
+ svc --> ctrl : throw NotFoundException
+ ctrl --> ui : 404 Not Found
+ ui --> user : Display error
 end
 
 opt rewardName changed
-    svc -> rewardRepo : existsByRewardNameAndSchoolIdAndIsDeleteFalse(newName, schoolId)
-    activate rewardRepo
-    rewardRepo --> svc : boolean
-    deactivate rewardRepo
-    alt tên trùng
-        svc --> ctrl : throw BadRequestException("Tên quà đã tồn tại")
-        ctrl --> ui : 400 Bad Request
-        ui --> user : Hiển thị lỗi
-    end
+ svc -> rewardRepo : existsByRewardNameAndSchoolIdAndIsDeleteFalse(newName, schoolId)
+ activate rewardRepo
+ rewardRepo --> svc : boolean
+ deactivate rewardRepo
+ alt tên duplicate
+ svc --> ctrl : throw BadRequestException("Tên quà đã tồn tại")
+ ctrl --> ui : 400 Bad Request
+ ui --> user : Display error
+ end
 end
 
 svc -> svc : Partial update:\nrewardName, rewardType, description,\ncoinCost, imageUrl, isUnlimited,\nstockQuantity, termsConditions
@@ -70,8 +69,8 @@ deactivate svc
 ctrl --> ui : 200 OK\nResponseDto<RewardResponse>
 deactivate ctrl
 
-ui -> ui : Hiển thị "Cập nhật quà thành công"
-ui --> user : Hiển thị quà đã cập nhật
+ui -> ui : Display "Cập nhật quà thành công"
+ui --> user : Display reward has Update
 deactivate ui
 
 @enduml

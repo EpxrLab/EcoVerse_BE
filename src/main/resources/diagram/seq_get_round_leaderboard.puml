@@ -25,7 +25,7 @@ crRepo --> svc : CampaignRound
 deactivate crRepo
 
 alt round not found
-    svc --> ctrl : throw NotFoundException\n("Không tìm thấy round")
+ svc --> ctrl : throw NotFoundException\n("Không tìm thấy round")
 end
 
 svc -> rlbRepo : findByCampaignRoundIdOrderBy\nCombinedAccuracyPercentageDescAvgTimeSecondsAsc(roundId)
@@ -35,7 +35,7 @@ db --> rlbRepo : List<RoundLeaderboard>
 rlbRepo --> svc : List<RoundLeaderboard>
 deactivate rlbRepo
 
-svc -> svc : mapRoundLeaderboard(entries)\n-> Map each entry to LeaderboardEntryResponse\n   with overallRankInRound, totalCoinsEarned
+svc -> svc : mapRoundLeaderboard(entries)\n-> Map each entry to LeaderboardEntryResponse\n with overallRankInRound, totalCoinsEarned
 
 svc --> ctrl : List<LeaderboardEntryResponse>
 deactivate svc

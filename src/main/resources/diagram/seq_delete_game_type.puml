@@ -9,14 +9,14 @@ participant "GameTypeRepository" as gtRepo
 participant "SecurityContextHolder" as sec
 database "Database" as db
 
-admin -> ui : Mở trang danh sách Game Type
+admin -> ui : Open page List of Game Type
 activate ui
-ui -> ui : Hiển thị danh sách Game Type\nvới nút "Xóa" cho mỗi item
+ui -> ui : Display List of Game Type\nwith button "Xóa" for each item
 
-admin -> ui : Nhấn nút "Xóa" trên Game Type cần xóa
-ui -> ui : Hiển thị dialog xác nhận\n"Bạn có chắc muốn xóa game type này?"
+admin -> ui : Click button "Xóa" trên Game Type needs to delete
+ui -> ui : Display confirmation dialog\n"Bạn có chắc muốn xóa game type này?"
 
-admin -> ui : Nhấn "Xác nhận xóa"
+admin -> ui : Click "Xác nhận xóa"
 
 ui -> ctrl : DELETE /api/admin/game-types/{id}
 activate ctrl
@@ -33,10 +33,10 @@ gtRepo --> svc : Optional<GameType>
 deactivate gtRepo
 
 alt GameType not found
-    svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
-    ctrl --> ui : 404 Not Found
-    ui -> ui : Hiển thị thông báo lỗi\n"Không tìm thấy game type"
-    ui --> admin : Hiển thị lỗi
+ svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
+ ctrl --> ui : 404 Not Found
+ ui -> ui : Display thông Report error\n"Không tìm thấy game type"
+ ui --> admin : Display error
 end
 
 svc -> svc : gameType.setActive(false)
@@ -62,9 +62,9 @@ ctrl -> ctrl : ResponseDto.success(null, "Xóa game type thành công")
 ctrl --> ui : 200 OK\nResponseDto<Void>
 deactivate ctrl
 
-ui -> ui : Hiển thị thông báo thành công\n"Xóa game type thành công"
-ui -> ui : Xóa Game Type khỏi danh sách hiển thị
-ui --> admin : Danh sách Game Type đã được cập nhật
+ui -> ui : Display notification Successfully\n"Xóa game type thành công"
+ui -> ui : Delete Game Type khỏi List of Display
+ui --> admin : List of Game Type has been Update
 deactivate ui
 
 @enduml

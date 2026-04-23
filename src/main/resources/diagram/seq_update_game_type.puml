@@ -10,15 +10,14 @@ participant "S3PresignedUrlService" as s3
 participant "SecurityContextHolder" as sec
 database "Database" as db
 
-admin -> ui : Mở trang chi tiết Game Type
+admin -> ui : Open page Details Game Type
 activate ui
-ui -> ui : Hiển thị thông tin Game Type hiện tại
+ui -> ui : Display thông tin Game Type current
+admin -> ui : Click button "Chỉnh sửa"
+ui -> ui : Display form Edit\nvới data current pre-filled
 
-admin -> ui : Nhấn nút "Chỉnh sửa"
-ui -> ui : Hiển thị form chỉnh sửa\nvới dữ liệu hiện tại được fill sẵn
-
-admin -> ui : Sửa thông tin và nhấn "Cập nhật"
-ui -> ui : Validate form phía client
+admin -> ui : Edit thông tin and Click "Cập nhật"
+ui -> ui : Validate form client side
 
 ui -> ctrl : PUT /api/admin/game-types/{id}\n@RequestBody AdminGameTypeUpsertRequest
 activate ctrl
@@ -36,52 +35,52 @@ gtRepo --> svc : Optional<GameType>
 deactivate gtRepo
 
 alt GameType not found
-    svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
-    ctrl --> ui : 404 Not Found
-    ui -> ui : Hiển thị thông báo lỗi\n"Không tìm thấy game type"
-    ui --> admin : Hiển thị lỗi
+ svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
+ ctrl --> ui : 404 Not Found
+ ui -> ui : Display thông Report error\n"Không tìm thấy game type"
+ ui --> admin : Display error
 end
 
 alt typeCode changed
-    svc -> gtRepo : existsByTypeCodeAndIsDeleteFalse(request.getTypeCode())
-    activate gtRepo
-    gtRepo --> svc : boolean
-    deactivate gtRepo
-    alt typeCode exists
-        svc --> ctrl : throw BadRequestException("Game type code đã tồn tại")
-        ctrl --> ui : 400 Bad Request
-        ui --> admin : Hiển thị lỗi trên form
-    end
+ svc -> gtRepo : existsByTypeCodeAndIsDeleteFalse(request.getTypeCode())
+ activate gtRepo
+ gtRepo --> svc : boolean
+ deactivate gtRepo
+ alt typeCode exists
+ svc --> ctrl : throw BadRequestException("Game type code đã tồn tại")
+ ctrl --> ui : 400 Bad Request
+ ui --> admin : Display error on form
+ end
 end
 
 alt name changed
-    svc -> gtRepo : existsByNameIgnoreCaseAndIsDeleteFalse(request.getName())
-    activate gtRepo
-    gtRepo --> svc : boolean
-    deactivate gtRepo
-    alt name exists
-        svc --> ctrl : throw BadRequestException("Tên game type đã tồn tại")
-        ctrl --> ui : 400 Bad Request
-        ui --> admin : Hiển thị lỗi trên form
-    end
+ svc -> gtRepo : existsByNameIgnoreCaseAndIsDeleteFalse(request.getName())
+ activate gtRepo
+ gtRepo --> svc : boolean
+ deactivate gtRepo
+ alt name exists
+ svc --> ctrl : throw BadRequestException("Tên game type đã tồn tại")
+ ctrl --> ui : 400 Bad Request
+ ui --> admin : Display error on form
+ end
 end
 
 svc -> svc : gameType.set(typeCode, name,\nshortDescription, fullDescription,\nhowToPlay, thumbnailUrl, iconUrl)
 
 opt features != null
-    svc -> svc : gameType.setFeatures(features)
+ svc -> svc : gameType.setFeatures(features)
 end
 
 opt supportsCoin != null
-    svc -> svc : gameType.setSupportsCoin(supportsCoin)
+ svc -> svc : gameType.setSupportsCoin(supportsCoin)
 end
 
 opt maxLevels != null
-    svc -> svc : gameType.setMaxLevels(maxLevels)
+ svc -> svc : gameType.setMaxLevels(maxLevels)
 end
 
 opt displayOrder != null
-    svc -> svc : gameType.setDisplayOrder(displayOrder)
+ svc -> svc : gameType.setDisplayOrder(displayOrder)
 end
 
 svc -> sec : getCurrentAdmin()
@@ -115,9 +114,9 @@ ctrl -> ctrl : ResponseDto.success(response, "Cập nhật game type thành côn
 ctrl --> ui : 200 OK\nResponseDto<AdminGameTypeResponse>
 deactivate ctrl
 
-ui -> ui : Hiển thị thông báo thành công\n"Cập nhật game type thành công"
-ui -> ui : Cập nhật dữ liệu hiển thị
-ui --> admin : Hiển thị Game Type đã được cập nhật
+ui -> ui : Display notification Successfully\n"Cập nhật game type thành công"
+ui -> ui : Update data Display
+ui --> admin : Display Game Type has been Update
 deactivate ui
 
 @enduml

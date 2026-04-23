@@ -1,5 +1,5 @@
 @startuml seq_get_my_subscription_history
-title Sequence Diagram - GET /api/subscriptions/my/history (Lịch sử Gói đăng ký)
+title Sequence Diagram - GET /api/subscriptions/my/history (History Subscription plan)
 
 actor "School/Partnership" as user
 boundary "Subscription UI\n(Frontend)" as ui
@@ -13,7 +13,7 @@ participant "PaymentRepository" as payRepo
 participant "SubscriptionMapper" as mapper
 database "Database" as db
 
-user -> ui : Mở trang "Lịch sử gói đăng ký"
+user -> ui : Open page "Lịch sử gói đăng ký"
 activate ui
 
 ui -> ctrl : GET /api/subscriptions/my/history\n?status=&keyword=&page=0&size=10
@@ -47,10 +47,10 @@ deactivate payRepo
 svc -> svc : Build transactionMap\n(subscriptionId → List<TransactionResponse>)
 
 loop for each Subscription in page
-    svc -> mapper : toResponse(subscription, transactions, null, null, null)
-    activate mapper
-    mapper --> svc : SubscriptionResponse
-    deactivate mapper
+ svc -> mapper : toResponse(subscription, transactions, null, null, null)
+ activate mapper
+ mapper --> svc : SubscriptionResponse
+ deactivate mapper
 end
 
 svc --> ctrl : PageResponse<SubscriptionResponse>
@@ -60,8 +60,8 @@ ctrl -> ctrl : ResponseDto.success(response,\n"Subscription history retrieved.")
 ctrl --> ui : 200 OK\nResponseDto<PageResponse<SubscriptionResponse>>
 deactivate ctrl
 
-ui -> ui : Render danh sách lịch sử gói\n(subscriptionCode, planName,\nstatus, startDate, endDate, ...)
-ui --> user : Hiển thị lịch sử gói đăng ký
+ui -> ui : Render List of History gói\n(subscriptionCode, planName,\nstatus, startDate, endDate, ...)
+ui --> user : Display History Subscription plan
 deactivate ui
 
 @enduml

@@ -9,7 +9,7 @@ participant "GameTypeRepository" as gtRepo
 participant "GameLevelPresetRepository" as glpRepo
 database "Database" as db
 
-user -> ui : Nhấn vào một Preset trong danh sách\nđể xem chi tiết
+user -> ui : Click on một Preset in List of\nđể View Details
 activate ui
 
 ui -> ctrl : GET /api/admin/game-types/{gameTypeId}/presets/{presetId}
@@ -29,10 +29,10 @@ gtRepo --> svc : Optional<GameType>
 deactivate gtRepo
 
 alt GameType not found
-    svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
-    ctrl --> ui : 404 Not Found
-    ui -> ui : Hiển thị thông báo lỗi
-    ui --> user : Hiển thị lỗi
+ svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
+ ctrl --> ui : 404 Not Found
+ ui -> ui : Display thông Report error
+ ui --> user : Display error
 end
 
 note over svc : getPresetOrThrow(gameTypeId, presetId)
@@ -46,9 +46,9 @@ deactivate glpRepo
 svc -> svc : filter: preset.gameType.id == gameTypeId
 
 alt Preset not found or wrong gameType
-    svc --> ctrl : throw NotFoundException("Không tìm thấy preset")
-    ctrl --> ui : 404 Not Found
-    ui --> user : Hiển thị lỗi
+ svc --> ctrl : throw NotFoundException("Không tìm thấy preset")
+ ctrl --> ui : 404 Not Found
+ ui --> user : Display error
 end
 
 svc -> svc : mapGameLevelPreset(preset)
@@ -61,8 +61,8 @@ ctrl -> ctrl : ResponseDto.success(response, "Lấy chi tiết preset thành cô
 ctrl --> ui : 200 OK\nResponseDto<AdminGameLevelPresetResponse>
 deactivate ctrl
 
-ui -> ui : Render chi tiết Preset\n(difficulty, danh sách level items\nvới thông tin itemCount,\ntimeLimitSeconds, scorePerCorrect,\nlives, wasteCategories)
-ui --> user : Hiển thị trang chi tiết Preset
+ui -> ui : Render Details Preset\n(difficulty, List of level items\nvới thông tin itemCount,\ntimeLimitSeconds, scorePerCorrect,\nlives, wasteCategories)
+ui --> user : Display page Details Preset
 deactivate ui
 
 @enduml

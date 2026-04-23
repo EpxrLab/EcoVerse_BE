@@ -9,7 +9,7 @@ participant "GameTypeRepository" as gtRepo
 participant "S3PresignedUrlService" as s3
 database "Database" as db
 
-user -> ui : Nhấn vào một Game Type trong danh sách
+user -> ui : Click on một Game Type in List of
 activate ui
 
 ui -> ctrl : GET /api/admin/game-types/{id}
@@ -29,10 +29,10 @@ gtRepo --> svc : Optional<GameType>
 deactivate gtRepo
 
 alt GameType not found
-    svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
-    ctrl --> ui : 404 Not Found
-    ui -> ui : Hiển thị thông báo lỗi\n"Không tìm thấy game type"
-    ui --> user : Hiển thị lỗi
+ svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
+ ctrl --> ui : 404 Not Found
+ ui -> ui : Display thông Report error\n"Không tìm thấy game type"
+ ui --> user : Display error
 end
 
 svc -> svc : mapGameType(gameType)
@@ -52,8 +52,8 @@ ctrl -> ctrl : ResponseDto.success(response, "Lấy chi tiết game type thành 
 ctrl --> ui : 200 OK\nResponseDto<AdminGameTypeResponse>
 deactivate ctrl
 
-ui -> ui : Render chi tiết Game Type\n(typeCode, name, description,\nhowToPlay, thumbnail, icon,\nfeatures, supportsCoin,\nmaxLevels, displayOrder,\nmappedWasteCategories)
-ui --> user : Hiển thị trang chi tiết Game Type
+ui -> ui : Render Details Game Type\n(typeCode, name, description,\nhowToPlay, thumbnail, icon,\nfeatures, supportsCoin,\nmaxLevels, displayOrder,\nmappedWasteCategories)
+ui --> user : Display page Details Game Type
 deactivate ui
 
 @enduml

@@ -1,5 +1,5 @@
 @startuml seq_partnership_ship_reward
-title Sequence Diagram - PUT /api/partnership/reward-deliveries/{id}/ship (Partnership gửi quà)
+title Sequence Diagram - PUT /api/partnership/reward-deliveries/{id}/ship (Partnership Send reward)
 
 actor "Partnership" as user
 boundary "Partnership UI\n(Frontend)" as ui
@@ -10,9 +10,9 @@ participant "CampaignRewardDeliveryRepository" as delRepo
 participant "ApplicationEventPublisher" as eventPub
 database "Database" as db
 
-user -> ui : Xem danh sách quà trạng thái PREPARING
+user -> ui : View List of reward status PREPARING
 activate ui
-user -> ui : Nhấn "Gửi quà", nhập mã vận đơn (tùy chọn)
+user -> ui : Click "Gửi quà", Enter code vận đơn (tùy Select)
 
 ui -> ctrl : PUT /api/partnership/reward-deliveries/{id}/ship\n{ "trackingCode": "VN123456", "notes": "..." }
 activate ctrl
@@ -32,14 +32,13 @@ activate delRepo
 delRepo --> svc : CampaignRewardDelivery
 deactivate delRepo
 
-svc -> svc : Kiểm tra campaign thuộc partnership
+svc -> svc : Check campaign thuộc partnership
 
-alt delivery không thuộc partnership này
-    svc --> ctrl : throw BadRequestException\n("Bạn không có quyền")
+alt delivery not thuộc partnership this svc --> ctrl : throw BadRequestException\n("Bạn không có quyền")
 end
 
 alt status != PREPARING
-    svc --> ctrl : throw BadRequestException\n("Chỉ có thể ship khi status là PREPARING")
+ svc --> ctrl : throw BadRequestException\n("Chỉ có thể ship khi status là PREPARING")
 end
 
 svc -> svc : delivery.setStatus(SHIPPING)\ndelivery.setShippedAt(now)\ndelivery.setShippingTrackingCode(trackingCode)
@@ -51,9 +50,9 @@ db --> delRepo : done
 delRepo --> svc : CampaignRewardDelivery
 deactivate delRepo
 
-svc -> eventPub : publishEvent → Thông báo Học sinh
-svc -> eventPub : publishEvent → Thông báo Phụ huynh
-svc -> eventPub : publishEvent → Thông báo Trường
+svc -> eventPub : publishEvent → notification Student
+svc -> eventPub : publishEvent → notification Parent
+svc -> eventPub : publishEvent → notification Trường
 
 svc --> ctrl : CampaignRewardDeliveryResponse
 deactivate svc
@@ -61,8 +60,8 @@ deactivate svc
 ctrl --> ui : 200 OK\nResponseDto<CampaignRewardDeliveryResponse>
 deactivate ctrl
 
-ui -> ui : Hiển thị "Gửi quà thành công"
-ui --> user : Cập nhật status → SHIPPING
+ui -> ui : Display "Gửi quà thành công"
+ui --> user : Update status → SHIPPING
 deactivate ui
 
 @enduml

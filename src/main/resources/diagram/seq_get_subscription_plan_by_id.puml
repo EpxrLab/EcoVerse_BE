@@ -1,5 +1,5 @@
 @startuml seq_get_subscription_plan_by_id
-title Sequence Diagram - GET /api/subscription-plans/{id} (Lấy Gói đăng ký theo ID)
+title Sequence Diagram - GET /api/subscription-plans/{id} (Lấy Subscription plan theo ID)
 
 actor "Người dùng" as user
 boundary "UI\n(Frontend)" as ui
@@ -9,7 +9,7 @@ participant "SubscriptionPlanRepository" as planRepo
 participant "SubscriptionPlanMapper" as mapper
 database "Database" as db
 
-user -> ui : Mở trang chi tiết gói đăng ký
+user -> ui : Open page Details Subscription plan
 activate ui
 
 ui -> ctrl : GET /api/subscription-plans/{id}
@@ -26,9 +26,9 @@ planRepo --> svc : Optional<SubscriptionPlan>
 deactivate planRepo
 
 alt plan not found
-    svc --> ctrl : throw ResourceNotFoundException\n("Subscription plan not found")
-    ctrl --> ui : 404 Not Found
-    ui --> user : Hiển thị lỗi
+ svc --> ctrl : throw ResourceNotFoundException\n("Subscription plan not found")
+ ctrl --> ui : 404 Not Found
+ ui --> user : Display error
 end
 
 svc -> mapper : toResponse(plan)
@@ -43,8 +43,8 @@ ctrl -> ctrl : ResponseDto.success(response, "Subscription plan retrieved succes
 ctrl --> ui : 200 OK\nResponseDto<SubscriptionPlanResponse>
 deactivate ctrl
 
-ui -> ui : Render chi tiết gói đăng ký\n(planCode, planName, price, durationDays,\nmaxStudents, maxCampaignsPerMonth, ...)
-ui --> user : Hiển thị trang chi tiết gói
+ui -> ui : Render Details Subscription plan\n(planCode, planName, price, durationDays,\nmaxStudents, maxCampaignsPerMonth, ...)
+ui --> user : Display page Details plan
 deactivate ui
 
 @enduml

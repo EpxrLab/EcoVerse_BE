@@ -1,5 +1,5 @@
 @startuml seq_create_subscription_plan
-title Sequence Diagram - POST /api/subscription-plans (Tạo Gói đăng ký)
+title Sequence Diagram - POST /api/subscription-plans ( Create Subscription plan)
 
 actor "Admin" as admin
 boundary "Admin UI\n(Frontend)" as ui
@@ -10,15 +10,15 @@ participant "UserRepository" as userRepo
 participant "SubscriptionPlanMapper" as mapper
 database "Database" as db
 
-admin -> ui : Vào trang quản lý Gói đăng ký
+admin -> ui : Navigate to page Management Subscription plan
 activate ui
-ui -> ui : Hiển thị danh sách gói với nút "Tạo mới"
+ui -> ui : Display List of plan with button "Tạo mới"
 
-admin -> ui : Nhấn "Tạo gói đăng ký mới"
-ui -> ui : Hiển thị form tạo gói\n(planCode, planName, subscriberType,\ndescription, durationDays, price,\nmaxStudents, maxCampaignsPerMonth,\nmaxAiQuizGenerationsPerPeriod, ...)
+admin -> ui : Click "Tạo gói đăng ký mới"
+ui -> ui : Display form create gói\n(planCode, planName, subscriberType,\ndescription, durationDays, price,\nmaxStudents, maxCampaignsPerMonth,\nmaxAiQuizGenerationsPerPeriod, ...)
 
-admin -> ui : Điền thông tin và nhấn "Lưu"
-ui -> ui : Validate form phía client
+admin -> ui : Fill details and Click "Lưu"
+ui -> ui : Validate form client side
 
 ui -> ctrl : POST /api/subscription-plans\n@RequestBody CreateSubscriptionPlanRequest
 activate ctrl
@@ -36,9 +36,9 @@ planRepo --> svc : boolean
 deactivate planRepo
 
 alt planCode already exists
-    svc --> ctrl : throw FuncErrorException\n("Plan code already exists")
-    ctrl --> ui : 400 Bad Request
-    ui --> admin : Hiển thị lỗi
+ svc --> ctrl : throw FuncErrorException\n("Plan code already exists")
+ ctrl --> ui : 400 Bad Request
+ ui --> admin : Display error
 end
 
 svc -> planRepo : existsByPlanName(planName)
@@ -49,9 +49,9 @@ planRepo --> svc : boolean
 deactivate planRepo
 
 alt planName already exists
-    svc --> ctrl : throw FuncErrorException\n("Plan name already exists")
-    ctrl --> ui : 400 Bad Request
-    ui --> admin : Hiển thị lỗi
+ svc --> ctrl : throw FuncErrorException\n("Plan name already exists")
+ ctrl --> ui : 400 Bad Request
+ ui --> admin : Display error
 end
 
 svc -> userRepo : findById(adminUserId)
@@ -87,9 +87,9 @@ ctrl -> ctrl : ResponseDto.created(response,\n"Subscription plan created success
 ctrl --> ui : 201 Created\nResponseDto<SubscriptionPlanResponse>
 deactivate ctrl
 
-ui -> ui : Hiển thị thông báo thành công
-ui -> ui : Cập nhật danh sách gói
-ui --> admin : Hiển thị gói đăng ký mới
+ui -> ui : Display notification Successfully
+ui -> ui : Update List of plan
+ui --> admin : Display Subscription plan new
 deactivate ui
 
 @enduml

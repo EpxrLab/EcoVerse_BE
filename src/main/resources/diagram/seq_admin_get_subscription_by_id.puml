@@ -1,5 +1,5 @@
 @startuml seq_admin_get_subscription_by_id
-title Sequence Diagram - GET /api/subscriptions/{id} (Admin - Xem chi tiết Subscription)
+title Sequence Diagram - GET /api/subscriptions/{id} (Admin - View Details Subscription)
 
 actor "Admin" as admin
 boundary "Admin UI\n(Frontend)" as ui
@@ -10,7 +10,7 @@ participant "PaymentRepository" as payRepo
 participant "SubscriptionMapper" as mapper
 database "Database" as db
 
-admin -> ui : Nhấn vào một subscription trong danh sách
+admin -> ui : Click on một subscription in List of
 activate ui
 
 ui -> ctrl : GET /api/subscriptions/{id}
@@ -28,9 +28,9 @@ subRepo --> svc : Optional<Subscription>
 deactivate subRepo
 
 alt subscription not found
-    svc --> ctrl : throw ResourceNotFoundException
-    ctrl --> ui : 404 Not Found
-    ui --> admin : Hiển thị lỗi
+ svc --> ctrl : throw ResourceNotFoundException
+ ctrl --> ui : 404 Not Found
+ ui --> admin : Display error
 end
 
 svc -> payRepo : findAllBySubscriptionIdOrderByCreatedAtDesc(id)
@@ -52,8 +52,8 @@ ctrl -> ctrl : ResponseDto.success(response, "Subscription retrieved.")
 ctrl --> ui : 200 OK\nResponseDto<SubscriptionResponse>
 deactivate ctrl
 
-ui -> ui : Render chi tiết subscription\n(code, plan, subscriber, status,\nstartDate, endDate, usage, transactions)
-ui --> admin : Hiển thị chi tiết subscription
+ui -> ui : Render Details subscription\n(code, plan, subscriber, status,\nstartDate, endDate, usage, transactions)
+ui --> admin : Display Details subscription
 deactivate ui
 
 @enduml

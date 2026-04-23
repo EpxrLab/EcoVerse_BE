@@ -9,16 +9,16 @@ participant "GameTypeRepository" as gtRepo
 participant "GameLevelPresetRepository" as glpRepo
 database "Database" as db
 
-admin -> ui : Mở trang chi tiết Preset
+admin -> ui : Open page Details Preset
 activate ui
-ui -> ui : Hiển thị thông tin Preset hiện tại\nvà danh sách level items
+ui -> ui : Display thông tin Preset hiện tại\nvà List of level items
 
-admin -> ui : Nhấn nút "Chỉnh sửa"
-ui -> ui : Hiển thị form chỉnh sửa Preset\nvới dữ liệu hiện tại được fill sẵn\n(difficulty, items list)
+admin -> ui : Click button "Chỉnh sửa"
+ui -> ui : Display form Edit Preset\nvới data current pre-filled\n(difficulty, items list)
 
-admin -> ui : Sửa thông tin preset\n(thay đổi difficulty, thêm/sửa/xóa items)
-admin -> ui : Nhấn "Cập nhật"
-ui -> ui : Validate form phía client
+admin -> ui : Edit thông tin preset\n(thay đổi difficulty, Add/Edit/xóa items)
+admin -> ui : Click "Cập nhật"
+ui -> ui : Validate form client side
 
 ui -> ctrl : PUT /api/admin/game-types/{gameTypeId}/presets/{presetId}\n@RequestBody AdminGameLevelPresetUpsertRequest
 activate ctrl
@@ -36,10 +36,10 @@ gtRepo --> svc : Optional<GameType>
 deactivate gtRepo
 
 alt GameType not found
-    svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
-    ctrl --> ui : 404 Not Found
-    ui -> ui : Hiển thị thông báo lỗi
-    ui --> admin : Hiển thị lỗi
+ svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
+ ctrl --> ui : 404 Not Found
+ ui -> ui : Display thông Report error
+ ui --> admin : Display error
 end
 
 note over svc : getPresetOrThrow(gameTypeId, presetId)
@@ -53,9 +53,9 @@ deactivate glpRepo
 svc -> svc : filter: preset.gameType.id == gameTypeId
 
 alt Preset not found or wrong gameType
-    svc --> ctrl : throw NotFoundException("Không tìm thấy preset")
-    ctrl --> ui : 404 Not Found
-    ui --> admin : Hiển thị lỗi
+ svc --> ctrl : throw NotFoundException("Không tìm thấy preset")
+ ctrl --> ui : 404 Not Found
+ ui --> admin : Display error
 end
 
 svc -> glpRepo : existsByGameTypeIdAndDifficultyAndIdNot(\ngameTypeId, difficulty, presetId)
@@ -66,9 +66,9 @@ glpRepo --> svc : boolean
 deactivate glpRepo
 
 alt another preset with same difficulty exists
-    svc --> ctrl : throw BadRequestException("Preset cho difficulty này đã tồn tại")
-    ctrl --> ui : 400 Bad Request
-    ui --> admin : Hiển thị lỗi trên form
+ svc --> ctrl : throw BadRequestException("Preset cho difficulty này đã tồn tại")
+ ctrl --> ui : 400 Bad Request
+ ui --> admin : Display error on form
 end
 
 note over svc : applyPresetUpsert(preset, request)
@@ -76,12 +76,12 @@ svc -> svc : preset.setDifficulty(request.getDifficulty())
 svc -> svc : Validate duplicate levelNumbers
 
 loop for each item request
-    alt existing item for levelNumber
-        svc -> svc : update existing GameLevelPresetItem
-    else new levelNumber
-        svc -> svc : new GameLevelPresetItem()
-    end
-    svc -> svc : applyPresetItemRequest(item, itemRequest, preset)
+ alt existing item for levelNumber
+ svc -> svc : update existing GameLevelPresetItem
+ else new levelNumber
+ svc -> svc : new GameLevelPresetItem()
+ end
+ svc -> svc : applyPresetItemRequest(item, itemRequest, preset)
 end
 
 svc -> svc : Validate: each item has >= 1 wasteCategory
@@ -103,9 +103,9 @@ ctrl -> ctrl : ResponseDto.success(response, "Cập nhật preset thành công")
 ctrl --> ui : 200 OK\nResponseDto<AdminGameLevelPresetResponse>
 deactivate ctrl
 
-ui -> ui : Hiển thị thông báo thành công\n"Cập nhật preset thành công"
-ui -> ui : Cập nhật dữ liệu hiển thị
-ui --> admin : Hiển thị Preset đã được cập nhật
+ui -> ui : Display notification Successfully\n"Cập nhật preset thành công"
+ui -> ui : Update data Display
+ui --> admin : Display Preset has been Update
 deactivate ui
 
 @enduml

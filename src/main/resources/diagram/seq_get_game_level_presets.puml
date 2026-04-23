@@ -9,10 +9,9 @@ participant "GameTypeRepository" as gtRepo
 participant "GameLevelPresetRepository" as glpRepo
 database "Database" as db
 
-user -> ui : Mở trang chi tiết Game Type
+user -> ui : Open page Details Game Type
 activate ui
-ui -> ui : Cần load danh sách Preset\ncủa Game Type này
-
+ui -> ui : Cần load List of Preset\ncủa Game Type this
 ui -> ctrl : GET /api/admin/game-types/{gameTypeId}/presets
 activate ctrl
 
@@ -30,10 +29,10 @@ gtRepo --> svc : Optional<GameType>
 deactivate gtRepo
 
 alt GameType not found
-    svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
-    ctrl --> ui : 404 Not Found
-    ui -> ui : Hiển thị thông báo lỗi
-    ui --> user : Hiển thị lỗi
+ svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
+ ctrl --> ui : 404 Not Found
+ ui -> ui : Display thông Report error
+ ui --> user : Display error
 end
 
 svc -> glpRepo : findByGameTypeIdOrderByDifficultyAsc(gameTypeId)
@@ -44,8 +43,8 @@ glpRepo --> svc : List<GameLevelPreset>
 deactivate glpRepo
 
 loop for each GameLevelPreset
-    svc -> svc : mapGameLevelPreset(preset)
-    note right : Build AdminGameLevelPresetResponse\nwith sorted items by levelNumber
+ svc -> svc : mapGameLevelPreset(preset)
+ note right : Build AdminGameLevelPresetResponse\nwith sorted items by levelNumber
 end
 
 svc --> ctrl : List<AdminGameLevelPresetResponse>
@@ -55,8 +54,8 @@ ctrl -> ctrl : ResponseDto.success(list, "Lấy danh sách preset thành công")
 ctrl --> ui : 200 OK\nResponseDto<List<AdminGameLevelPresetResponse>>
 deactivate ctrl
 
-ui -> ui : Render danh sách Preset\n(hiện difficulty, số levels,\nwasteCategories cho mỗi preset)
-ui --> user : Hiển thị danh sách Preset\ncủa Game Type
+ui -> ui : Render List of Preset\n(hiện difficulty, số levels,\nwasteCategories for mỗi preset)
+ui --> user : Display List of Preset\ncủa Game Type
 deactivate ui
 
 @enduml

@@ -1,5 +1,5 @@
 @startuml seq_register_send_otp
-title Sequence Diagram - POST /api/auth/register (Gửi OTP đăng ký)
+title Sequence Diagram - POST /api/auth/register (Send OTP đăng ký)
 
 actor "Người dùng" as user
 boundary "Registration UI\n(Frontend)" as ui
@@ -10,12 +10,12 @@ participant "IOtpService" as otpSvc
 participant "IEmailService" as emailSvc
 database "Database" as db
 
-user -> ui : Truy cập trang đăng ký
+user -> ui : Truy cập page đăng ký
 activate ui
-ui -> ui : Hiển thị form nhập email
+ui -> ui : Display form Enter email
 
-user -> ui : Nhập email và nhấn "Gửi OTP"
-ui -> ui : Validate email format phía client
+user -> ui : Enter email and Click "Gửi OTP"
+ui -> ui : Validate email format client side
 
 ui -> ctrl : POST /api/auth/register\n{ "email": "user@example.com" }
 activate ctrl
@@ -31,11 +31,11 @@ db --> userRepo : boolean
 userRepo --> svc : boolean
 deactivate userRepo
 
-alt email đã tồn tại
-    svc --> ctrl : throw DuplicateEntity("Email này đã được sử dụng!")
-    ctrl --> ui : 409 Conflict
-    ui -> ui : Hiển thị lỗi "Email đã được sử dụng"
-    ui --> user : Hiển thị lỗi
+alt email already exists
+ svc --> ctrl : throw DuplicateEntity("Email này đã được sử dụng!")
+ ctrl --> ui : 409 Conflict
+ ui -> ui : Display error "Email đã được sử dụng"
+ ui --> user : Display error
 end
 
 svc -> otpSvc : generateOtp(email)
@@ -45,7 +45,7 @@ deactivate otpSvc
 
 svc -> emailSvc : sendOtpEmail(email, otp)
 activate emailSvc
-emailSvc -> emailSvc : Gửi email chứa mã OTP
+emailSvc -> emailSvc : Send email chứa code OTP
 emailSvc --> svc : void
 deactivate emailSvc
 
@@ -56,9 +56,9 @@ ctrl -> ctrl : ResponseDto.success(null, "Please check mail to get OTP")
 ctrl --> ui : 200 OK\nResponseDto<String>
 deactivate ctrl
 
-ui -> ui : Hiển thị thông báo\n"Vui lòng kiểm tra email để lấy mã OTP"
-ui -> ui : Chuyển sang form nhập OTP
-ui --> user : Hiển thị form xác thực OTP
+ui -> ui : Display notification\n"Vui lòng kiểm tra email để lấy mã OTP"
+ui -> ui : Switch to form Enter OTP
+ui --> user : Display form xác thực OTP
 deactivate ui
 
 @enduml
