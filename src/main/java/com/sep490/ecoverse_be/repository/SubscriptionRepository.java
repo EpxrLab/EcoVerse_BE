@@ -43,11 +43,11 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
 
     // PENDING_RENEWAL đã quá grace period → chuyển EXPIRED (lưu trữ)
     @Query("SELECT s FROM Subscription s WHERE s.status = 'PENDING_RENEWAL' AND s.endDate < :gracePeriodCutoff")
-    List<Subscription> findOverdueRenewalSubscriptions(@Param("gracePeriodCutoff") LocalDateTime gracePeriodCutoff);
+    List<Subscription> findOverdueRenewalSubscriptions(@Param("gracePeriodCutoff") OffsetDateTime gracePeriodCutoff);
 
     // PENDING chờ thanh toán quá 24 giờ → chuyển CANCELLED
     @Query("SELECT s FROM Subscription s WHERE s.status = 'PENDING' AND s.createdAt < :cutoff")
-    List<Subscription> findStalePendingSubscriptions(@Param("cutoff") LocalDateTime cutoff);
+    List<Subscription> findStalePendingSubscriptions(@Param("cutoff") OffsetDateTime cutoff);
 
     // ── Report aggregate queries ───────────────────────────────────────────────
 

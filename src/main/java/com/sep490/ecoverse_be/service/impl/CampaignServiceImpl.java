@@ -21,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @Service
@@ -2071,9 +2070,7 @@ public class CampaignServiceImpl implements ICampaignService {
         if (campaign.getCampaignType() == CampaignType.PARTNERSHIP_EVENT
                 && shouldUseCurrentRoundLeaderboardForRole(getCurrentUser().getRole())) {
             return resolvePartnershipDefaultRound(campaign)
-                    .map(round -> mapRoundLeaderboard(roundLeaderboardRepository
-                            .findByCampaignRoundIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(
-                                    round.getId())))
+                    .map(round -> mapRoundLeaderboard(getEffectiveRoundLeaderboardEntries(round)))
                     .orElse(List.of());
         }
 
@@ -2099,10 +2096,33 @@ public class CampaignServiceImpl implements ICampaignService {
 
     @Override
     public List<LeaderboardEntryResponse> getCampaignRoundLeaderboard(UUID roundId) {
-        campaignRoundRepository.findById(roundId)
+        CampaignRound round = campaignRoundRepository.findById(roundId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy round"));
-        return mapRoundLeaderboard(roundLeaderboardRepository
-                .findByCampaignRoundIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(roundId));
+        return mapRoundLeaderboard(getEffectiveRoundLeaderboardEntries(round));
+    }
+
+    private List<RoundLeaderboard> getEffectiveRoundLeaderboardEntries(CampaignRound round) {
+        List<RoundLeaderboard> entries = roundLeaderboardRepository
+                .findByCampaignRoundIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(round.getId());
+
+        if (round.getCampaign().getCampaignType() != CampaignType.PARTNERSHIP_EVENT) {
+            return entries;
+        }
+
+        Integer roundNumber = round.getRoundNumber();
+        if (roundNumber == null || roundNumber <= 1) {
+            return entries;
+        }
+
+        Set<UUID> eligibleStudentIds = new HashSet<>(
+                campaignRoundParticipantRepository.findStudentIdsByCampaignRoundId(round.getId()));
+        if (eligibleStudentIds.isEmpty()) {
+            return List.of();
+        }
+
+        return entries.stream()
+                .filter(entry -> eligibleStudentIds.contains(entry.getStudent().getId()))
+                .toList();
     }
 
     private List<LeaderboardEntryResponse> mapRoundLeaderboard(List<RoundLeaderboard> entries) {
