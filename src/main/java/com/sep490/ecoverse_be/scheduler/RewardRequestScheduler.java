@@ -14,7 +14,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Component
@@ -31,7 +32,7 @@ public class RewardRequestScheduler {
     @Scheduled(cron = "0 0 2 * * *")
     @Transactional
     public void autoConfirmExpiredDeliveries() {
-        LocalDateTime deadline = LocalDateTime.now().minusDays(7);
+        OffsetDateTime deadline = OffsetDateTime.now().minusDays(7);
 
         List<RewardRequest> expiredRequests = rewardRequestRepository
                 .findByStatusAndDeliveredAtBefore(RewardRequestStatus.DELIVERED, deadline);
@@ -44,7 +45,7 @@ public class RewardRequestScheduler {
 
         for (RewardRequest request : expiredRequests) {
             request.setStatus(RewardRequestStatus.CONFIRMED);
-            request.setConfirmedAt(LocalDateTime.now());
+            request.setConfirmedAt(OffsetDateTime.now());
             // confirmedByParent = null → he thong tu dong confirm
             rewardRequestRepository.save(request);
 

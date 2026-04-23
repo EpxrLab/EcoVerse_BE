@@ -56,10 +56,10 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, UUID> 
     long countPassedByStudentId(@Param("studentId") UUID studentId);
 
     @Query("SELECT COUNT(qa) FROM QuizAttempt qa WHERE qa.campaignParticipant.student.id = :studentId AND qa.isCompleted = true AND qa.createdAt BETWEEN :from AND :to")
-    long countCompletedByStudentIdAndDateRange(@Param("studentId") UUID studentId, @Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+    long countCompletedByStudentIdAndDateRange(@Param("studentId") UUID studentId, @Param("from") java.time.OffsetDateTime from, @Param("to") java.time.OffsetDateTime to);
 
     @Query("SELECT AVG(qa.scorePercentage) FROM QuizAttempt qa WHERE qa.campaignParticipant.student.id = :studentId AND qa.isCompleted = true AND qa.createdAt BETWEEN :from AND :to")
-    Double avgScoreByStudentIdAndDateRange(@Param("studentId") UUID studentId, @Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+    Double avgScoreByStudentIdAndDateRange(@Param("studentId") UUID studentId, @Param("from") java.time.OffsetDateTime from, @Param("to") java.time.OffsetDateTime to);
 
     @Query("SELECT AVG(qa.scorePercentage) FROM QuizAttempt qa WHERE qa.campaignParticipant.student.id = :studentId AND qa.isCompleted = true")
     Double avgScoreByStudentIdOverall(@Param("studentId") UUID studentId);

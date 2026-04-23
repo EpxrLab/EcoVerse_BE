@@ -4,7 +4,8 @@ import com.sep490.ecoverse_be.enums.TransactionType;
 import lombok.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -39,6 +40,6 @@ public class StudentCoinReportResponse {
         private BigDecimal balanceBefore;
         private BigDecimal balanceAfter;
         private String description;
-        private LocalDateTime createdAt;
+        private OffsetDateTime createdAt;
     }
 }

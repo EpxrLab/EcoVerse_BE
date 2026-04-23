@@ -1,0 +1,64 @@
+@startuml class_school_get_reward_requests
+title Class Diagram - GET /api/school/rewards/requests (Trường xem yêu cầu đổi quà)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class RewardRequestController {
+        - rewardRequestService : IRewardRequestService
+        + getSchoolRequests(status: RewardRequestStatus) : ResponseEntity<ResponseDto<List<RewardRequestResponse>>>
+    }
+}
+
+package "service" {
+    interface IRewardRequestService {
+        + getSchoolRequests(status: RewardRequestStatus) : List<RewardRequestResponse>
+    }
+
+    class RewardRequestServiceImpl implements IRewardRequestService {
+        - rewardRequestRepository : RewardRequestRepository
+        - schoolRepository : SchoolRepository
+        - s3PresignedUrlService : S3PresignedUrlService
+        + getSchoolRequests(status: RewardRequestStatus) : List<RewardRequestResponse>
+    }
+}
+
+package "dto.response" {
+    class RewardRequestResponse {
+        - id : UUID
+        - requestCode : String
+        - studentId : UUID
+        - studentName : String
+        - rewardId : UUID
+        - rewardName : String
+        - rewardType : RewardType
+        - quantity : int
+        - totalCoins : BigDecimal
+        - status : RewardRequestStatus
+        - rejectedReason : String
+        - deliveryImageUrl : String
+        - createdAt : LocalDateTime
+    }
+}
+
+package "enums" {
+    enum RewardRequestStatus {
+        PENDING
+        APPROVED
+        DELIVERED
+        CONFIRMED
+        REJECTED
+        CANCELLED
+    }
+}
+
+package "repository" {
+    interface RewardRequestRepository extends JpaRepository {
+        + findBySchoolIdAndStatusOrderByCreatedAtDesc(schoolId: UUID, status: RewardRequestStatus) : List<RewardRequest>
+        + findBySchoolIdOrderByCreatedAtDesc(schoolId: UUID) : List<RewardRequest>
+    }
+}
+
+RewardRequestController --> IRewardRequestService : uses
+
+@enduml

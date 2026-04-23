@@ -21,7 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -90,7 +91,7 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
         if (round.getStatus() != RoundStatus.ACTIVE) {
             throw new BadRequestException("Round chưa bắt đầu hoặc đã kết thúc");
         }
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         if (now.isBefore(round.getStartTime()) || now.isAfter(round.getEndTime())) {
             throw new BadRequestException("Không trong thời gian làm bài của round");
         }
@@ -267,7 +268,7 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
         quizAttemptAnswerRepository.saveAll(attemptAnswers);
 
         // Tinh diem va thoi gian
-        LocalDateTime endTime = LocalDateTime.now();
+        OffsetDateTime endTime = OffsetDateTime.now();
         int timeTakenSeconds = (int) ChronoUnit.SECONDS.between(attempt.getStartTime(), endTime);
         BigDecimal scorePercentage = questions.isEmpty() ? BigDecimal.ZERO
                 : BigDecimal.valueOf(correctCount * 100.0 / questions.size()).setScale(2, RoundingMode.HALF_UP);
@@ -721,7 +722,7 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
                         return;
                 }
 
-                LocalDateTime now = LocalDateTime.now();
+                OffsetDateTime now = OffsetDateTime.now();
                 CampaignRound activeRound = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId()).stream()
                                 .filter(r -> r.getStatus() == RoundStatus.ACTIVE)
                                 .filter(r -> r.getStartTime() != null && r.getEndTime() != null)

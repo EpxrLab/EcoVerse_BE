@@ -20,6 +20,8 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  jackson:
+    time-zone: UTC
   data:
     redis:
       host: ${REDIS_HOST:localhost}

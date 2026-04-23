@@ -7,7 +7,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 
 @Entity
 @Table(name = "campaign_participants",
@@ -39,9 +40,9 @@ public class CampaignParticipant extends BaseEntity {
     @JoinColumn(name = "school_id", nullable = false)
     private School school;
 
-    private LocalDateTime enrollmentDate;
+    private OffsetDateTime enrollmentDate;
 
-    private LocalDateTime invitationSentAt;
+    private OffsetDateTime invitationSentAt;
 
     @Enumerated(EnumType.STRING)
         private ParticipationStatus parentApprovalStatus = ParticipationStatus.PREPARED;
@@ -50,7 +51,7 @@ public class CampaignParticipant extends BaseEntity {
     @JoinColumn(name = "parent_approved_by")
     private Parent parentApprovedBy;
 
-    private LocalDateTime parentApprovedAt;
+    private OffsetDateTime parentApprovedAt;
 
     private String rejectionReason;
 

@@ -5,7 +5,8 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 
 @Getter
 @Setter
@@ -17,14 +18,14 @@ public class UpdateSchoolCampaignRequest {
     private String description;
 
     @NotNull
-    private LocalDateTime startDate;
+    private OffsetDateTime startDate;
 
     @NotNull
-    private LocalDateTime endDate;
+    private OffsetDateTime endDate;
 
-    private LocalDateTime invitationDate;
+    private OffsetDateTime invitationDate;
 
-    private LocalDateTime invitationDeadline;
+    private OffsetDateTime invitationDeadline;
 
     private Integer topRankingCount;
 

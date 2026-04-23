@@ -8,7 +8,8 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Entity
@@ -51,10 +52,10 @@ public class QuizAttempt {
     private int attemptNumber = 1;
 
     @Column(name = "start_time")
-    private LocalDateTime startTime;
+    private OffsetDateTime startTime;
 
     @Column(name = "end_time")
-    private LocalDateTime endTime;
+    private OffsetDateTime endTime;
 
     @Column(name = "total_questions", nullable = false)
     private int totalQuestions;
@@ -93,5 +94,5 @@ public class QuizAttempt {
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 }

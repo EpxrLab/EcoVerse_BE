@@ -1,0 +1,36 @@
+@startuml class_parent_confirm_school_reward
+title Class Diagram - PUT /api/rewards/requests/{id}/confirm (Phụ huynh xác nhận nhận quà School)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class RewardRequestController {
+        - rewardRequestService : IRewardRequestService
+        + confirmReceived(requestId: UUID) : ResponseEntity<ResponseDto<RewardRequestResponse>>
+    }
+}
+
+package "service" {
+    interface IRewardRequestService {
+        + confirmReceived(requestId: UUID) : RewardRequestResponse
+    }
+
+    class RewardRequestServiceImpl implements IRewardRequestService {
+        - rewardRequestRepository : RewardRequestRepository
+        - parentRepository : ParentRepository
+        - studentParentLinkRepository : StudentParentLinkRepository
+        + confirmReceived(requestId: UUID) : RewardRequestResponse
+    }
+}
+
+package "entity" {
+    class RewardRequest extends BaseEntity {
+        - status : RewardRequestStatus
+        - confirmedAt : LocalDateTime
+        - confirmedByParent : Parent
+    }
+}
+
+RewardRequestController --> IRewardRequestService : uses
+
+@enduml

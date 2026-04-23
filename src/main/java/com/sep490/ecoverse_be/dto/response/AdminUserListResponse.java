@@ -4,7 +4,8 @@ import com.sep490.ecoverse_be.enums.AccountStatus;
 import com.sep490.ecoverse_be.enums.Role;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Getter
@@ -20,6 +21,6 @@ public class AdminUserListResponse {
     private Role role;
     private AccountStatus status;
     private Boolean isActive;
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
     private AdminUserDetail detail;
 }

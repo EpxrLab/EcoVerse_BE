@@ -1,0 +1,136 @@
+@startuml class_verify_register_school
+title Class Diagram - POST /api/auth/verify-register/school (Đăng ký Trường học)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class AuthenticationController {
+        - authenticationService : IAuthenticationService
+        + verifyRegisterSchool(request: VerifyRegisterSchoolRequest) : ResponseEntity<ResponseDto<UserResponse>>
+    }
+}
+
+package "service" {
+    interface IAuthenticationService {
+        + verifyRegisterSchool(request: VerifyRegisterSchoolRequest) : UserResponse
+    }
+
+    class AuthenticationServiceImpl implements IAuthenticationService {
+        - userRepository : UserRepository
+        - schoolRepository : SchoolRepository
+        - otpService : IOtpService
+        - passwordEncoder : BCryptPasswordEncoder
+        - modelMapper : ModelMapper
+        + verifyRegisterSchool(request: VerifyRegisterSchoolRequest) : UserResponse
+        - buildUser(email: String, password: String, role: Role) : User
+    }
+
+    interface IOtpService {
+        + isEmailVerified(email: String) : boolean
+        + clearVerified(email: String) : void
+    }
+}
+
+package "dto.request" {
+    class VerifyRegisterSchoolRequest {
+        - schoolName : String <<@NotBlank>>
+        - contactEmail : String <<@NotBlank @Email>>
+        - phoneNumber : String <<@NotBlank @Pattern>>
+        - province : String <<@NotBlank>>
+        - ward : String <<@NotBlank>>
+        - streetAddress : String <<@NotBlank>>
+        - principalName : String <<@NotBlank>>
+        - position : String <<@NotBlank>>
+        - taxCode : String <<@NotBlank>>
+        - linkWeb : String
+        - description : String
+        - schoolType : SchoolType <<@NotNull>>
+        - password : String <<@NotBlank @Size @Pattern>>
+        - logoUrl : String <<@NotBlank>>
+        - licenseUrl : String <<@NotBlank>>
+    }
+}
+
+package "dto.response" {
+    class ResponseDto<T> {
+        - status : int
+        - message : String
+        - data : T
+    }
+
+    class UserResponse {
+        - id : UUID
+        - email : String
+        - role : Role
+    }
+}
+
+package "entity" {
+    abstract class BaseEntity {
+        - id : UUID
+        - createdAt : LocalDateTime
+        - updatedAt : LocalDateTime
+    }
+
+    class User extends BaseEntity {
+        - email : String
+        - passwordHash : String
+        - role : Role
+        - status : AccountStatus
+    }
+
+    class School extends BaseEntity {
+        - user : User
+        - schoolName : String
+        - contactEmail : String
+        - phoneNumber : String
+        - province : String
+        - ward : String
+        - address : String
+        - principalName : String
+        - taxCode : String
+        - schoolType : SchoolType
+        - approvalStatus : ApprovalStatus
+        - logoUrl : String
+        - licenseUrl : String
+    }
+}
+
+package "repository" {
+    interface UserRepository extends JpaRepository {
+        + save(user: User) : User
+    }
+
+    interface SchoolRepository extends JpaRepository {
+        + save(school: School) : School
+    }
+}
+
+package "exception" {
+    class DuplicateEntity extends RuntimeException
+}
+
+package "enums" {
+    enum Role {
+        PARTNERSHIP_SCHOOL
+        THIRD_PARTY_PARTNERSHIP
+        STUDENT
+        PARENT
+        ADMINISTRATOR
+    }
+
+    enum ApprovalStatus {
+        PENDING
+        APPROVED
+        REJECTED
+    }
+}
+
+AuthenticationController --> IAuthenticationService : uses
+AuthenticationServiceImpl --> UserRepository : uses
+AuthenticationServiceImpl --> SchoolRepository : uses
+AuthenticationServiceImpl --> IOtpService : uses
+School --> User : user
+School ..> ApprovalStatus : approvalStatus = PENDING
+
+@enduml

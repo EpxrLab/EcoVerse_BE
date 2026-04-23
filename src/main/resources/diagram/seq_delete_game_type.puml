@@ -1,0 +1,70 @@
+@startuml seq_delete_game_type
+title Sequence Diagram - DELETE /api/admin/game-types/{id} (Delete Game Type)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "AdminController" as ctrl
+participant "IAdminService\n(AdminServiceImpl)" as svc
+participant "GameTypeRepository" as gtRepo
+participant "SecurityContextHolder" as sec
+database "Database" as db
+
+admin -> ui : Open page List of Game Type
+activate ui
+ui -> ui : Display List of Game Type\nwith button "Xóa" for each item
+
+admin -> ui : Click button "Xóa" trên Game Type needs to delete
+ui -> ui : Display confirmation dialog\n"Bạn có chắc muốn xóa game type này?"
+
+admin -> ui : Click "Xác nhận xóa"
+
+ui -> ctrl : DELETE /api/admin/game-types/{id}
+activate ctrl
+
+ctrl -> svc : deleteGameType(id)
+activate svc
+
+note over svc : getActiveGameTypeOrThrow(id)
+svc -> gtRepo : findByIdAndIsDeleteFalse(id)
+activate gtRepo
+gtRepo -> db : SELECT FROM game_types\nWHERE id=? AND is_delete=false
+db --> gtRepo : result
+gtRepo --> svc : Optional<GameType>
+deactivate gtRepo
+
+alt GameType not found
+ svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
+ ctrl --> ui : 404 Not Found
+ ui -> ui : Display thông Report error\n"Không tìm thấy game type"
+ ui --> admin : Display error
+end
+
+svc -> svc : gameType.setActive(false)
+
+svc -> sec : getCurrentAdmin()
+activate sec
+sec --> svc : User (admin)
+deactivate sec
+
+svc -> svc : gameType.setUpdatedBy(admin)
+
+svc -> gtRepo : save(gameType)
+activate gtRepo
+gtRepo -> db : UPDATE game_types\nSET is_active=false, updated_by=?
+db --> gtRepo : updated GameType
+gtRepo --> svc : GameType
+deactivate gtRepo
+
+svc --> ctrl : void
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(null, "Xóa game type thành công")
+ctrl --> ui : 200 OK\nResponseDto<Void>
+deactivate ctrl
+
+ui -> ui : Display notification Successfully\n"Xóa game type thành công"
+ui -> ui : Delete Game Type khỏi List of Display
+ui --> admin : List of Game Type has been Update
+deactivate ui
+
+@enduml

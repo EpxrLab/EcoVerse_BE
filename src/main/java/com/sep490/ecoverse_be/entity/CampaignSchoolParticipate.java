@@ -8,7 +8,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Entity
@@ -43,9 +44,9 @@ public class CampaignSchoolParticipate {
     @Column(nullable = false)
     private int studentsEnrolled = 0;
 
-    private LocalDateTime invitationSentAt;
+    private OffsetDateTime invitationSentAt;
 
-    private LocalDateTime participationConfirmedAt;
+    private OffsetDateTime participationConfirmedAt;
 
     @Enumerated(EnumType.STRING)
     private ParticipationStatus status = ParticipationStatus.PREPARED;
@@ -55,5 +56,5 @@ public class CampaignSchoolParticipate {
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 }

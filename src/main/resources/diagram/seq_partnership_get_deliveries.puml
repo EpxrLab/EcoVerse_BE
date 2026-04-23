@@ -1,0 +1,56 @@
+@startuml seq_partnership_get_deliveries
+title Sequence Diagram - GET /api/partnership/campaigns/{campaignId}/reward-deliveries (Partnership View List of deliver reward)
+
+actor "Partnership" as user
+boundary "Partnership UI\n(Frontend)" as ui
+participant "CampaignRewardDeliveryController" as ctrl
+participant "ICampaignRewardDeliveryService\n(CampaignRewardDeliveryServiceImpl)" as svc
+participant "PartnershipRepository" as partRepo
+participant "CampaignRewardDeliveryRepository" as delRepo
+participant "S3PresignedUrlService" as s3Svc
+database "Database" as db
+
+user -> ui : Open page chiến dịch → tab "Giao quà"
+activate ui
+
+ui -> ctrl : GET /api/partnership/campaigns/{campaignId}/reward-deliveries\n?status=PREPARING
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('THIRD_PARTY_PARTNERSHIP')")
+
+ctrl -> svc : getDeliveriesByCampaign(campaignId, status)
+activate svc
+
+svc -> svc : getCurrentUser() → User
+svc -> partRepo : findByUserId(userId)
+activate partRepo
+partRepo --> svc : Partnership
+deactivate partRepo
+
+alt status != null
+ svc -> delRepo : findByCampaignIdAndStatusOrderByLeaderboardRankAsc(campaignId, status)
+else
+ svc -> delRepo : findByCampaignIdOrderByLeaderboardRankAsc(campaignId)
+end
+activate delRepo
+delRepo -> db : SELECT FROM campaign_reward_deliveries ...
+db --> delRepo : List<CampaignRewardDelivery>
+delRepo --> svc : List<CampaignRewardDelivery>
+deactivate delRepo
+
+svc -> svc : Filter: chỉ lấy deliveries\ncủa campaign thuộc partnership this
+loop for each delivery
+ svc -> s3Svc : generatePresignedUrl(rewardImageUrl)
+ svc -> svc : mapToResponse(delivery)
+end
+
+svc --> ctrl : List<CampaignRewardDeliveryResponse>
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<List<CampaignRewardDeliveryResponse>>
+deactivate ctrl
+
+ui -> ui : Render Table deliver reward\n(studentName, schoolName, rewardName,\nleaderboardRank, totalScore, status)
+ui --> user : Display List of deliver reward
+deactivate ui
+
+@enduml

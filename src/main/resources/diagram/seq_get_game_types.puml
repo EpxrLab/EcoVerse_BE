@@ -1,0 +1,53 @@
+@startuml seq_get_game_types
+title Sequence Diagram - GET /api/admin/game-types (Get All Game Types)
+
+actor "Authenticated User" as user
+boundary "Admin UI\n(Frontend)" as ui
+participant "AdminController" as ctrl
+participant "IAdminService\n(AdminServiceImpl)" as svc
+participant "GameTypeRepository" as gtRepo
+participant "S3PresignedUrlService" as s3
+database "Database" as db
+
+user -> ui : Click on menu "Quản lý Game Type"
+activate ui
+
+ui -> ctrl : GET /api/admin/game-types
+activate ctrl
+
+note over ctrl : @PreAuthorize("isAuthenticated()")
+
+ctrl -> svc : getGameTypes()
+activate svc
+
+svc -> gtRepo : findByIsDeleteFalse()
+activate gtRepo
+gtRepo -> db : SELECT * FROM game_types\nWHERE is_delete = false
+db --> gtRepo : List<GameType>
+gtRepo --> svc : List<GameType>
+deactivate gtRepo
+
+loop for each GameType in list
+ svc -> svc : mapGameType(gameType)
+ svc -> s3 : generatePresignedUrl(thumbnailUrl)
+ activate s3
+ s3 --> svc : presigned thumbnail URL
+ deactivate s3
+ svc -> s3 : generatePresignedUrl(iconUrl)
+ activate s3
+ s3 --> svc : presigned icon URL
+ deactivate s3
+end
+
+svc --> ctrl : List<AdminGameTypeResponse>
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(list, "Lấy danh sách game type thành công")
+ctrl --> ui : 200 OK\nResponseDto<List<AdminGameTypeResponse>>
+deactivate ctrl
+
+ui -> ui : Render List of Game Type\n(hiện tên, typeCode, thumbnail,\ntrạng thái, displayOrder)
+ui --> user : Display page List of Game Type
+deactivate ui
+
+@enduml

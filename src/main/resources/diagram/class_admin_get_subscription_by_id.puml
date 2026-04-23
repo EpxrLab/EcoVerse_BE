@@ -1,0 +1,58 @@
+@startuml class_admin_get_subscription_by_id
+title Class Diagram - GET /api/subscriptions/{id} (Admin - Xem chi tiết Subscription)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class SubscriptionController {
+        - subscriptionService : ISubscriptionService
+        + getSubscriptionById(id: UUID) : ResponseEntity<ResponseDto<SubscriptionResponse>>
+    }
+}
+
+package "service" {
+    interface ISubscriptionService {
+        + getSubscriptionById(subscriptionId: UUID) : SubscriptionResponse
+    }
+
+    class SubscriptionServiceImpl implements ISubscriptionService {
+        - subscriptionRepository : SubscriptionRepository
+        - paymentRepository : PaymentRepository
+        - subscriptionMapper : SubscriptionMapper
+        + getSubscriptionById(subscriptionId: UUID) : SubscriptionResponse
+        - toSubscriptionResponse(subscription: Subscription) : SubscriptionResponse
+    }
+}
+
+package "dto.response" {
+    class SubscriptionResponse <<record>> {
+        + id : UUID
+        + subscriptionCode : String
+        + subscriberType : SubscriberType
+        + subscriberName : String
+        + planId : UUID
+        + planName : String
+        + status : SubscriptionStatus
+        + startDate : LocalDateTime
+        + endDate : LocalDateTime
+        + usedStudents : Long
+        + maxStudents : Integer
+        + transactions : List<SubscriptionTransactionResponse>
+    }
+}
+
+package "repository" {
+    interface SubscriptionRepository extends JpaRepository {
+        + findById(id: UUID) : Optional<Subscription>
+    }
+
+    interface PaymentRepository extends JpaRepository {
+        + findAllBySubscriptionIdOrderByCreatedAtDesc(id: UUID) : List<Payment>
+    }
+}
+
+SubscriptionController --> ISubscriptionService : uses
+SubscriptionServiceImpl --> SubscriptionRepository : uses
+SubscriptionServiceImpl --> PaymentRepository : uses
+
+@enduml

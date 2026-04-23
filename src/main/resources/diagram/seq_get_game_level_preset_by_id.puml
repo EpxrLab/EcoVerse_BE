@@ -1,0 +1,68 @@
+@startuml seq_get_game_level_preset_by_id
+title Sequence Diagram - GET /api/admin/game-types/{gameTypeId}/presets/{presetId} (Get Game Level Preset By ID)
+
+actor "Authenticated User" as user
+boundary "Admin UI\n(Frontend)" as ui
+participant "AdminController" as ctrl
+participant "IAdminService\n(AdminServiceImpl)" as svc
+participant "GameTypeRepository" as gtRepo
+participant "GameLevelPresetRepository" as glpRepo
+database "Database" as db
+
+user -> ui : Click on một Preset in List of\nđể View Details
+activate ui
+
+ui -> ctrl : GET /api/admin/game-types/{gameTypeId}/presets/{presetId}
+activate ctrl
+
+note over ctrl : @PreAuthorize("isAuthenticated()")
+
+ctrl -> svc : getGameLevelPresetById(gameTypeId, presetId)
+activate svc
+
+note over svc : getActiveGameTypeOrThrow(gameTypeId)
+svc -> gtRepo : findByIdAndIsDeleteFalse(gameTypeId)
+activate gtRepo
+gtRepo -> db : SELECT FROM game_types\nWHERE id=? AND is_delete=false
+db --> gtRepo : result
+gtRepo --> svc : Optional<GameType>
+deactivate gtRepo
+
+alt GameType not found
+ svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
+ ctrl --> ui : 404 Not Found
+ ui -> ui : Display thông Report error
+ ui --> user : Display error
+end
+
+note over svc : getPresetOrThrow(gameTypeId, presetId)
+svc -> glpRepo : findById(presetId)
+activate glpRepo
+glpRepo -> db : SELECT FROM game_level_presets\nWHERE id=?
+db --> glpRepo : result
+glpRepo --> svc : Optional<GameLevelPreset>
+deactivate glpRepo
+
+svc -> svc : filter: preset.gameType.id == gameTypeId
+
+alt Preset not found or wrong gameType
+ svc --> ctrl : throw NotFoundException("Không tìm thấy preset")
+ ctrl --> ui : 404 Not Found
+ ui --> user : Display error
+end
+
+svc -> svc : mapGameLevelPreset(preset)
+note right : Build AdminGameLevelPresetResponse\nwith items sorted by levelNumber ASC.\nEach item includes: id, levelNumber,\nitemCount, timeLimitSeconds,\nscorePerCorrect, lives,\nwasteCategories, configJson
+
+svc --> ctrl : AdminGameLevelPresetResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response, "Lấy chi tiết preset thành công")
+ctrl --> ui : 200 OK\nResponseDto<AdminGameLevelPresetResponse>
+deactivate ctrl
+
+ui -> ui : Render Details Preset\n(difficulty, List of level items\nvới thông tin itemCount,\ntimeLimitSeconds, scorePerCorrect,\nlives, wasteCategories)
+ui --> user : Display page Details Preset
+deactivate ui
+
+@enduml

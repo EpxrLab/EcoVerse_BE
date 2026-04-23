@@ -22,7 +22,8 @@ import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
 import vn.payos.model.v2.paymentRequests.PaymentLinkItem;
 import vn.payos.model.webhooks.WebhookData;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Service
@@ -102,7 +103,7 @@ public class PaymentServiceImpl implements IPaymentService {
         } catch (Exception e) {
             log.error("Failed to create PayOS payment link", e);
             payment.setStatus(PaymentStatus.FAILED);
-            payment.setFailedAt(LocalDateTime.now());
+            payment.setFailedAt(OffsetDateTime.now());
             payment.setFailureReason("Failed to create payment link: " + e.getMessage());
             paymentRepository.save(payment);
             throw new FuncErrorException("Failed to create payment. Please try again later.");
@@ -137,7 +138,7 @@ public class PaymentServiceImpl implements IPaymentService {
             if ("00".equals(code)) {
                 // Payment successful
                 payment.setStatus(PaymentStatus.COMPLETED);
-                payment.setPaidAt(LocalDateTime.now());
+                payment.setPaidAt(OffsetDateTime.now());
                 paymentRepository.save(payment);
 
                 // Activate subscription and retire previous FREE subscription if this is an upgrade flow.
@@ -146,14 +147,14 @@ public class PaymentServiceImpl implements IPaymentService {
                 if (previousSubscription != null && previousSubscription.getStatus() == SubscriptionStatus.ACTIVE) {
                     previousSubscription.setStatus(SubscriptionStatus.CANCELLED);
                     previousSubscription.setCancellationReason("Upgraded to plan " + subscription.getPlan().getPlanName());
-                    previousSubscription.setCancelledAt(LocalDateTime.now());
-                    previousSubscription.setEndDate(LocalDateTime.now());
+                    previousSubscription.setCancelledAt(OffsetDateTime.now());
+                    previousSubscription.setEndDate(OffsetDateTime.now());
                     subscriptionRepository.save(previousSubscription);
                 }
 
                 subscription.setStatus(SubscriptionStatus.ACTIVE);
-                subscription.setStartDate(LocalDateTime.now());
-                subscription.setEndDate(LocalDateTime.now().plusDays(subscription.getPlan().getDurationDays()));
+                subscription.setStartDate(OffsetDateTime.now());
+                subscription.setEndDate(OffsetDateTime.now().plusDays(subscription.getPlan().getDurationDays()));
                 subscriptionRepository.save(subscription);
 
                 // Publish event để NotificationService xử lý bất đồng bộ qua listener
@@ -177,7 +178,7 @@ public class PaymentServiceImpl implements IPaymentService {
             } else {
                 // Payment failed/cancelled
                 payment.setStatus(PaymentStatus.FAILED);
-                payment.setFailedAt(LocalDateTime.now());
+                payment.setFailedAt(OffsetDateTime.now());
                 payment.setFailureReason("PayOS code: " + code);
                 paymentRepository.save(payment);
 
@@ -186,7 +187,7 @@ public class PaymentServiceImpl implements IPaymentService {
                 if (subscription.getStatus() == SubscriptionStatus.PENDING) {
                     subscription.setStatus(SubscriptionStatus.CANCELLED);
                     subscription.setCancellationReason("Payment failed");
-                    subscription.setCancelledAt(LocalDateTime.now());
+                    subscription.setCancelledAt(OffsetDateTime.now());
                     subscriptionRepository.save(subscription);
                 }
 
@@ -233,7 +234,7 @@ public class PaymentServiceImpl implements IPaymentService {
         }
 
         payment.setStatus(PaymentStatus.CANCELLED);
-        payment.setFailedAt(LocalDateTime.now());
+        payment.setFailedAt(OffsetDateTime.now());
         payment.setFailureReason("Người dùng hủy thanh toán");
         paymentRepository.save(payment);
 
@@ -242,7 +243,7 @@ public class PaymentServiceImpl implements IPaymentService {
         if (subscription != null && subscription.getStatus() == SubscriptionStatus.PENDING) {
             subscription.setStatus(SubscriptionStatus.CANCELLED);
             subscription.setCancellationReason("Người dùng hủy thanh toán");
-            subscription.setCancelledAt(LocalDateTime.now());
+            subscription.setCancelledAt(OffsetDateTime.now());
             subscriptionRepository.save(subscription);
             log.info("Đã hủy subscription PENDING {} do người dùng hủy thanh toán",
                     subscription.getSubscriptionCode());

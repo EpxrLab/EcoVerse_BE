@@ -13,7 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -63,7 +64,7 @@ public class ReportServiceImpl implements IReportService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy đối tác"));
     }
 
-    private LocalDateTime[] resolveRange(ReportPeriod period, LocalDateTime from, LocalDateTime to) {
+    private OffsetDateTime[] resolveRange(ReportPeriod period, OffsetDateTime from, OffsetDateTime to) {
         return ReportPeriod.resolveDateRange(period, from, to);
     }
 
@@ -82,12 +83,12 @@ public class ReportServiceImpl implements IReportService {
     // ── Student ───────────────────────────────────────────────────────────────
 
     @Override
-    public StudentReportSummaryResponse getStudentSummary(UUID userId, ReportPeriod period, LocalDateTime fromDate, LocalDateTime toDate) {
+    public StudentReportSummaryResponse getStudentSummary(UUID userId, ReportPeriod period, OffsetDateTime fromDate, OffsetDateTime toDate) {
         Student student = requireStudent(userId);
         UUID studentId = student.getId();
-        LocalDateTime[] range = resolveRange(period, fromDate, toDate);
-        LocalDateTime from = range[0];
-        LocalDateTime to = range[1];
+        OffsetDateTime[] range = resolveRange(period, fromDate, toDate);
+        OffsetDateTime from = range[0];
+        OffsetDateTime to = range[1];
 
         List<TransactionType> earnTypes = List.of(TransactionType.EARN_GAME, TransactionType.EARN_QUIZ, TransactionType.EARN_TITLE);
         List<TransactionType> spendTypes = List.of(TransactionType.SPEND_REWARD);
@@ -139,12 +140,12 @@ public class ReportServiceImpl implements IReportService {
     }
 
     @Override
-    public StudentPerformanceResponse getStudentPerformance(UUID userId, ReportPeriod period, LocalDateTime fromDate, LocalDateTime toDate) {
+    public StudentPerformanceResponse getStudentPerformance(UUID userId, ReportPeriod period, OffsetDateTime fromDate, OffsetDateTime toDate) {
         Student student = requireStudent(userId);
         UUID studentId = student.getId();
-        LocalDateTime[] range = resolveRange(period, fromDate, toDate);
-        LocalDateTime from = range[0];
-        LocalDateTime to = range[1];
+        OffsetDateTime[] range = resolveRange(period, fromDate, toDate);
+        OffsetDateTime from = range[0];
+        OffsetDateTime to = range[1];
 
         long totalGames = gameSessionRepository.countCompletedByStudentId(studentId);
         Double avgGameAcc = gameSessionRepository.avgAccuracyByStudentId(studentId);
@@ -220,12 +221,12 @@ public class ReportServiceImpl implements IReportService {
     }
 
     @Override
-    public StudentCoinReportResponse getStudentCoinReport(UUID userId, ReportPeriod period, LocalDateTime fromDate, LocalDateTime toDate) {
+    public StudentCoinReportResponse getStudentCoinReport(UUID userId, ReportPeriod period, OffsetDateTime fromDate, OffsetDateTime toDate) {
         Student student = requireStudent(userId);
         UUID studentId = student.getId();
-        LocalDateTime[] range = resolveRange(period, fromDate, toDate);
-        LocalDateTime from = range[0];
-        LocalDateTime to = range[1];
+        OffsetDateTime[] range = resolveRange(period, fromDate, toDate);
+        OffsetDateTime from = range[0];
+        OffsetDateTime to = range[1];
 
         List<TransactionType> earnTypes = List.of(TransactionType.EARN_GAME, TransactionType.EARN_QUIZ, TransactionType.EARN_TITLE);
         List<TransactionType> spendTypes = List.of(TransactionType.SPEND_REWARD);
@@ -264,12 +265,12 @@ public class ReportServiceImpl implements IReportService {
     // ── School ────────────────────────────────────────────────────────────────
 
     @Override
-    public SchoolReportSummaryResponse getSchoolSummary(UUID userId, ReportPeriod period, LocalDateTime fromDate, LocalDateTime toDate) {
+    public SchoolReportSummaryResponse getSchoolSummary(UUID userId, ReportPeriod period, OffsetDateTime fromDate, OffsetDateTime toDate) {
         School school = requireSchool(userId);
         UUID schoolId = school.getId();
-        LocalDateTime[] range = resolveRange(period, fromDate, toDate);
-        LocalDateTime from = range[0];
-        LocalDateTime to = range[1];
+        OffsetDateTime[] range = resolveRange(period, fromDate, toDate);
+        OffsetDateTime from = range[0];
+        OffsetDateTime to = range[1];
 
         long totalStudents = studentRepository.countBySchoolId(schoolId);
 
@@ -414,12 +415,12 @@ public class ReportServiceImpl implements IReportService {
     // ── Partnership ───────────────────────────────────────────────────────────
 
     @Override
-    public PartnershipReportSummaryResponse getPartnershipSummary(UUID userId, ReportPeriod period, LocalDateTime fromDate, LocalDateTime toDate) {
+    public PartnershipReportSummaryResponse getPartnershipSummary(UUID userId, ReportPeriod period, OffsetDateTime fromDate, OffsetDateTime toDate) {
         Partnership partnership = requirePartnership(userId);
         UUID partnershipId = partnership.getId();
-        LocalDateTime[] range = resolveRange(period, fromDate, toDate);
-        LocalDateTime from = range[0];
-        LocalDateTime to = range[1];
+        OffsetDateTime[] range = resolveRange(period, fromDate, toDate);
+        OffsetDateTime from = range[0];
+        OffsetDateTime to = range[1];
 
         long totalCreated = campaignRepository.countByCreatorPartnershipId(partnershipId);
         long activeCampaigns = campaignRepository.countByCreatorPartnershipIdAndPartnershipStatusIn(partnershipId,
@@ -506,10 +507,10 @@ public class ReportServiceImpl implements IReportService {
     // ── Admin ─────────────────────────────────────────────────────────────────
 
     @Override
-    public AdminReportSummaryResponse getAdminSummary(ReportPeriod period, LocalDateTime fromDate, LocalDateTime toDate) {
-        LocalDateTime[] range = resolveRange(period, fromDate, toDate);
-        LocalDateTime from = range[0];
-        LocalDateTime to = range[1];
+    public AdminReportSummaryResponse getAdminSummary(ReportPeriod period, OffsetDateTime fromDate, OffsetDateTime toDate) {
+        OffsetDateTime[] range = resolveRange(period, fromDate, toDate);
+        OffsetDateTime from = range[0];
+        OffsetDateTime to = range[1];
 
         long totalStudents = userRepository.countByRole(Role.STUDENT);
         long totalParents = userRepository.countByRole(Role.PARENT);
@@ -557,10 +558,10 @@ public class ReportServiceImpl implements IReportService {
     }
 
     @Override
-    public AdminRevenueReportResponse getAdminRevenue(ReportPeriod period, LocalDateTime fromDate, LocalDateTime toDate) {
-        LocalDateTime[] range = resolveRange(period, fromDate, toDate);
-        LocalDateTime from = range[0];
-        LocalDateTime to = range[1];
+    public AdminRevenueReportResponse getAdminRevenue(ReportPeriod period, OffsetDateTime fromDate, OffsetDateTime toDate) {
+        OffsetDateTime[] range = resolveRange(period, fromDate, toDate);
+        OffsetDateTime from = range[0];
+        OffsetDateTime to = range[1];
 
         BigDecimal totalAll = safeBigDecimal(paymentRepository.sumAmountByStatus(PaymentStatus.COMPLETED));
         BigDecimal totalInPeriod = safeBigDecimal(paymentRepository.sumAmountByStatusAndDateRange(PaymentStatus.COMPLETED, from, to));
@@ -591,7 +592,7 @@ public class ReportServiceImpl implements IReportService {
     }
 
     private List<MonthlyRevenueTrendDto> buildMonthlyTrend() {
-        LocalDateTime twelveMonthsAgo = LocalDateTime.now().minusMonths(12).withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
+        OffsetDateTime twelveMonthsAgo = OffsetDateTime.now().minusMonths(12).withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
         List<Object[]> rows = paymentRepository.findMonthlyRevenueTrend(twelveMonthsAgo);
         List<MonthlyRevenueTrendDto> result = new ArrayList<>();
         for (Object[] row : rows) {

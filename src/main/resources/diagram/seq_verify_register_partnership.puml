@@ -1,0 +1,79 @@
+@startuml seq_verify_register_partnership
+title Sequence Diagram - POST /api/auth/verify-register/partnership (Register Partnership)
+
+actor "Người dùng\n(Đối tác)" as user
+boundary "Registration UI\n(Frontend)" as ui
+participant "AuthenticationController" as ctrl
+participant "IAuthenticationService\n(AuthenticationServiceImpl)" as svc
+participant "IOtpService" as otpSvc
+participant "UserRepository" as userRepo
+participant "PartnershipRepository" as partRepo
+participant "BCryptPasswordEncoder" as encoder
+database "Database" as db
+
+user -> ui : Fill details đối tác\n(organizationName, contactEmail, phoneNumber,\nprovince, ward, streetAddress,\ncontactPerson, position, taxCode,\npartnershipType, password, logoUrl, licenseUrl)
+activate ui
+
+user -> ui : Click "Đăng ký"
+ui -> ui : Validate form client side
+
+ui -> ctrl : POST /api/auth/verify-register/partnership\n@RequestBody VerifyRegisterPartnershipRequest
+activate ctrl
+ctrl -> ctrl : @Valid validate request
+
+ctrl -> svc : verifyRegisterPartnership(request)
+activate svc
+
+svc -> otpSvc : isEmailVerified(contactEmail)
+activate otpSvc
+otpSvc --> svc : boolean
+deactivate otpSvc
+
+alt email not yet verified OTP
+ svc --> ctrl : throw IllegalArgumentException\n("Email chưa được xác thực OTP")
+ ctrl --> ui : 400 Bad Request
+ ui --> user : Display error
+end
+
+note over svc : buildUser(contactEmail, password, THIRD_PARTY_PARTNERSHIP)
+svc -> encoder : encode(password)
+activate encoder
+encoder --> svc : passwordHash
+deactivate encoder
+
+svc -> userRepo : save(newUser)
+activate userRepo
+userRepo -> db : INSERT INTO users ...
+db --> userRepo : User
+userRepo --> svc : User
+deactivate userRepo
+
+svc -> svc : new Partnership()
+svc -> svc : partnership.setUser(newUser)\npartnership.set(organizationName,\ncontactEmail, province, ward,\nregisteredAddress, phoneNumber,\ncontactPerson, taxCode,\npartnershipType, logoUrl, licenseUrl, ...)
+
+svc -> partRepo : save(partnership)
+activate partRepo
+partRepo -> db : INSERT INTO partnerships ...
+db --> partRepo : Partnership
+partRepo --> svc : Partnership
+deactivate partRepo
+
+svc -> otpSvc : clearVerified(contactEmail)
+activate otpSvc
+otpSvc --> svc : void
+deactivate otpSvc
+
+svc -> svc : modelMapper.map(newUser, UserResponse)
+
+svc --> ctrl : UserResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(userResponse,\n"Đăng ký thành công, chờ hệ thống xét duyệt")
+ctrl --> ui : 200 OK\nResponseDto<UserResponse>
+deactivate ctrl
+
+ui -> ui : Display notification Successfully\n"Đăng ký thành công!\nTài khoản đang chờ Admin xét duyệt"
+ui --> user : Navigate to page login
+deactivate ui
+
+@enduml

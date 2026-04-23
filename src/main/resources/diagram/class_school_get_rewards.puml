@@ -1,0 +1,36 @@
+@startuml class_school_get_rewards
+title Class Diagram - GET /api/school/rewards (Lấy danh sách quà của trường)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class RewardController {
+        - rewardService : IRewardService
+        + getMyRewards(rewardType: RewardType) : ResponseEntity<ResponseDto<List<RewardResponse>>>
+    }
+}
+
+package "service" {
+    interface IRewardService {
+        + getRewardsForSchool(rewardType: RewardType) : List<RewardResponse>
+    }
+
+    class RewardServiceImpl implements IRewardService {
+        - rewardRepository : RewardRepository
+        - schoolRepository : SchoolRepository
+        - s3PresignedUrlService : S3PresignedUrlService
+        + getRewardsForSchool(rewardType: RewardType) : List<RewardResponse>
+    }
+}
+
+package "repository" {
+    interface RewardRepository extends JpaRepository {
+        + findBySchoolIdAndRewardTypeAndIsDeleteFalseOrderByCreatedAtDesc(schoolId: UUID, rewardType: RewardType) : List<Reward>
+        + findBySchoolIdAndIsDeleteFalseOrderByCreatedAtDesc(schoolId: UUID) : List<Reward>
+    }
+}
+
+RewardController --> IRewardService : uses
+RewardServiceImpl --> RewardRepository : uses
+
+@enduml

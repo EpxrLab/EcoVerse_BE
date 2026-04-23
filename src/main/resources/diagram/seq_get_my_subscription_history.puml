@@ -1,0 +1,67 @@
+@startuml seq_get_my_subscription_history
+title Sequence Diagram - GET /api/subscriptions/my/history (History Subscription plan)
+
+actor "School/Partnership" as user
+boundary "Subscription UI\n(Frontend)" as ui
+participant "SubscriptionController" as ctrl
+participant "ISubscriptionService\n(SubscriptionServiceImpl)" as svc
+participant "UserRepository" as userRepo
+participant "SchoolRepository" as schoolRepo
+participant "PartnershipRepository" as partRepo
+participant "SubscriptionRepository" as subRepo
+participant "PaymentRepository" as payRepo
+participant "SubscriptionMapper" as mapper
+database "Database" as db
+
+user -> ui : Open page "Lịch sử gói đăng ký"
+activate ui
+
+ui -> ctrl : GET /api/subscriptions/my/history\n?status=&keyword=&page=0&size=10
+activate ctrl
+note over ctrl : @PreAuthorize("hasAnyAuthority(\n'PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
+
+ctrl -> svc : getMySubscriptionHistory(userId, status, keyword, pageable)
+activate svc
+
+svc -> userRepo : findById(userId)
+activate userRepo
+userRepo --> svc : User
+deactivate userRepo
+
+svc -> svc : resolveSubscriberType(user)
+
+svc -> svc : Build Specification<Subscription>\n(filter by school/partnership, status, keyword)
+
+svc -> subRepo : findAll(spec, pageable)
+activate subRepo
+subRepo -> db : SELECT * FROM subscriptions\nWHERE conditions\nORDER BY created_at DESC
+db --> subRepo : Page<Subscription>
+subRepo --> svc : Page<Subscription>
+deactivate subRepo
+
+svc -> payRepo : findAllBySubscriptionIdInOrderByCreatedAtDesc(ids)
+activate payRepo
+payRepo --> svc : List<Payment>
+deactivate payRepo
+
+svc -> svc : Build transactionMap\n(subscriptionId → List<TransactionResponse>)
+
+loop for each Subscription in page
+ svc -> mapper : toResponse(subscription, transactions, null, null, null)
+ activate mapper
+ mapper --> svc : SubscriptionResponse
+ deactivate mapper
+end
+
+svc --> ctrl : PageResponse<SubscriptionResponse>
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response,\n"Subscription history retrieved.")
+ctrl --> ui : 200 OK\nResponseDto<PageResponse<SubscriptionResponse>>
+deactivate ctrl
+
+ui -> ui : Render List of History gói\n(subscriptionCode, planName,\nstatus, startDate, endDate, ...)
+ui --> user : Display History Subscription plan
+deactivate ui
+
+@enduml

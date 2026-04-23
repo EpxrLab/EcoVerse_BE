@@ -4,7 +4,8 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -13,7 +14,7 @@ import java.util.UUID;
 public class ExtendInvitingRequest {
 
     @NotNull
-    private LocalDateTime newInviteEndAt;
+    private OffsetDateTime newInviteEndAt;
 
     private List<UUID> additionalStudentIds;
 

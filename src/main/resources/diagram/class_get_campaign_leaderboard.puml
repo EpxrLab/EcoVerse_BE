@@ -1,0 +1,93 @@
+@startuml class_get_campaign_leaderboard
+title Class Diagram - GET .../campaigns/{id}/leaderboard (Get Campaign Leaderboard)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class StudentCampaignController {
+        - campaignService : ICampaignService
+        + getCampaignLeaderboard(campaignId: UUID) : ResponseEntity<ResponseDto<List<LeaderboardEntryResponse>>>
+    }
+
+    class SchoolCampaignController {
+        - campaignService : ICampaignService
+        + getCampaignLeaderboard(id: UUID) : ResponseEntity<ResponseDto<List<LeaderboardEntryResponse>>>
+    }
+
+    class PartnershipCampaignController {
+        - campaignService : ICampaignService
+        + getCampaignLeaderboard(id: UUID) : ResponseEntity<ResponseDto<List<LeaderboardEntryResponse>>>
+    }
+}
+
+package "service" {
+    interface ICampaignService {
+        + getCampaignLeaderboard(campaignId: UUID) : List<LeaderboardEntryResponse>
+    }
+
+    class CampaignServiceImpl implements ICampaignService {
+        - campaignRepository : CampaignRepository
+        - roundLeaderboardRepository : RoundLeaderboardRepository
+        - schoolLeaderboardRepository : SchoolLeaderboardRepository
+        - campaignRoundRepository : CampaignRoundRepository
+        + getCampaignLeaderboard(campaignId: UUID) : List<LeaderboardEntryResponse>
+        - mapRoundLeaderboard(entries: List<RoundLeaderboard>) : List<LeaderboardEntryResponse>
+        - resolvePartnershipDefaultRound(campaign: Campaign) : Optional<CampaignRound>
+        - shouldUseCurrentRoundLeaderboardForRole(role: Role) : boolean
+    }
+}
+
+package "dto.response" {
+    class LeaderboardEntryResponse <<record>> {
+        - studentId : UUID
+        - studentName : String
+        - schoolId : UUID
+        - schoolName : String
+        - combinedAccuracyPercentage : BigDecimal
+        - avgTimeSeconds : BigDecimal
+        - rank : Integer
+        - totalCoinsEarned : Integer
+    }
+}
+
+package "entity" {
+    class SchoolLeaderboard {
+        - campaign : Campaign
+        - student : Student
+        - school : School
+        - combinedAccuracyPercentage : BigDecimal
+        - avgTimeSeconds : BigDecimal
+        - overallRank : Integer
+        - totalCoinsEarned : Integer
+    }
+
+    class RoundLeaderboard {
+        - campaign : Campaign
+        - campaignRound : CampaignRound
+        - student : Student
+        - school : School
+        - combinedAccuracyPercentage : BigDecimal
+        - avgTimeSeconds : BigDecimal
+        - overallRankInRound : Integer
+        - totalCoinsEarned : Integer
+    }
+}
+
+package "enums" {
+    enum CampaignType {
+        SCHOOL_INTERNAL
+        PARTNERSHIP_EVENT
+    }
+}
+
+note bottom of CampaignServiceImpl
+  SCHOOL_INTERNAL -> SchoolLeaderboard
+  PARTNERSHIP_EVENT -> RoundLeaderboard
+  (current/latest round)
+end note
+
+StudentCampaignController --> ICampaignService : uses
+SchoolCampaignController --> ICampaignService : uses
+PartnershipCampaignController --> ICampaignService : uses
+
+@enduml

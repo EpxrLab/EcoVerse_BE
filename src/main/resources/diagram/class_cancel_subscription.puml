@@ -1,0 +1,64 @@
+@startuml class_cancel_subscription
+title Class Diagram - PATCH /api/subscriptions/{id}/cancel (Hủy Gói đăng ký)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class SubscriptionController {
+        - subscriptionService : ISubscriptionService
+        + cancelSubscription(id: UUID, reason: String, principal: UserPrincipal) : ResponseEntity<ResponseDto<SubscriptionResponse>>
+    }
+}
+
+package "service" {
+    interface ISubscriptionService {
+        + cancelSubscription(subscriptionId: UUID, reason: String, userId: UUID) : SubscriptionResponse
+    }
+
+    class SubscriptionServiceImpl implements ISubscriptionService {
+        - subscriptionRepository : SubscriptionRepository
+        + cancelSubscription(subscriptionId: UUID, reason: String, userId: UUID) : SubscriptionResponse
+        - verifyOwnership(subscription: Subscription, userId: UUID) : void
+        - toSubscriptionResponse(subscription: Subscription) : SubscriptionResponse
+    }
+}
+
+package "dto.response" {
+    class SubscriptionResponse <<record>> {
+        + id : UUID
+        + subscriptionCode : String
+        + status : SubscriptionStatus
+        + cancellationReason : String
+        + cancelledAt : LocalDateTime
+    }
+}
+
+package "entity" {
+    class Subscription {
+        - id : UUID
+        - status : SubscriptionStatus
+        - cancellationReason : String
+        - cancelledAt : LocalDateTime
+        - school : School
+        - partnership : Partnership
+    }
+}
+
+package "repository" {
+    interface SubscriptionRepository extends JpaRepository {
+        + findById(id: UUID) : Optional<Subscription>
+        + save(sub: Subscription) : Subscription
+    }
+}
+
+package "exception" {
+    class FuncErrorException extends RuntimeException
+    class ResourceNotFoundException extends RuntimeException
+}
+
+SubscriptionController --> ISubscriptionService : uses
+SubscriptionServiceImpl --> SubscriptionRepository : uses
+SubscriptionServiceImpl ..> FuncErrorException : throws
+SubscriptionServiceImpl ..> ResourceNotFoundException : throws
+
+@enduml

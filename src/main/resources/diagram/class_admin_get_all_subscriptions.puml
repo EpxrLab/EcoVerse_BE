@@ -1,0 +1,120 @@
+@startuml class_admin_get_all_subscriptions
+title Class Diagram - GET /api/subscriptions/admin/all (Admin - Danh sách tất cả Subscriptions)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class SubscriptionController {
+        - subscriptionService : ISubscriptionService
+        + getAllSubscriptions(subscriberType: SubscriberType, status: SubscriptionStatus, keyword: String, page: int, size: int) : ResponseEntity<ResponseDto<PageResponse<SubscriptionResponse>>>
+    }
+}
+
+package "service" {
+    interface ISubscriptionService {
+        + getAllSubscriptions(subscriberType: SubscriberType, status: SubscriptionStatus, keyword: String, pageable: Pageable) : PageResponse<SubscriptionResponse>
+    }
+
+    class SubscriptionServiceImpl implements ISubscriptionService {
+        - subscriptionRepository : SubscriptionRepository
+        - paymentRepository : PaymentRepository
+        - subscriptionMapper : SubscriptionMapper
+        + getAllSubscriptions(...) : PageResponse<SubscriptionResponse>
+        - toSubscriptionPageResponse(page: Page<Subscription>) : PageResponse<SubscriptionResponse>
+        - getTransactionMap(subscriptions: List<Subscription>) : Map<UUID, List<SubscriptionTransactionResponse>>
+    }
+}
+
+package "dto.response" {
+    class PageResponse<T> {
+        - content : List<T>
+        - page : int
+        - size : int
+        - totalElements : long
+        - totalPages : int
+        - last : boolean
+    }
+
+    class SubscriptionResponse <<record>> {
+        + id : UUID
+        + subscriptionCode : String
+        + subscriberType : SubscriberType
+        + subscriberName : String
+        + planId : UUID
+        + planCode : String
+        + planName : String
+        + status : SubscriptionStatus
+        + startDate : LocalDateTime
+        + endDate : LocalDateTime
+        + transactions : List<SubscriptionTransactionResponse>
+    }
+
+    class SubscriptionTransactionResponse {
+        + paymentCode : String
+        + amount : BigDecimal
+        + status : PaymentStatus
+        + paidAt : LocalDateTime
+    }
+}
+
+package "entity" {
+    class Subscription {
+        - id : UUID
+        - subscriptionCode : String
+        - subscriberType : SubscriberType
+        - plan : SubscriptionPlan
+        - school : School
+        - partnership : Partnership
+        - status : SubscriptionStatus
+        - startDate : LocalDateTime
+        - endDate : LocalDateTime
+    }
+
+    class SubscriptionPlan {
+        - id : UUID
+        - planCode : String
+        - planName : String
+    }
+
+    class Payment {
+        - id : UUID
+        - paymentCode : String
+        - amount : BigDecimal
+        - status : PaymentStatus
+        - paidAt : LocalDateTime
+        - subscription : Subscription
+    }
+}
+
+package "repository" {
+    interface SubscriptionRepository extends JpaRepository {
+        + findAll(spec: Specification, pageable: Pageable) : Page<Subscription>
+    }
+
+    interface PaymentRepository extends JpaRepository {
+        + findAllBySubscriptionIdInOrderByCreatedAtDesc(ids: List<UUID>) : List<Payment>
+    }
+}
+
+package "enums" {
+    enum SubscriberType {
+        SCHOOL
+        PARTNERSHIP
+    }
+
+    enum SubscriptionStatus {
+        ACTIVE
+        PENDING_RENEWAL
+        EXPIRED
+        CANCELLED
+    }
+}
+
+SubscriptionController --> ISubscriptionService : uses
+SubscriptionServiceImpl --> SubscriptionRepository : uses
+SubscriptionServiceImpl --> PaymentRepository : uses
+Subscription --> SubscriptionPlan : plan
+Payment --> Subscription : subscription
+SubscriptionResponse "1" *-- "0..*" SubscriptionTransactionResponse : transactions
+
+@enduml

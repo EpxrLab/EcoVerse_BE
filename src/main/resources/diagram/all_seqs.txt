@@ -1,0 +1,3874 @@
+﻿
+=== seq_activate_pending_subscription.puml ===
+@startuml seq_activate_pending_subscription
+title Sequence Diagram - PATCH /api/subscriptions/{id}/activate (KÃ­ch hoáº¡t GÃ³i chá»)
+
+actor "School/Partnership" as user
+boundary "Subscription UI\n(Frontend)" as ui
+participant "SubscriptionController" as ctrl
+participant "ISubscriptionService\n(SubscriptionServiceImpl)" as svc
+participant "SubscriptionRepository" as subRepo
+participant "SubscriptionMapper" as mapper
+database "Database" as db
+
+user -> ui : Xem gÃ³i Ä‘Äƒng kÃ½ tráº¡ng thÃ¡i PENDING_RENEWAL
+activate ui
+
+user -> ui : Nháº¥n "KÃ­ch hoáº¡t gÃ³i"
+
+ui -> ctrl : PATCH /api/subscriptions/{id}/activate
+activate ctrl
+note over ctrl : @PreAuthorize("hasAnyAuthority(\n'PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
+
+ctrl -> svc : activatePendingSubscription(id, userId)
+activate svc
+
+svc -> subRepo : findById(id)
+activate subRepo
+subRepo -> db : SELECT FROM subscriptions WHERE id=?
+db --> subRepo : result
+subRepo --> svc : Optional<Subscription>
+deactivate subRepo
+
+alt subscription not found
+    svc --> ctrl : throw ResourceNotFoundException
+    ctrl --> ui : 404 Not Found
+    ui --> user : Hiá»ƒn thá»‹ lá»—i
+end
+
+alt status != PENDING_RENEWAL
+    svc --> ctrl : throw FuncErrorException\n("Only pending renewal subscriptions can be activated.")
+    ctrl --> ui : 400 Bad Request
+    ui --> user : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> svc : verifyOwnership(subscription, userId)
+
+note over svc : retirePreviousActiveSubscription
+svc -> svc : Náº¿u cÃ³ gÃ³i active trÆ°á»›c Ä‘Ã³\nâ†’ set CANCELLED, lÃ½ do "Upgraded to..."
+
+svc -> svc : subscription.setStatus(ACTIVE)\nsubscription.setStartDate(now)\nsubscription.setEndDate(now + durationDays)
+
+svc -> subRepo : save(subscription)
+activate subRepo
+subRepo -> db : UPDATE subscriptions SET status=ACTIVE, ...
+db --> subRepo : updated
+subRepo --> svc : Subscription
+deactivate subRepo
+
+svc -> svc : toSubscriptionResponse(subscription)
+
+svc --> ctrl : SubscriptionResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response,\n"Subscription activated.")
+ctrl --> ui : 200 OK\nResponseDto<SubscriptionResponse>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ "GÃ³i Ä‘Äƒng kÃ½ Ä‘Ã£ Ä‘Æ°á»£c kÃ­ch hoáº¡t!"
+ui -> ui : Cáº­p nháº­t tráº¡ng thÃ¡i gÃ³i
+ui --> user : Hiá»ƒn thá»‹ gÃ³i Ä‘ang hoáº¡t Ä‘á»™ng
+deactivate ui
+
+@enduml
+
+=== seq_admin_get_all_subscriptions.puml ===
+@startuml seq_admin_get_all_subscriptions
+title Sequence Diagram - GET /api/subscriptions/admin/all (Admin - Danh sÃ¡ch táº¥t cáº£ Subscriptions)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "SubscriptionController" as ctrl
+participant "ISubscriptionService\n(SubscriptionServiceImpl)" as svc
+participant "SubscriptionRepository" as subRepo
+participant "PaymentRepository" as payRepo
+participant "SubscriptionMapper" as mapper
+database "Database" as db
+
+admin -> ui : Má»Ÿ trang quáº£n lÃ½ Subscriptions
+activate ui
+ui -> ui : Hiá»ƒn thá»‹ filter\n(subscriberType, status, keyword)
+
+ui -> ctrl : GET /api/subscriptions/admin/all\n?subscriberType=SCHOOL&status=ACTIVE\n&keyword=&page=0&size=10
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('ADMINISTRATOR')")
+
+ctrl -> svc : getAllSubscriptions(subscriberType, status, keyword, pageable)
+activate svc
+
+svc -> svc : Build Specification<Subscription>\n(filter by subscriberType, status, keyword)
+
+svc -> subRepo : findAll(spec, pageable)
+activate subRepo
+subRepo -> db : SELECT * FROM subscriptions\nJOIN subscription_plans\nWHERE conditions\nORDER BY created_at DESC
+db --> subRepo : Page<Subscription>
+subRepo --> svc : Page<Subscription>
+deactivate subRepo
+
+svc -> payRepo : findAllBySubscriptionIdInOrderByCreatedAtDesc(ids)
+activate payRepo
+payRepo --> svc : List<Payment>
+deactivate payRepo
+
+svc -> svc : Build transactionMap
+
+loop for each Subscription in page
+    svc -> mapper : toResponse(subscription, transactions, null, null, null)
+    activate mapper
+    mapper --> svc : SubscriptionResponse
+    deactivate mapper
+end
+
+svc --> ctrl : PageResponse<SubscriptionResponse>
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response,\n"Subscriptions retrieved.")
+ctrl --> ui : 200 OK\nResponseDto<PageResponse<SubscriptionResponse>>
+deactivate ctrl
+
+ui -> ui : Render báº£ng danh sÃ¡ch subscriptions\n(code, subscriber, plan, status,\nstartDate, endDate)
+ui --> admin : Hiá»ƒn thá»‹ danh sÃ¡ch subscriptions
+deactivate ui
+
+@enduml
+
+=== seq_admin_get_subscription_by_id.puml ===
+@startuml seq_admin_get_subscription_by_id
+title Sequence Diagram - GET /api/subscriptions/{id} (Admin - Xem chi tiáº¿t Subscription)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "SubscriptionController" as ctrl
+participant "ISubscriptionService\n(SubscriptionServiceImpl)" as svc
+participant "SubscriptionRepository" as subRepo
+participant "PaymentRepository" as payRepo
+participant "SubscriptionMapper" as mapper
+database "Database" as db
+
+admin -> ui : Nháº¥n vÃ o má»™t subscription trong danh sÃ¡ch
+activate ui
+
+ui -> ctrl : GET /api/subscriptions/{id}
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('ADMINISTRATOR')")
+
+ctrl -> svc : getSubscriptionById(id)
+activate svc
+
+svc -> subRepo : findById(id)
+activate subRepo
+subRepo -> db : SELECT FROM subscriptions WHERE id=?
+db --> subRepo : result
+subRepo --> svc : Optional<Subscription>
+deactivate subRepo
+
+alt subscription not found
+    svc --> ctrl : throw ResourceNotFoundException
+    ctrl --> ui : 404 Not Found
+    ui --> admin : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> payRepo : findAllBySubscriptionIdOrderByCreatedAtDesc(id)
+activate payRepo
+payRepo --> svc : List<Payment>
+deactivate payRepo
+
+svc -> svc : Calculate usage stats\n(usedStudents, usedCampaigns, usedAiQuiz)
+
+svc -> mapper : toResponse(subscription, transactions, usageStats)
+activate mapper
+mapper --> svc : SubscriptionResponse
+deactivate mapper
+
+svc --> ctrl : SubscriptionResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response, "Subscription retrieved.")
+ctrl --> ui : 200 OK\nResponseDto<SubscriptionResponse>
+deactivate ctrl
+
+ui -> ui : Render chi tiáº¿t subscription\n(code, plan, subscriber, status,\nstartDate, endDate, usage, transactions)
+ui --> admin : Hiá»ƒn thá»‹ chi tiáº¿t subscription
+deactivate ui
+
+@enduml
+
+=== seq_cancel_reward_request.puml ===
+@startuml seq_cancel_reward_request
+title Sequence Diagram - PUT /api/rewards/requests/{id}/cancel (Há»§y yÃªu cáº§u Ä‘á»•i quÃ )
+
+actor "Há»c sinh/Phá»¥ huynh" as user
+boundary "Reward UI\n(Frontend)" as ui
+participant "RewardRequestController" as ctrl
+participant "IRewardRequestService\n(RewardRequestServiceImpl)" as svc
+participant "StudentRepository" as stuRepo
+participant "ParentRepository" as parRepo
+participant "StudentParentLinkRepository" as splRepo
+participant "RewardRequestRepository" as rrRepo
+participant "RewardRepository" as rewardRepo
+participant "CoinTransactionRepository" as txRepo
+database "Database" as db
+
+user -> ui : Xem yÃªu cáº§u Ä‘á»•i quÃ  tráº¡ng thÃ¡i PENDING
+activate ui
+user -> ui : Nháº¥n "Há»§y", nháº­p lÃ½ do (tÃ¹y chá»n)
+
+ui -> ctrl : PUT /api/rewards/requests/{id}/cancel\n{ "reason": "KhÃ´ng cáº§n ná»¯a" }
+activate ctrl
+note over ctrl : @PreAuthorize("hasAnyAuthority('STUDENT', 'PARENT')")
+
+ctrl -> svc : cancelRequest(requestId, dto)
+activate svc
+
+svc -> svc : getCurrentUser() â†’ User
+
+alt role == STUDENT
+    svc -> stuRepo : findByUserId(userId)
+    svc -> rrRepo : findByIdAndStudentId(requestId, studentId)
+else role == PARENT
+    svc -> parRepo : findByUserId(userId)
+    svc -> splRepo : findByParentId(parentId)
+    svc -> rrRepo : findByIdAndStudentId(requestId, childStudentId)
+end
+
+alt request not found
+    svc --> ctrl : throw NotFoundException
+end
+
+alt status != PENDING
+    svc --> ctrl : throw BadRequestException\n("Chá»‰ cÃ³ thá»ƒ há»§y khi status lÃ  PENDING")
+end
+
+svc -> svc : request.setStatus(CANCELLED)\nrequest.setCancelledAt(now)\nrequest.setCancelledReason(reason)
+
+svc -> rrRepo : save(request)
+activate rrRepo
+rrRepo -> db : UPDATE SET status=CANCELLED
+db --> rrRepo : done
+rrRepo --> svc : RewardRequest
+deactivate rrRepo
+
+note over svc : refundCoins: hoÃ n coin
+svc -> stuRepo : save(student) [totalCoins += totalCoins]
+svc -> txRepo : save(CoinTransaction REFUND)
+
+note over svc : releaseStock: hoÃ n stock
+svc -> rewardRepo : save(reward) [stockQuantity += quantity]
+
+svc --> ctrl : RewardRequestResponse
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<RewardRequestResponse>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ "Há»§y yÃªu cáº§u thÃ nh cÃ´ng"\n(coin vÃ  tá»“n kho Ä‘Ã£ Ä‘Æ°á»£c hoÃ n)
+ui --> user : Cáº­p nháº­t tráº¡ng thÃ¡i
+deactivate ui
+
+@enduml
+
+=== seq_cancel_subscription.puml ===
+@startuml seq_cancel_subscription
+title Sequence Diagram - PATCH /api/subscriptions/{id}/cancel (Há»§y GÃ³i Ä‘Äƒng kÃ½)
+
+actor "School/Partnership" as user
+boundary "Subscription UI\n(Frontend)" as ui
+participant "SubscriptionController" as ctrl
+participant "ISubscriptionService\n(SubscriptionServiceImpl)" as svc
+participant "SubscriptionRepository" as subRepo
+database "Database" as db
+
+user -> ui : Xem gÃ³i Ä‘Äƒng kÃ½ Ä‘ang chá» (PENDING_RENEWAL)
+activate ui
+
+user -> ui : Nháº¥n "Há»§y gÃ³i"
+ui -> ui : Hiá»ƒn thá»‹ dialog xÃ¡c nháº­n\n"Báº¡n cÃ³ cháº¯c muá»‘n há»§y gÃ³i nÃ y?"
+ui -> ui : Hiá»ƒn thá»‹ Ã´ nháº­p lÃ½ do há»§y (optional)
+
+admin -> ui : Nháº­p lÃ½ do (náº¿u cÃ³) vÃ  nháº¥n "XÃ¡c nháº­n há»§y"
+
+ui -> ctrl : PATCH /api/subscriptions/{id}/cancel?reason=...
+activate ctrl
+note over ctrl : @PreAuthorize("hasAnyAuthority(\n'PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
+
+ctrl -> svc : cancelSubscription(id, reason, userId)
+activate svc
+
+svc -> subRepo : findById(id)
+activate subRepo
+subRepo -> db : SELECT FROM subscriptions WHERE id=?
+db --> subRepo : result
+subRepo --> svc : Optional<Subscription>
+deactivate subRepo
+
+alt subscription not found
+    svc --> ctrl : throw ResourceNotFoundException
+    ctrl --> ui : 404 Not Found
+    ui --> user : Hiá»ƒn thá»‹ lá»—i
+end
+
+alt status != PENDING_RENEWAL
+    svc --> ctrl : throw FuncErrorException\n("Only pending renewal subscriptions can be cancelled.")
+    ctrl --> ui : 400 Bad Request
+    ui --> user : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> svc : verifyOwnership(subscription, userId)
+
+svc -> svc : subscription.setStatus(CANCELLED)
+svc -> svc : subscription.setCancellationReason(reason)
+svc -> svc : subscription.setCancelledAt(now)
+
+svc -> subRepo : save(subscription)
+activate subRepo
+subRepo -> db : UPDATE subscriptions\nSET status=CANCELLED, ...
+db --> subRepo : updated
+subRepo --> svc : Subscription
+deactivate subRepo
+
+svc -> svc : toSubscriptionResponse(subscription)
+
+svc --> ctrl : SubscriptionResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response, "Subscription cancelled.")
+ctrl --> ui : 200 OK\nResponseDto<SubscriptionResponse>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ "GÃ³i Ä‘Äƒng kÃ½ Ä‘Ã£ Ä‘Æ°á»£c há»§y"
+ui -> ui : Cáº­p nháº­t tráº¡ng thÃ¡i gÃ³i
+ui --> user : Hiá»ƒn thá»‹ gÃ³i Ä‘Ã£ há»§y
+deactivate ui
+
+@enduml
+
+=== seq_create_game_level_preset.puml ===
+@startuml seq_create_game_level_preset
+title Sequence Diagram - POST /api/admin/game-types/{gameTypeId}/presets (Create Game Level Preset)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "AdminController" as ctrl
+participant "IAdminService\n(AdminServiceImpl)" as svc
+participant "GameTypeRepository" as gtRepo
+participant "GameLevelPresetRepository" as glpRepo
+database "Database" as db
+
+admin -> ui : Má»Ÿ trang chi tiáº¿t Game Type
+activate ui
+ui -> ui : Hiá»ƒn thá»‹ danh sÃ¡ch Preset hiá»‡n cÃ³\nvá»›i nÃºt "Táº¡o Preset má»›i"
+
+admin -> ui : Nháº¥n nÃºt "Táº¡o Preset má»›i"
+ui -> ui : Hiá»ƒn thá»‹ form táº¡o Preset\n(difficulty, danh sÃ¡ch items:\nlevelNumber, itemCount,\ntimeLimitSeconds, scorePerCorrect,\nlives, wasteCategories, configJson)
+
+admin -> ui : Äiá»n thÃ´ng tin preset\nvÃ  thÃªm cÃ¡c level items
+admin -> ui : Nháº¥n "LÆ°u"
+ui -> ui : Validate form phÃ­a client\n(kiá»ƒm tra cÃ¡c trÆ°á»ng báº¯t buá»™c,\nlevelNumber >= 1, itemCount >= 1)
+
+ui -> ctrl : POST /api/admin/game-types/{gameTypeId}/presets\n@RequestBody AdminGameLevelPresetUpsertRequest
+activate ctrl
+ctrl -> ctrl : @Valid validate request
+
+ctrl -> svc : createGameLevelPreset(gameTypeId, request)
+activate svc
+
+note over svc : getActiveGameTypeOrThrow(gameTypeId)
+svc -> gtRepo : findByIdAndIsDeleteFalse(gameTypeId)
+activate gtRepo
+gtRepo -> db : SELECT FROM game_types\nWHERE id=? AND is_delete=false
+db --> gtRepo : result
+gtRepo --> svc : Optional<GameType>
+deactivate gtRepo
+
+alt GameType not found
+    svc --> ctrl : throw NotFoundException("KhÃ´ng tÃ¬m tháº¥y game type")
+    ctrl --> ui : 404 Not Found
+    ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o lá»—i\n"KhÃ´ng tÃ¬m tháº¥y game type"
+    ui --> admin : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> glpRepo : existsByGameTypeIdAndDifficulty(gameTypeId, difficulty)
+activate glpRepo
+glpRepo -> db : SELECT EXISTS ...
+db --> glpRepo : boolean
+glpRepo --> svc : boolean
+deactivate glpRepo
+
+alt preset for difficulty exists
+    svc --> ctrl : throw BadRequestException("Preset cho difficulty nÃ y Ä‘Ã£ tá»“n táº¡i")
+    ctrl --> ui : 400 Bad Request
+    ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o lá»—i\n"Preset cho difficulty nÃ y Ä‘Ã£ tá»“n táº¡i"
+    ui --> admin : Hiá»ƒn thá»‹ lá»—i trÃªn form
+end
+
+svc -> svc : new GameLevelPreset()
+svc -> svc : preset.setGameType(gameType)
+
+note over svc : applyPresetUpsert(preset, request)
+svc -> svc : preset.setDifficulty(request.getDifficulty())
+
+svc -> svc : Validate: check duplicate levelNumbers
+
+alt duplicate levelNumber found
+    svc --> ctrl : throw BadRequestException("levelNumber trong items khÃ´ng Ä‘Æ°á»£c trÃ¹ng nhau")
+    ctrl --> ui : 400 Bad Request
+    ui --> admin : Hiá»ƒn thá»‹ lá»—i trÃªn form
+end
+
+loop for each AdminGameLevelPresetItemUpsertRequest
+    svc -> svc : new GameLevelPresetItem()
+    svc -> svc : applyPresetItemRequest(item, request, preset)
+    note right : set preset, levelNumber, itemCount,\ntimeLimitSeconds, scorePerCorrect,\nlives, wasteCategories, configJson
+end
+
+svc -> svc : Validate: each item has >= 1 wasteCategory
+
+alt any item missing wasteCategories
+    svc --> ctrl : throw BadRequestException("Má»—i preset item pháº£i cÃ³ Ã­t nháº¥t 1 wasteCategory")
+    ctrl --> ui : 400 Bad Request
+    ui --> admin : Hiá»ƒn thá»‹ lá»—i trÃªn form
+end
+
+svc -> svc : preset.setItems(items)
+
+svc -> glpRepo : save(preset)
+activate glpRepo
+glpRepo -> db : INSERT INTO game_level_presets ...\nINSERT INTO game_level_preset_items ...\nINSERT INTO game_level_preset_item_waste_categories ...
+db --> glpRepo : saved preset
+glpRepo --> svc : GameLevelPreset
+deactivate glpRepo
+
+svc -> svc : mapGameLevelPreset(preset)\nâ†’ AdminGameLevelPresetResponse
+
+svc --> ctrl : AdminGameLevelPresetResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.created(response, "Táº¡o preset thÃ nh cÃ´ng")
+ctrl --> ui : 201 Created\nResponseDto<AdminGameLevelPresetResponse>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o thÃ nh cÃ´ng\n"Táº¡o preset thÃ nh cÃ´ng"
+ui -> ui : Cáº­p nháº­t danh sÃ¡ch Preset
+ui --> admin : Hiá»ƒn thá»‹ Preset má»›i trong danh sÃ¡ch
+deactivate ui
+
+@enduml
+
+=== seq_create_game_type.puml ===
+@startuml seq_create_game_type
+title Sequence Diagram - POST /api/admin/game-types (Create Game Type)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "AdminController" as ctrl
+participant "IAdminService\n(AdminServiceImpl)" as svc
+participant "GameTypeRepository" as gtRepo
+participant "S3PresignedUrlService" as s3
+participant "SecurityContextHolder" as sec
+database "Database" as db
+
+admin -> ui : Nháº¥n vÃ o menu "Quáº£n lÃ½ Game Type"
+activate ui
+ui -> ui : Hiá»ƒn thá»‹ trang danh sÃ¡ch Game Type\nvá»›i nÃºt "Táº¡o má»›i"
+
+admin -> ui : Nháº¥n nÃºt "Táº¡o má»›i Game Type"
+ui -> ui : Hiá»ƒn thá»‹ form táº¡o Game Type\n(typeCode, name, shortDescription,\nfullDescription, howToPlay,\nthumbnailUrl, iconUrl, features,\nsupportsCoin, maxLevels, displayOrder)
+
+admin -> ui : Äiá»n thÃ´ng tin vÃ  nháº¥n "LÆ°u"
+ui -> ui : Validate form phÃ­a client
+
+ui -> ctrl : POST /api/admin/game-types\n@RequestBody AdminGameTypeUpsertRequest
+activate ctrl
+ctrl -> ctrl : @Valid validate request
+
+ctrl -> svc : createGameType(request)
+activate svc
+
+svc -> gtRepo : existsByTypeCodeAndIsDeleteFalse(request.getTypeCode())
+activate gtRepo
+gtRepo -> db : SELECT EXISTS ...
+db --> gtRepo : result
+gtRepo --> svc : boolean
+deactivate gtRepo
+
+alt typeCode already exists
+    svc --> ctrl : throw BadRequestException("Game type code Ä‘Ã£ tá»“n táº¡i")
+    ctrl --> ui : 400 Bad Request
+    ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o lá»—i\n"Game type code Ä‘Ã£ tá»“n táº¡i"
+    ui --> admin : Hiá»ƒn thá»‹ lá»—i trÃªn form
+end
+
+svc -> gtRepo : existsByNameIgnoreCaseAndIsDeleteFalse(request.getName())
+activate gtRepo
+gtRepo -> db : SELECT EXISTS ...
+db --> gtRepo : result
+gtRepo --> svc : boolean
+deactivate gtRepo
+
+alt name already exists
+    svc --> ctrl : throw BadRequestException("TÃªn game type Ä‘Ã£ tá»“n táº¡i")
+    ctrl --> ui : 400 Bad Request
+    ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o lá»—i\n"TÃªn game type Ä‘Ã£ tá»“n táº¡i"
+    ui --> admin : Hiá»ƒn thá»‹ lá»—i trÃªn form
+end
+
+svc -> svc : new GameType()
+svc -> svc : set typeCode, name, shortDescription,\nfullDescription, howToPlay, thumbnailUrl,\niconUrl, features, supportsCoin,\nmaxLevels, displayOrder
+
+svc -> sec : getCurrentAdmin()
+activate sec
+sec --> svc : User (admin)
+deactivate sec
+
+svc -> svc : gameType.setCreatedBy(admin)\ngameType.setUpdatedBy(admin)
+
+svc -> gtRepo : save(gameType)
+activate gtRepo
+gtRepo -> db : INSERT INTO game_types ...
+db --> gtRepo : saved GameType
+gtRepo --> svc : GameType
+deactivate gtRepo
+
+svc -> svc : mapGameType(gameType)
+svc -> s3 : generatePresignedUrl(thumbnailUrl)
+activate s3
+s3 --> svc : presigned thumbnail URL
+deactivate s3
+
+svc -> s3 : generatePresignedUrl(iconUrl)
+activate s3
+s3 --> svc : presigned icon URL
+deactivate s3
+
+svc --> ctrl : AdminGameTypeResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.created(response, "Táº¡o game type thÃ nh cÃ´ng")
+ctrl --> ui : 201 Created\nResponseDto<AdminGameTypeResponse>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o thÃ nh cÃ´ng\n"Táº¡o game type thÃ nh cÃ´ng"
+ui -> ui : Cáº­p nháº­t danh sÃ¡ch Game Type
+ui --> admin : Hiá»ƒn thá»‹ Game Type má»›i
+deactivate ui
+
+@enduml
+
+=== seq_create_reward_request.puml ===
+@startuml seq_create_reward_request
+title Sequence Diagram - POST /api/rewards/requests (Táº¡o yÃªu cáº§u Ä‘á»•i quÃ )
+
+actor "Há»c sinh/Phá»¥ huynh" as user
+boundary "Reward UI\n(Frontend)" as ui
+participant "RewardRequestController" as ctrl
+participant "IRewardRequestService\n(RewardRequestServiceImpl)" as svc
+participant "StudentRepository" as stuRepo
+participant "ParentRepository" as parRepo
+participant "StudentParentLinkRepository" as splRepo
+participant "RewardRepository" as rewardRepo
+participant "RewardRequestRepository" as rrRepo
+participant "CoinTransactionRepository" as txRepo
+participant "ApplicationEventPublisher" as eventPub
+database "Database" as db
+
+user -> ui : Chá»n quÃ  muá»‘n Ä‘á»•i,\nnháº­p sá»‘ lÆ°á»£ng, nháº¥n "Äá»•i quÃ "
+activate ui
+
+ui -> ctrl : POST /api/rewards/requests\n{ "rewardId": "uuid", "quantity": 1,\n"notes": "...", "studentId": "uuid" (parent only) }
+activate ctrl
+note over ctrl : @PreAuthorize("hasAnyAuthority('STUDENT', 'PARENT')")
+
+ctrl -> svc : createRequest(dto)
+activate svc
+
+svc -> svc : getCurrentUser() â†’ User
+
+alt role == STUDENT
+    svc -> stuRepo : findByUserId(userId)
+    activate stuRepo
+    stuRepo --> svc : Student
+    deactivate stuRepo
+else role == PARENT
+    svc -> parRepo : findByUserId(userId)
+    activate parRepo
+    parRepo --> svc : Parent
+    deactivate parRepo
+
+    alt studentId == null
+        svc --> ctrl : throw BadRequestException\n("Phá»¥ huynh pháº£i chá»‰ Ä‘á»‹nh studentId")
+    end
+
+    svc -> stuRepo : findById(studentId)
+    svc -> splRepo : existsByStudentIdAndParentId(studentId, parentId)
+    alt khÃ´ng pháº£i con
+        svc --> ctrl : throw BadRequestException\n("Há»c sinh nÃ y khÃ´ng pháº£i con báº¡n")
+    end
+end
+
+svc -> rewardRepo : findByIdAndSchoolIdAndIsDeleteFalse(rewardId, schoolId)
+activate rewardRepo
+rewardRepo --> svc : Optional<Reward>
+deactivate rewardRepo
+
+note over svc : reserveStock: giá»¯ chá»— tá»“n kho
+svc -> svc : Kiá»ƒm tra stockQuantity >= quantity
+alt háº¿t hÃ ng
+    svc --> ctrl : throw BadRequestException("Háº¿t hÃ ng")
+end
+svc -> rewardRepo : save(reward) [stockQuantity -= quantity]
+
+svc -> svc : totalCost = coinCost Ã— quantity
+
+svc -> svc : new RewardRequest()\nset code, student, reward, school,\nquantity, totalCoins, status=PENDING
+
+svc -> rrRepo : save(rewardRequest)
+activate rrRepo
+rrRepo -> db : INSERT INTO reward_requests ...
+db --> rrRepo : RewardRequest
+rrRepo --> svc : RewardRequest
+deactivate rrRepo
+
+note over svc : deductCoins: trá»« coin ngay
+svc -> svc : Kiá»ƒm tra totalCoins >= totalCost
+svc -> stuRepo : save(student) [totalCoins -= totalCost]
+svc -> txRepo : save(CoinTransaction SPEND_REWARD)
+
+svc -> eventPub : publishEvent â†’ ThÃ´ng bÃ¡o Há»c sinh
+svc -> eventPub : publishEvent â†’ ThÃ´ng bÃ¡o Phá»¥ huynh
+
+svc --> ctrl : RewardRequestResponse
+deactivate svc
+
+ctrl --> ui : 201 Created\nResponseDto<RewardRequestResponse>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ "Táº¡o yÃªu cáº§u thÃ nh cÃ´ng"
+ui --> user : Xem yÃªu cáº§u Ä‘á»•i quÃ 
+deactivate ui
+
+@enduml
+
+=== seq_create_subscription_plan.puml ===
+@startuml seq_create_subscription_plan
+title Sequence Diagram - POST /api/subscription-plans (Táº¡o GÃ³i Ä‘Äƒng kÃ½)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "SubscriptionPlanController" as ctrl
+participant "ISubscriptionPlanService\n(SubscriptionPlanServiceImpl)" as svc
+participant "SubscriptionPlanRepository" as planRepo
+participant "UserRepository" as userRepo
+participant "SubscriptionPlanMapper" as mapper
+database "Database" as db
+
+admin -> ui : VÃ o trang quáº£n lÃ½ GÃ³i Ä‘Äƒng kÃ½
+activate ui
+ui -> ui : Hiá»ƒn thá»‹ danh sÃ¡ch gÃ³i vá»›i nÃºt "Táº¡o má»›i"
+
+admin -> ui : Nháº¥n "Táº¡o gÃ³i Ä‘Äƒng kÃ½ má»›i"
+ui -> ui : Hiá»ƒn thá»‹ form táº¡o gÃ³i\n(planCode, planName, subscriberType,\ndescription, durationDays, price,\nmaxStudents, maxCampaignsPerMonth,\nmaxAiQuizGenerationsPerPeriod, ...)
+
+admin -> ui : Äiá»n thÃ´ng tin vÃ  nháº¥n "LÆ°u"
+ui -> ui : Validate form phÃ­a client
+
+ui -> ctrl : POST /api/subscription-plans\n@RequestBody CreateSubscriptionPlanRequest
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('ADMINISTRATOR')")
+ctrl -> ctrl : @Valid validate request
+
+ctrl -> svc : createPlan(request, adminUserId)
+activate svc
+
+svc -> planRepo : existsByPlanCode(planCode)
+activate planRepo
+planRepo -> db : SELECT EXISTS ...
+db --> planRepo : boolean
+planRepo --> svc : boolean
+deactivate planRepo
+
+alt planCode already exists
+    svc --> ctrl : throw FuncErrorException\n("Plan code already exists")
+    ctrl --> ui : 400 Bad Request
+    ui --> admin : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> planRepo : existsByPlanName(planName)
+activate planRepo
+planRepo -> db : SELECT EXISTS ...
+db --> planRepo : boolean
+planRepo --> svc : boolean
+deactivate planRepo
+
+alt planName already exists
+    svc --> ctrl : throw FuncErrorException\n("Plan name already exists")
+    ctrl --> ui : 400 Bad Request
+    ui --> admin : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> userRepo : findById(adminUserId)
+activate userRepo
+userRepo -> db : SELECT FROM users WHERE id=?
+db --> userRepo : User
+userRepo --> svc : Optional<User>
+deactivate userRepo
+
+svc -> mapper : toEntity(request)
+activate mapper
+mapper --> svc : SubscriptionPlan
+deactivate mapper
+
+svc -> svc : plan.setCreatedBy(admin)
+
+svc -> planRepo : save(plan)
+activate planRepo
+planRepo -> db : INSERT INTO subscription_plans ...
+db --> planRepo : saved plan
+planRepo --> svc : SubscriptionPlan
+deactivate planRepo
+
+svc -> mapper : toResponse(savedPlan)
+activate mapper
+mapper --> svc : SubscriptionPlanResponse
+deactivate mapper
+
+svc --> ctrl : SubscriptionPlanResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.created(response,\n"Subscription plan created successfully.")
+ctrl --> ui : 201 Created\nResponseDto<SubscriptionPlanResponse>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o thÃ nh cÃ´ng
+ui -> ui : Cáº­p nháº­t danh sÃ¡ch gÃ³i
+ui --> admin : Hiá»ƒn thá»‹ gÃ³i Ä‘Äƒng kÃ½ má»›i
+deactivate ui
+
+@enduml
+
+=== seq_delete_game_level_preset.puml ===
+@startuml seq_delete_game_level_preset
+title Sequence Diagram - DELETE /api/admin/game-types/{gameTypeId}/presets/{presetId} (Delete Game Level Preset)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "AdminController" as ctrl
+participant "IAdminService\n(AdminServiceImpl)" as svc
+participant "GameTypeRepository" as gtRepo
+participant "GameLevelPresetRepository" as glpRepo
+database "Database" as db
+
+admin -> ui : Má»Ÿ trang danh sÃ¡ch Preset\ncá»§a má»™t Game Type
+activate ui
+ui -> ui : Hiá»ƒn thá»‹ danh sÃ¡ch Preset\nvá»›i nÃºt "XÃ³a" cho má»—i item
+
+admin -> ui : Nháº¥n nÃºt "XÃ³a" trÃªn Preset cáº§n xÃ³a
+ui -> ui : Hiá»ƒn thá»‹ dialog xÃ¡c nháº­n\n"Báº¡n cÃ³ cháº¯c muá»‘n xÃ³a preset nÃ y?\nTáº¥t cáº£ level items sáº½ bá»‹ xÃ³a theo."
+
+admin -> ui : Nháº¥n "XÃ¡c nháº­n xÃ³a"
+
+ui -> ctrl : DELETE /api/admin/game-types/{gameTypeId}/presets/{presetId}
+activate ctrl
+
+ctrl -> svc : deleteGameLevelPreset(gameTypeId, presetId)
+activate svc
+
+note over svc : getActiveGameTypeOrThrow(gameTypeId)
+svc -> gtRepo : findByIdAndIsDeleteFalse(gameTypeId)
+activate gtRepo
+gtRepo -> db : SELECT FROM game_types\nWHERE id=? AND is_delete=false
+db --> gtRepo : result
+gtRepo --> svc : Optional<GameType>
+deactivate gtRepo
+
+alt GameType not found
+    svc --> ctrl : throw NotFoundException("KhÃ´ng tÃ¬m tháº¥y game type")
+    ctrl --> ui : 404 Not Found
+    ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o lá»—i
+    ui --> admin : Hiá»ƒn thá»‹ lá»—i
+end
+
+note over svc : getPresetOrThrow(gameTypeId, presetId)
+svc -> glpRepo : findById(presetId)
+activate glpRepo
+glpRepo -> db : SELECT FROM game_level_presets\nWHERE id=?
+db --> glpRepo : result
+glpRepo --> svc : Optional<GameLevelPreset>
+deactivate glpRepo
+
+svc -> svc : filter: preset.gameType.id == gameTypeId
+
+alt Preset not found or wrong gameType
+    svc --> ctrl : throw NotFoundException("KhÃ´ng tÃ¬m tháº¥y preset")
+    ctrl --> ui : 404 Not Found
+    ui --> admin : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> glpRepo : delete(preset)
+activate glpRepo
+glpRepo -> db : DELETE FROM game_level_preset_item_waste_categories\nWHERE preset_item_id IN (...)\nDELETE FROM game_level_preset_items\nWHERE preset_id=?\nDELETE FROM game_level_presets\nWHERE id=?
+db --> glpRepo : done
+glpRepo --> svc : void
+deactivate glpRepo
+
+svc --> ctrl : void
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(null, "XÃ³a preset thÃ nh cÃ´ng")
+ctrl --> ui : 200 OK\nResponseDto<Void>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o thÃ nh cÃ´ng\n"XÃ³a preset thÃ nh cÃ´ng"
+ui -> ui : XÃ³a Preset khá»i danh sÃ¡ch hiá»ƒn thá»‹
+ui --> admin : Danh sÃ¡ch Preset Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t
+deactivate ui
+
+@enduml
+
+=== seq_delete_game_type.puml ===
+@startuml seq_delete_game_type
+title Sequence Diagram - DELETE /api/admin/game-types/{id} (Delete Game Type)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "AdminController" as ctrl
+participant "IAdminService\n(AdminServiceImpl)" as svc
+participant "GameTypeRepository" as gtRepo
+participant "SecurityContextHolder" as sec
+database "Database" as db
+
+admin -> ui : Má»Ÿ trang danh sÃ¡ch Game Type
+activate ui
+ui -> ui : Hiá»ƒn thá»‹ danh sÃ¡ch Game Type\nvá»›i nÃºt "XÃ³a" cho má»—i item
+
+admin -> ui : Nháº¥n nÃºt "XÃ³a" trÃªn Game Type cáº§n xÃ³a
+ui -> ui : Hiá»ƒn thá»‹ dialog xÃ¡c nháº­n\n"Báº¡n cÃ³ cháº¯c muá»‘n xÃ³a game type nÃ y?"
+
+admin -> ui : Nháº¥n "XÃ¡c nháº­n xÃ³a"
+
+ui -> ctrl : DELETE /api/admin/game-types/{id}
+activate ctrl
+
+ctrl -> svc : deleteGameType(id)
+activate svc
+
+note over svc : getActiveGameTypeOrThrow(id)
+svc -> gtRepo : findByIdAndIsDeleteFalse(id)
+activate gtRepo
+gtRepo -> db : SELECT FROM game_types\nWHERE id=? AND is_delete=false
+db --> gtRepo : result
+gtRepo --> svc : Optional<GameType>
+deactivate gtRepo
+
+alt GameType not found
+    svc --> ctrl : throw NotFoundException("KhÃ´ng tÃ¬m tháº¥y game type")
+    ctrl --> ui : 404 Not Found
+    ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o lá»—i\n"KhÃ´ng tÃ¬m tháº¥y game type"
+    ui --> admin : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> svc : gameType.setActive(false)
+
+svc -> sec : getCurrentAdmin()
+activate sec
+sec --> svc : User (admin)
+deactivate sec
+
+svc -> svc : gameType.setUpdatedBy(admin)
+
+svc -> gtRepo : save(gameType)
+activate gtRepo
+gtRepo -> db : UPDATE game_types\nSET is_active=false, updated_by=?
+db --> gtRepo : updated GameType
+gtRepo --> svc : GameType
+deactivate gtRepo
+
+svc --> ctrl : void
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(null, "XÃ³a game type thÃ nh cÃ´ng")
+ctrl --> ui : 200 OK\nResponseDto<Void>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o thÃ nh cÃ´ng\n"XÃ³a game type thÃ nh cÃ´ng"
+ui -> ui : XÃ³a Game Type khá»i danh sÃ¡ch hiá»ƒn thá»‹
+ui --> admin : Danh sÃ¡ch Game Type Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t
+deactivate ui
+
+@enduml
+
+=== seq_delete_subscription_plan.puml ===
+@startuml seq_delete_subscription_plan
+title Sequence Diagram - DELETE /api/subscription-plans/{id} (XÃ³a GÃ³i Ä‘Äƒng kÃ½)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "SubscriptionPlanController" as ctrl
+participant "ISubscriptionPlanService\n(SubscriptionPlanServiceImpl)" as svc
+participant "SubscriptionPlanRepository" as planRepo
+database "Database" as db
+
+admin -> ui : Xem danh sÃ¡ch gÃ³i Ä‘Äƒng kÃ½
+activate ui
+
+admin -> ui : Nháº¥n nÃºt "XÃ³a" trÃªn gÃ³i cáº§n xÃ³a
+ui -> ui : Hiá»ƒn thá»‹ dialog xÃ¡c nháº­n\n"Báº¡n cÃ³ cháº¯c muá»‘n xÃ³a gÃ³i Ä‘Äƒng kÃ½ nÃ y?"
+
+admin -> ui : Nháº¥n "XÃ¡c nháº­n xÃ³a"
+
+ui -> ctrl : DELETE /api/subscription-plans/{id}
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('ADMINISTRATOR')")
+
+ctrl -> svc : deletePlan(id)
+activate svc
+
+svc -> planRepo : findById(id)
+activate planRepo
+planRepo -> db : SELECT FROM subscription_plans WHERE id=?
+db --> planRepo : result
+planRepo --> svc : Optional<SubscriptionPlan>
+deactivate planRepo
+
+alt plan not found
+    svc --> ctrl : throw ResourceNotFoundException
+    ctrl --> ui : 404 Not Found
+    ui --> admin : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> planRepo : delete(plan)
+activate planRepo
+planRepo -> db : DELETE FROM subscription_plans WHERE id=?
+db --> planRepo : done
+planRepo --> svc : void
+deactivate planRepo
+
+svc --> ctrl : void
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(null,\n"Subscription plan deleted successfully.")
+ctrl --> ui : 200 OK\nResponseDto<Void>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o thÃ nh cÃ´ng
+ui -> ui : XÃ³a gÃ³i khá»i danh sÃ¡ch
+ui --> admin : Danh sÃ¡ch gÃ³i Ä‘Ã£ cáº­p nháº­t
+deactivate ui
+
+@enduml
+
+=== seq_get_all_subscription_plans.puml ===
+@startuml seq_get_all_subscription_plans
+title Sequence Diagram - GET /api/subscription-plans (Láº¥y danh sÃ¡ch GÃ³i Ä‘Äƒng kÃ½)
+
+actor "NgÆ°á»i dÃ¹ng" as user
+boundary "UI\n(Frontend)" as ui
+participant "SubscriptionPlanController" as ctrl
+participant "ISubscriptionPlanService\n(SubscriptionPlanServiceImpl)" as svc
+participant "SubscriptionPlanRepository" as planRepo
+participant "SubscriptionPlanMapper" as mapper
+database "Database" as db
+
+user -> ui : Má»Ÿ trang chá»n gÃ³i Ä‘Äƒng kÃ½
+activate ui
+ui -> ui : Chuáº©n bá»‹ filter params\n(subscriberType, isActive, keyword)
+
+ui -> ctrl : GET /api/subscription-plans\n?subscriberType=SCHOOL&isActive=true\n&keyword=&page=0&size=10
+activate ctrl
+
+ctrl -> svc : getAllPlans(subscriberType, isActive, keyword, pageable)
+activate svc
+
+svc -> svc : Build Specification<SubscriptionPlan>\n(filter by subscriberType, isActive, keyword)
+
+svc -> planRepo : findAll(spec, pageable)
+activate planRepo
+planRepo -> db : SELECT * FROM subscription_plans\nWHERE conditions\nORDER BY display_order ASC
+db --> planRepo : Page<SubscriptionPlan>
+planRepo --> svc : Page<SubscriptionPlan>
+deactivate planRepo
+
+svc -> svc : PageResponse.from(page, mapper::toResponse)
+
+loop for each SubscriptionPlan in page
+    svc -> mapper : toResponse(plan)
+    activate mapper
+    mapper --> svc : SubscriptionPlanResponse
+    deactivate mapper
+end
+
+svc --> ctrl : PageResponse<SubscriptionPlanResponse>
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response,\n"Subscription plans retrieved successfully.")
+ctrl --> ui : 200 OK\nResponseDto<PageResponse<SubscriptionPlanResponse>>
+deactivate ctrl
+
+ui -> ui : Render danh sÃ¡ch gÃ³i Ä‘Äƒng kÃ½\n(planName, price, durationDays,\nmaxStudents, features, ...)
+ui --> user : Hiá»ƒn thá»‹ danh sÃ¡ch gÃ³i
+deactivate ui
+
+@enduml
+
+=== seq_get_campaign_leaderboard.puml ===
+@startuml seq_get_campaign_leaderboard
+title Sequence Diagram - GET /api/campaigns/{campaignId}/leaderboard (Get Campaign Leaderboard)
+
+actor "User\n(Student/Parent/School/\nPartnership/Admin)" as user
+boundary "Campaign UI\n(Frontend)" as ui
+participant "StudentCampaignController\n/ SchoolCampaignController\n/ PartnershipCampaignController" as ctrl
+participant "ICampaignService\n(CampaignServiceImpl)" as svc
+participant "CampaignRepository" as campRepo
+participant "SchoolLeaderboardRepository" as slbRepo
+participant "RoundLeaderboardRepository" as rlbRepo
+participant "CampaignRoundRepository" as crRepo
+database "Database" as db
+
+user -> ui : Open campaign leaderboard tab
+activate ui
+
+ui -> ctrl : GET /api/campaigns/{campaignId}/leaderboard\nor GET /api/school/campaigns/{id}/leaderboard\nor GET /api/partnership/campaigns/{id}/leaderboard
+activate ctrl
+note over ctrl : @PreAuthorize("hasAnyAuthority(\n'STUDENT','PARENT','PARTNERSHIP_SCHOOL',\n'THIRD_PARTY_PARTNERSHIP','ADMINISTRATOR')")
+
+ctrl -> svc : getCampaignLeaderboard(campaignId)
+activate svc
+
+svc -> campRepo : findById(campaignId)
+activate campRepo
+campRepo --> svc : Campaign
+deactivate campRepo
+
+alt campaignType == PARTNERSHIP_EVENT && non-Admin role
+    note over svc : Partnership campaigns show\ncurrent/latest round leaderboard
+
+    svc -> crRepo : findByCampaignIdOrderByRoundNumberAsc(campaignId)
+    activate crRepo
+    crRepo --> svc : List<CampaignRound>
+    deactivate crRepo
+
+    svc -> svc : resolvePartnershipDefaultRound(campaign)\n-> Find active round or latest past round
+
+    svc -> rlbRepo : findByCampaignRoundIdOrderBy\nCombinedAccuracyPercentageDescAvgTimeSecondsAsc(roundId)
+    activate rlbRepo
+    rlbRepo -> db : SELECT FROM round_leaderboards\nWHERE campaign_round_id = ?\nORDER BY combined_accuracy_percentage DESC,\navg_time_seconds ASC
+    db --> rlbRepo : List<RoundLeaderboard>
+    rlbRepo --> svc : List<RoundLeaderboard>
+    deactivate rlbRepo
+
+    svc -> svc : mapRoundLeaderboard(entries)
+
+else campaignType == SCHOOL_INTERNAL
+    note over svc : School campaigns use\nSchoolLeaderboard (aggregated)
+
+    svc -> slbRepo : findByCampaignIdOrderBy\nCombinedAccuracyPercentageDescAvgTimeSecondsAsc(campaignId)
+    activate slbRepo
+    slbRepo -> db : SELECT FROM school_leaderboards\nWHERE campaign_id = ?\nORDER BY combined_accuracy_percentage DESC,\navg_time_seconds ASC
+    db --> slbRepo : List<SchoolLeaderboard>
+    slbRepo --> svc : List<SchoolLeaderboard>
+    deactivate slbRepo
+
+    svc -> svc : Map to LeaderboardEntryResponse\n(overallRank, totalCoinsEarned)
+
+else Partnership + Admin
+    svc -> rlbRepo : findByCampaignIdOrderBy\nCombinedAccuracyPercentageDescAvgTimeSecondsAsc(campaignId)
+    svc -> svc : mapRoundLeaderboard(entries)
+end
+
+svc --> ctrl : List<LeaderboardEntryResponse>
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<List<LeaderboardEntryResponse>>
+deactivate ctrl
+
+ui -> ui : Render leaderboard table:\nrank, studentName, schoolName,\ncombinedAccuracy, avgTime, totalCoins
+ui --> user : "Láº¥y leaderboard campaign thÃ nh cÃ´ng"
+deactivate ui
+
+@enduml
+
+=== seq_get_game_level_presets.puml ===
+@startuml seq_get_game_level_presets
+title Sequence Diagram - GET /api/admin/game-types/{gameTypeId}/presets (Get All Game Level Presets)
+
+actor "Authenticated User" as user
+boundary "Admin UI\n(Frontend)" as ui
+participant "AdminController" as ctrl
+participant "IAdminService\n(AdminServiceImpl)" as svc
+participant "GameTypeRepository" as gtRepo
+participant "GameLevelPresetRepository" as glpRepo
+database "Database" as db
+
+user -> ui : Má»Ÿ trang chi tiáº¿t Game Type
+activate ui
+ui -> ui : Cáº§n load danh sÃ¡ch Preset\ncá»§a Game Type nÃ y
+
+ui -> ctrl : GET /api/admin/game-types/{gameTypeId}/presets
+activate ctrl
+
+note over ctrl : @PreAuthorize("isAuthenticated()")
+
+ctrl -> svc : getGameLevelPresets(gameTypeId)
+activate svc
+
+note over svc : getActiveGameTypeOrThrow(gameTypeId)
+svc -> gtRepo : findByIdAndIsDeleteFalse(gameTypeId)
+activate gtRepo
+gtRepo -> db : SELECT FROM game_types\nWHERE id=? AND is_delete=false
+db --> gtRepo : result
+gtRepo --> svc : Optional<GameType>
+deactivate gtRepo
+
+alt GameType not found
+    svc --> ctrl : throw NotFoundException("KhÃ´ng tÃ¬m tháº¥y game type")
+    ctrl --> ui : 404 Not Found
+    ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o lá»—i
+    ui --> user : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> glpRepo : findByGameTypeIdOrderByDifficultyAsc(gameTypeId)
+activate glpRepo
+glpRepo -> db : SELECT * FROM game_level_presets\nWHERE game_type_id=?\nORDER BY difficulty ASC
+db --> glpRepo : List<GameLevelPreset>
+glpRepo --> svc : List<GameLevelPreset>
+deactivate glpRepo
+
+loop for each GameLevelPreset
+    svc -> svc : mapGameLevelPreset(preset)
+    note right : Build AdminGameLevelPresetResponse\nwith sorted items by levelNumber
+end
+
+svc --> ctrl : List<AdminGameLevelPresetResponse>
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(list, "Láº¥y danh sÃ¡ch preset thÃ nh cÃ´ng")
+ctrl --> ui : 200 OK\nResponseDto<List<AdminGameLevelPresetResponse>>
+deactivate ctrl
+
+ui -> ui : Render danh sÃ¡ch Preset\n(hiá»‡n difficulty, sá»‘ levels,\nwasteCategories cho má»—i preset)
+ui --> user : Hiá»ƒn thá»‹ danh sÃ¡ch Preset\ncá»§a Game Type
+deactivate ui
+
+@enduml
+
+=== seq_get_game_level_preset_by_id.puml ===
+@startuml seq_get_game_level_preset_by_id
+title Sequence Diagram - GET /api/admin/game-types/{gameTypeId}/presets/{presetId} (Get Game Level Preset By ID)
+
+actor "Authenticated User" as user
+boundary "Admin UI\n(Frontend)" as ui
+participant "AdminController" as ctrl
+participant "IAdminService\n(AdminServiceImpl)" as svc
+participant "GameTypeRepository" as gtRepo
+participant "GameLevelPresetRepository" as glpRepo
+database "Database" as db
+
+user -> ui : Nháº¥n vÃ o má»™t Preset trong danh sÃ¡ch\nÄ‘á»ƒ xem chi tiáº¿t
+activate ui
+
+ui -> ctrl : GET /api/admin/game-types/{gameTypeId}/presets/{presetId}
+activate ctrl
+
+note over ctrl : @PreAuthorize("isAuthenticated()")
+
+ctrl -> svc : getGameLevelPresetById(gameTypeId, presetId)
+activate svc
+
+note over svc : getActiveGameTypeOrThrow(gameTypeId)
+svc -> gtRepo : findByIdAndIsDeleteFalse(gameTypeId)
+activate gtRepo
+gtRepo -> db : SELECT FROM game_types\nWHERE id=? AND is_delete=false
+db --> gtRepo : result
+gtRepo --> svc : Optional<GameType>
+deactivate gtRepo
+
+alt GameType not found
+    svc --> ctrl : throw NotFoundException("KhÃ´ng tÃ¬m tháº¥y game type")
+    ctrl --> ui : 404 Not Found
+    ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o lá»—i
+    ui --> user : Hiá»ƒn thá»‹ lá»—i
+end
+
+note over svc : getPresetOrThrow(gameTypeId, presetId)
+svc -> glpRepo : findById(presetId)
+activate glpRepo
+glpRepo -> db : SELECT FROM game_level_presets\nWHERE id=?
+db --> glpRepo : result
+glpRepo --> svc : Optional<GameLevelPreset>
+deactivate glpRepo
+
+svc -> svc : filter: preset.gameType.id == gameTypeId
+
+alt Preset not found or wrong gameType
+    svc --> ctrl : throw NotFoundException("KhÃ´ng tÃ¬m tháº¥y preset")
+    ctrl --> ui : 404 Not Found
+    ui --> user : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> svc : mapGameLevelPreset(preset)
+note right : Build AdminGameLevelPresetResponse\nwith items sorted by levelNumber ASC.\nEach item includes: id, levelNumber,\nitemCount, timeLimitSeconds,\nscorePerCorrect, lives,\nwasteCategories, configJson
+
+svc --> ctrl : AdminGameLevelPresetResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response, "Láº¥y chi tiáº¿t preset thÃ nh cÃ´ng")
+ctrl --> ui : 200 OK\nResponseDto<AdminGameLevelPresetResponse>
+deactivate ctrl
+
+ui -> ui : Render chi tiáº¿t Preset\n(difficulty, danh sÃ¡ch level items\nvá»›i thÃ´ng tin itemCount,\ntimeLimitSeconds, scorePerCorrect,\nlives, wasteCategories)
+ui --> user : Hiá»ƒn thá»‹ trang chi tiáº¿t Preset
+deactivate ui
+
+@enduml
+
+=== seq_get_game_types.puml ===
+@startuml seq_get_game_types
+title Sequence Diagram - GET /api/admin/game-types (Get All Game Types)
+
+actor "Authenticated User" as user
+boundary "Admin UI\n(Frontend)" as ui
+participant "AdminController" as ctrl
+participant "IAdminService\n(AdminServiceImpl)" as svc
+participant "GameTypeRepository" as gtRepo
+participant "S3PresignedUrlService" as s3
+database "Database" as db
+
+user -> ui : Nháº¥n vÃ o menu "Quáº£n lÃ½ Game Type"
+activate ui
+
+ui -> ctrl : GET /api/admin/game-types
+activate ctrl
+
+note over ctrl : @PreAuthorize("isAuthenticated()")
+
+ctrl -> svc : getGameTypes()
+activate svc
+
+svc -> gtRepo : findByIsDeleteFalse()
+activate gtRepo
+gtRepo -> db : SELECT * FROM game_types\nWHERE is_delete = false
+db --> gtRepo : List<GameType>
+gtRepo --> svc : List<GameType>
+deactivate gtRepo
+
+loop for each GameType in list
+    svc -> svc : mapGameType(gameType)
+    svc -> s3 : generatePresignedUrl(thumbnailUrl)
+    activate s3
+    s3 --> svc : presigned thumbnail URL
+    deactivate s3
+    svc -> s3 : generatePresignedUrl(iconUrl)
+    activate s3
+    s3 --> svc : presigned icon URL
+    deactivate s3
+end
+
+svc --> ctrl : List<AdminGameTypeResponse>
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(list, "Láº¥y danh sÃ¡ch game type thÃ nh cÃ´ng")
+ctrl --> ui : 200 OK\nResponseDto<List<AdminGameTypeResponse>>
+deactivate ctrl
+
+ui -> ui : Render danh sÃ¡ch Game Type\n(hiá»‡n tÃªn, typeCode, thumbnail,\ntráº¡ng thÃ¡i, displayOrder)
+ui --> user : Hiá»ƒn thá»‹ trang danh sÃ¡ch Game Type
+deactivate ui
+
+@enduml
+
+=== seq_get_game_type_by_id.puml ===
+@startuml seq_get_game_type_by_id
+title Sequence Diagram - GET /api/admin/game-types/{id} (Get Game Type By ID)
+
+actor "Authenticated User" as user
+boundary "Admin UI\n(Frontend)" as ui
+participant "AdminController" as ctrl
+participant "IAdminService\n(AdminServiceImpl)" as svc
+participant "GameTypeRepository" as gtRepo
+participant "S3PresignedUrlService" as s3
+database "Database" as db
+
+user -> ui : Nháº¥n vÃ o má»™t Game Type trong danh sÃ¡ch
+activate ui
+
+ui -> ctrl : GET /api/admin/game-types/{id}
+activate ctrl
+
+note over ctrl : @PreAuthorize("isAuthenticated()")
+
+ctrl -> svc : getGameTypeById(id)
+activate svc
+
+note over svc : getActiveGameTypeOrThrow(id)
+svc -> gtRepo : findByIdAndIsDeleteFalse(id)
+activate gtRepo
+gtRepo -> db : SELECT * FROM game_types\nWHERE id=? AND is_delete=false
+db --> gtRepo : result
+gtRepo --> svc : Optional<GameType>
+deactivate gtRepo
+
+alt GameType not found
+    svc --> ctrl : throw NotFoundException("KhÃ´ng tÃ¬m tháº¥y game type")
+    ctrl --> ui : 404 Not Found
+    ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o lá»—i\n"KhÃ´ng tÃ¬m tháº¥y game type"
+    ui --> user : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> svc : mapGameType(gameType)
+svc -> s3 : generatePresignedUrl(thumbnailUrl)
+activate s3
+s3 --> svc : presigned thumbnail URL
+deactivate s3
+svc -> s3 : generatePresignedUrl(iconUrl)
+activate s3
+s3 --> svc : presigned icon URL
+deactivate s3
+
+svc --> ctrl : AdminGameTypeResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response, "Láº¥y chi tiáº¿t game type thÃ nh cÃ´ng")
+ctrl --> ui : 200 OK\nResponseDto<AdminGameTypeResponse>
+deactivate ctrl
+
+ui -> ui : Render chi tiáº¿t Game Type\n(typeCode, name, description,\nhowToPlay, thumbnail, icon,\nfeatures, supportsCoin,\nmaxLevels, displayOrder,\nmappedWasteCategories)
+ui --> user : Hiá»ƒn thá»‹ trang chi tiáº¿t Game Type
+deactivate ui
+
+@enduml
+
+=== seq_get_my_partnership_deliveries.puml ===
+@startuml seq_get_my_partnership_deliveries
+title Sequence Diagram - GET /api/rewards/deliveries/my (Xem lá»‹ch sá»­ nháº­n quÃ  Partnership)
+
+actor "Há»c sinh/Phá»¥ huynh" as user
+boundary "Reward UI\n(Frontend)" as ui
+participant "CampaignRewardDeliveryController" as ctrl
+participant "ICampaignRewardDeliveryService\n(CampaignRewardDeliveryServiceImpl)" as svc
+participant "StudentRepository" as stuRepo
+participant "ParentRepository" as parRepo
+participant "StudentParentLinkRepository" as splRepo
+participant "CampaignRewardDeliveryRepository" as delRepo
+participant "S3PresignedUrlService" as s3Svc
+database "Database" as db
+
+user -> ui : Má»Ÿ trang "QuÃ  tá»« chiáº¿n dá»‹ch"
+activate ui
+
+ui -> ctrl : GET /api/rewards/deliveries/my
+activate ctrl
+note over ctrl : @PreAuthorize("hasAnyAuthority('STUDENT', 'PARENT')")
+
+ctrl -> svc : getMyDeliveries()
+activate svc
+
+svc -> svc : getCurrentUser() â†’ User
+
+alt role == STUDENT
+    svc -> stuRepo : findByUserId(userId)
+    activate stuRepo
+    stuRepo --> svc : Student
+    deactivate stuRepo
+    svc -> delRepo : findByStudentIdOrderByCreatedAtDesc(studentId)
+else role == PARENT
+    svc -> parRepo : findByUserId(userId)
+    activate parRepo
+    parRepo --> svc : Parent
+    deactivate parRepo
+    svc -> splRepo : findByParentId(parentId)
+    loop for each child
+        svc -> delRepo : findByStudentIdOrderByCreatedAtDesc(childId)
+    end
+end
+
+activate delRepo
+delRepo -> db : SELECT FROM campaign_reward_deliveries ...
+db --> delRepo : List<CampaignRewardDelivery>
+delRepo --> svc : List<CampaignRewardDelivery>
+deactivate delRepo
+
+loop for each delivery
+    svc -> s3Svc : generatePresignedUrl(rewardImageUrl)
+    svc -> svc : mapToResponse(delivery)
+end
+
+svc --> ctrl : List<CampaignRewardDeliveryResponse>
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<List<CampaignRewardDeliveryResponse>>
+deactivate ctrl
+
+ui -> ui : Render danh sÃ¡ch quÃ \n(campaignName, rewardName, rank,\nstatus, deliveryImageUrl)
+ui --> user : Hiá»ƒn thá»‹ lá»‹ch sá»­ nháº­n quÃ 
+deactivate ui
+
+@enduml
+
+=== seq_get_my_reward_requests.puml ===
+@startuml seq_get_my_reward_requests
+title Sequence Diagram - GET /api/rewards/requests/my (Xem lá»‹ch sá»­ yÃªu cáº§u Ä‘á»•i quÃ )
+
+actor "Há»c sinh/Phá»¥ huynh" as user
+boundary "Reward UI\n(Frontend)" as ui
+participant "RewardRequestController" as ctrl
+participant "IRewardRequestService\n(RewardRequestServiceImpl)" as svc
+participant "StudentRepository" as stuRepo
+participant "ParentRepository" as parRepo
+participant "StudentParentLinkRepository" as splRepo
+participant "RewardRequestRepository" as rrRepo
+participant "S3PresignedUrlService" as s3Svc
+database "Database" as db
+
+user -> ui : Má»Ÿ trang "Lá»‹ch sá»­ Ä‘á»•i quÃ "
+activate ui
+
+ui -> ctrl : GET /api/rewards/requests/my
+activate ctrl
+note over ctrl : @PreAuthorize("hasAnyAuthority('STUDENT', 'PARENT')")
+
+ctrl -> svc : getMyRequests()
+activate svc
+
+svc -> svc : getCurrentUser() â†’ User
+
+alt role == STUDENT
+    svc -> stuRepo : findByUserId(userId)
+    activate stuRepo
+    stuRepo --> svc : Student
+    deactivate stuRepo
+
+    svc -> rrRepo : findByStudentIdOrderByCreatedAtDesc(studentId)
+    activate rrRepo
+    rrRepo -> db : SELECT FROM reward_requests\nWHERE student_id=? ORDER BY created_at DESC
+    db --> rrRepo : List<RewardRequest>
+    rrRepo --> svc : List<RewardRequest>
+    deactivate rrRepo
+
+else role == PARENT
+    svc -> parRepo : findByUserId(userId)
+    activate parRepo
+    parRepo --> svc : Parent
+    deactivate parRepo
+
+    svc -> splRepo : findByParentId(parentId)
+    activate splRepo
+    splRepo --> svc : List<StudentParentLink>
+    deactivate splRepo
+
+    loop for each child link
+        svc -> rrRepo : findByStudentIdOrderByCreatedAtDesc(childStudentId)
+    end
+end
+
+loop for each RewardRequest
+    svc -> s3Svc : generatePresignedUrl(rewardImageUrl)
+    svc -> svc : mapToResponse(request)
+end
+
+svc --> ctrl : List<RewardRequestResponse>
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<List<RewardRequestResponse>>
+deactivate ctrl
+
+ui -> ui : Render lá»‹ch sá»­ Ä‘á»•i quÃ \n(requestCode, rewardName, quantity,\ntotalCoins, status, createdAt)
+ui --> user : Hiá»ƒn thá»‹ lá»‹ch sá»­
+deactivate ui
+
+@enduml
+
+=== seq_get_my_subscription.puml ===
+@startuml seq_get_my_subscription
+title Sequence Diagram - GET /api/subscriptions/my (Láº¥y GÃ³i Ä‘ang sá»­ dá»¥ng)
+
+actor "School/Partnership" as user
+boundary "Dashboard UI\n(Frontend)" as ui
+participant "SubscriptionController" as ctrl
+participant "ISubscriptionService\n(SubscriptionServiceImpl)" as svc
+participant "UserRepository" as userRepo
+participant "SchoolRepository" as schoolRepo
+participant "PartnershipRepository" as partRepo
+participant "SubscriptionRepository" as subRepo
+participant "PaymentRepository" as payRepo
+participant "SubscriptionMapper" as mapper
+database "Database" as db
+
+user -> ui : Má»Ÿ trang Dashboard / GÃ³i Ä‘Äƒng kÃ½
+activate ui
+
+ui -> ctrl : GET /api/subscriptions/my
+activate ctrl
+note over ctrl : @PreAuthorize("hasAnyAuthority(\n'PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
+
+ctrl -> svc : getMySubscription(userId)
+activate svc
+
+svc -> userRepo : findById(userId)
+activate userRepo
+userRepo --> svc : User
+deactivate userRepo
+
+svc -> svc : resolveSubscriberType(user)
+
+alt subscriberType == SCHOOL
+    svc -> schoolRepo : findByUserId(userId)
+    activate schoolRepo
+    schoolRepo --> svc : School
+    deactivate schoolRepo
+    svc -> subRepo : findBySchoolIdAndStatus(schoolId, ACTIVE)
+    activate subRepo
+    subRepo --> svc : Optional<Subscription>
+    deactivate subRepo
+else subscriberType == PARTNERSHIP
+    svc -> partRepo : findByUserId(userId)
+    activate partRepo
+    partRepo --> svc : Partnership
+    deactivate partRepo
+    svc -> subRepo : findByPartnershipIdAndStatus(partnershipId, ACTIVE)
+    activate subRepo
+    subRepo --> svc : Optional<Subscription>
+    deactivate subRepo
+end
+
+alt no active subscription
+    svc --> ctrl : throw ResourceNotFoundException\n("No active subscription found.")
+    ctrl --> ui : 404 Not Found
+    ui --> user : Hiá»ƒn thá»‹ "ChÆ°a cÃ³ gÃ³i Ä‘Äƒng kÃ½"
+end
+
+svc -> payRepo : findAllBySubscriptionIdOrderByCreatedAtDesc(subscriptionId)
+activate payRepo
+payRepo --> svc : List<Payment>
+deactivate payRepo
+
+svc -> svc : Calculate usage stats\n(usedStudents, usedCampaigns, usedAiQuiz)
+
+svc -> mapper : toResponse(subscription, transactions, usageStats)
+activate mapper
+mapper --> svc : SubscriptionResponse
+deactivate mapper
+
+svc --> ctrl : SubscriptionResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response, "Current subscription retrieved.")
+ctrl --> ui : 200 OK\nResponseDto<SubscriptionResponse>
+deactivate ctrl
+
+ui -> ui : Render thÃ´ng tin gÃ³i hiá»‡n táº¡i\n(planName, status, startDate, endDate,\nusedStudents/maxStudents,\nusedCampaigns/maxCampaigns, ...)
+ui --> user : Hiá»ƒn thá»‹ gÃ³i Ä‘Äƒng kÃ½ hiá»‡n táº¡i
+deactivate ui
+
+@enduml
+
+=== seq_get_my_subscription_history.puml ===
+@startuml seq_get_my_subscription_history
+title Sequence Diagram - GET /api/subscriptions/my/history (Lá»‹ch sá»­ GÃ³i Ä‘Äƒng kÃ½)
+
+actor "School/Partnership" as user
+boundary "Subscription UI\n(Frontend)" as ui
+participant "SubscriptionController" as ctrl
+participant "ISubscriptionService\n(SubscriptionServiceImpl)" as svc
+participant "UserRepository" as userRepo
+participant "SchoolRepository" as schoolRepo
+participant "PartnershipRepository" as partRepo
+participant "SubscriptionRepository" as subRepo
+participant "PaymentRepository" as payRepo
+participant "SubscriptionMapper" as mapper
+database "Database" as db
+
+user -> ui : Má»Ÿ trang "Lá»‹ch sá»­ gÃ³i Ä‘Äƒng kÃ½"
+activate ui
+
+ui -> ctrl : GET /api/subscriptions/my/history\n?status=&keyword=&page=0&size=10
+activate ctrl
+note over ctrl : @PreAuthorize("hasAnyAuthority(\n'PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
+
+ctrl -> svc : getMySubscriptionHistory(userId, status, keyword, pageable)
+activate svc
+
+svc -> userRepo : findById(userId)
+activate userRepo
+userRepo --> svc : User
+deactivate userRepo
+
+svc -> svc : resolveSubscriberType(user)
+
+svc -> svc : Build Specification<Subscription>\n(filter by school/partnership, status, keyword)
+
+svc -> subRepo : findAll(spec, pageable)
+activate subRepo
+subRepo -> db : SELECT * FROM subscriptions\nWHERE conditions\nORDER BY created_at DESC
+db --> subRepo : Page<Subscription>
+subRepo --> svc : Page<Subscription>
+deactivate subRepo
+
+svc -> payRepo : findAllBySubscriptionIdInOrderByCreatedAtDesc(ids)
+activate payRepo
+payRepo --> svc : List<Payment>
+deactivate payRepo
+
+svc -> svc : Build transactionMap\n(subscriptionId â†’ List<TransactionResponse>)
+
+loop for each Subscription in page
+    svc -> mapper : toResponse(subscription, transactions, null, null, null)
+    activate mapper
+    mapper --> svc : SubscriptionResponse
+    deactivate mapper
+end
+
+svc --> ctrl : PageResponse<SubscriptionResponse>
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response,\n"Subscription history retrieved.")
+ctrl --> ui : 200 OK\nResponseDto<PageResponse<SubscriptionResponse>>
+deactivate ctrl
+
+ui -> ui : Render danh sÃ¡ch lá»‹ch sá»­ gÃ³i\n(subscriptionCode, planName,\nstatus, startDate, endDate, ...)
+ui --> user : Hiá»ƒn thá»‹ lá»‹ch sá»­ gÃ³i Ä‘Äƒng kÃ½
+deactivate ui
+
+@enduml
+
+=== seq_get_round_leaderboard.puml ===
+@startuml seq_get_round_leaderboard
+title Sequence Diagram - GET .../rounds/{roundId}/leaderboard (Get Round Leaderboard)
+
+actor "User\n(Student/Parent/School/\nPartnership/Admin)" as user
+boundary "Campaign UI\n(Frontend)" as ui
+participant "StudentCampaignController\n/ SchoolCampaignController\n/ PartnershipCampaignController" as ctrl
+participant "ICampaignService\n(CampaignServiceImpl)" as svc
+participant "CampaignRoundRepository" as crRepo
+participant "RoundLeaderboardRepository" as rlbRepo
+database "Database" as db
+
+user -> ui : Select round tab to view leaderboard
+activate ui
+
+ui -> ctrl : GET /api/campaign-rounds/{roundId}/leaderboard\nor GET /api/school/campaigns/{id}/rounds/{roundId}/leaderboard\nor GET /api/partnership/campaigns/{id}/rounds/{roundId}/leaderboard
+activate ctrl
+note over ctrl : @PreAuthorize("hasAnyAuthority(\n'STUDENT','PARENT','PARTNERSHIP_SCHOOL',\n'THIRD_PARTY_PARTNERSHIP','ADMINISTRATOR')")
+
+ctrl -> svc : getCampaignRoundLeaderboard(roundId)
+activate svc
+
+svc -> crRepo : findById(roundId)
+activate crRepo
+crRepo --> svc : CampaignRound
+deactivate crRepo
+
+alt round not found
+    svc --> ctrl : throw NotFoundException\n("KhÃ´ng tÃ¬m tháº¥y round")
+end
+
+svc -> rlbRepo : findByCampaignRoundIdOrderBy\nCombinedAccuracyPercentageDescAvgTimeSecondsAsc(roundId)
+activate rlbRepo
+rlbRepo -> db : SELECT FROM round_leaderboards\nWHERE campaign_round_id = ?\nORDER BY combined_accuracy_percentage DESC,\navg_time_seconds ASC
+db --> rlbRepo : List<RoundLeaderboard>
+rlbRepo --> svc : List<RoundLeaderboard>
+deactivate rlbRepo
+
+svc -> svc : mapRoundLeaderboard(entries)\n-> Map each entry to LeaderboardEntryResponse\n   with overallRankInRound, totalCoinsEarned
+
+svc --> ctrl : List<LeaderboardEntryResponse>
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<List<LeaderboardEntryResponse>>
+deactivate ctrl
+
+ui -> ui : Render leaderboard table:\nrank, studentName, schoolName,\ncombinedAccuracy, avgTime, totalCoins
+ui --> user : "Láº¥y leaderboard round thÃ nh cÃ´ng"
+deactivate ui
+
+@enduml
+
+=== seq_get_subscription_plan_by_id.puml ===
+@startuml seq_get_subscription_plan_by_id
+title Sequence Diagram - GET /api/subscription-plans/{id} (Láº¥y GÃ³i Ä‘Äƒng kÃ½ theo ID)
+
+actor "NgÆ°á»i dÃ¹ng" as user
+boundary "UI\n(Frontend)" as ui
+participant "SubscriptionPlanController" as ctrl
+participant "ISubscriptionPlanService\n(SubscriptionPlanServiceImpl)" as svc
+participant "SubscriptionPlanRepository" as planRepo
+participant "SubscriptionPlanMapper" as mapper
+database "Database" as db
+
+user -> ui : Má»Ÿ trang chi tiáº¿t gÃ³i Ä‘Äƒng kÃ½
+activate ui
+
+ui -> ctrl : GET /api/subscription-plans/{id}
+activate ctrl
+
+ctrl -> svc : getPlanById(id)
+activate svc
+
+svc -> planRepo : findById(planId)
+activate planRepo
+planRepo -> db : SELECT FROM subscription_plans WHERE id=?
+db --> planRepo : result
+planRepo --> svc : Optional<SubscriptionPlan>
+deactivate planRepo
+
+alt plan not found
+    svc --> ctrl : throw ResourceNotFoundException\n("Subscription plan not found")
+    ctrl --> ui : 404 Not Found
+    ui --> user : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> mapper : toResponse(plan)
+activate mapper
+mapper --> svc : SubscriptionPlanResponse
+deactivate mapper
+
+svc --> ctrl : SubscriptionPlanResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response, "Subscription plan retrieved successfully.")
+ctrl --> ui : 200 OK\nResponseDto<SubscriptionPlanResponse>
+deactivate ctrl
+
+ui -> ui : Render chi tiáº¿t gÃ³i Ä‘Äƒng kÃ½\n(planCode, planName, price, durationDays,\nmaxStudents, maxCampaignsPerMonth, ...)
+ui --> user : Hiá»ƒn thá»‹ trang chi tiáº¿t gÃ³i
+deactivate ui
+
+@enduml
+
+=== seq_parent_confirm_partnership_reward.puml ===
+@startuml seq_parent_confirm_partnership_reward
+title Sequence Diagram - PUT /api/rewards/deliveries/{id}/confirm (Phá»¥ huynh xÃ¡c nháº­n nháº­n quÃ  Partnership)
+
+actor "Phá»¥ huynh" as user
+boundary "Parent UI\n(Frontend)" as ui
+participant "CampaignRewardDeliveryController" as ctrl
+participant "ICampaignRewardDeliveryService\n(CampaignRewardDeliveryServiceImpl)" as svc
+participant "ParentRepository" as parentRepo
+participant "CampaignRewardDeliveryRepository" as delRepo
+participant "StudentParentLinkRepository" as splRepo
+participant "ApplicationEventPublisher" as eventPub
+database "Database" as db
+
+user -> ui : Xem quÃ  tráº¡ng thÃ¡i DELIVERED
+activate ui
+user -> ui : Nháº¥n "XÃ¡c nháº­n Ä‘Ã£ nháº­n quÃ "
+
+ui -> ctrl : PUT /api/rewards/deliveries/{id}/confirm
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('PARENT')")
+
+ctrl -> svc : confirmReceived(id)
+activate svc
+
+svc -> svc : getCurrentUser() â†’ User
+svc -> parentRepo : findByUserId(userId)
+activate parentRepo
+parentRepo --> svc : Parent
+deactivate parentRepo
+
+svc -> delRepo : findById(deliveryId)
+activate delRepo
+delRepo --> svc : CampaignRewardDelivery
+deactivate delRepo
+
+svc -> splRepo : existsByStudentIdAndParentId(studentId, parentId)
+activate splRepo
+splRepo --> svc : boolean
+deactivate splRepo
+
+alt phá»¥ huynh khÃ´ng liÃªn káº¿t vá»›i há»c sinh
+    svc --> ctrl : throw BadRequestException\n("Báº¡n khÃ´ng cÃ³ quyá»n xÃ¡c nháº­n")
+end
+
+alt status != DELIVERED
+    svc --> ctrl : throw BadRequestException
+end
+
+svc -> svc : delivery.setStatus(CONFIRMED)\ndelivery.setConfirmedAt(now)\ndelivery.setConfirmedBy(parent)
+
+svc -> delRepo : save(delivery)
+activate delRepo
+delRepo -> db : UPDATE SET status=CONFIRMED
+db --> delRepo : done
+delRepo --> svc : CampaignRewardDelivery
+deactivate delRepo
+
+svc -> eventPub : publishEvent â†’ ThÃ´ng bÃ¡o Há»c sinh
+svc -> eventPub : publishEvent â†’ ThÃ´ng bÃ¡o TrÆ°á»ng
+svc -> eventPub : publishEvent â†’ ThÃ´ng bÃ¡o Partnership
+
+svc --> ctrl : CampaignRewardDeliveryResponse
+deactivate svc
+
+ctrl --> ui : 200 OK
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ "XÃ¡c nháº­n nháº­n quÃ  thÃ nh cÃ´ng"
+ui --> user : Cáº­p nháº­t status â†’ CONFIRMED
+deactivate ui
+
+@enduml
+
+=== seq_parent_confirm_school_reward.puml ===
+@startuml seq_parent_confirm_school_reward
+title Sequence Diagram - PUT /api/rewards/requests/{id}/confirm (Phá»¥ huynh xÃ¡c nháº­n nháº­n quÃ  School)
+
+actor "Phá»¥ huynh" as user
+boundary "Parent UI\n(Frontend)" as ui
+participant "RewardRequestController" as ctrl
+participant "IRewardRequestService\n(RewardRequestServiceImpl)" as svc
+participant "ParentRepository" as parRepo
+participant "StudentParentLinkRepository" as splRepo
+participant "RewardRequestRepository" as rrRepo
+database "Database" as db
+
+user -> ui : Xem yÃªu cáº§u Ä‘á»•i quÃ  tráº¡ng thÃ¡i DELIVERED
+activate ui
+user -> ui : Nháº¥n "XÃ¡c nháº­n Ä‘Ã£ nháº­n quÃ "
+
+ui -> ctrl : PUT /api/rewards/requests/{id}/confirm
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('PARENT')")
+
+ctrl -> svc : confirmReceived(requestId)
+activate svc
+
+svc -> svc : getCurrentUser() â†’ User
+svc -> parRepo : findByUserId(userId)
+activate parRepo
+parRepo --> svc : Parent
+deactivate parRepo
+
+svc -> splRepo : findByParentId(parentId)
+activate splRepo
+splRepo --> svc : List<StudentParentLink>
+deactivate splRepo
+
+svc -> rrRepo : findByIdAndStudentId(requestId, childStudentId)
+activate rrRepo
+rrRepo --> svc : Optional<RewardRequest>
+deactivate rrRepo
+
+alt not found
+    svc --> ctrl : throw NotFoundException
+end
+
+alt status != DELIVERED
+    svc --> ctrl : throw BadRequestException\n("Chá»‰ cÃ³ thá»ƒ xÃ¡c nháº­n khi status lÃ  DELIVERED")
+end
+
+svc -> svc : request.setStatus(CONFIRMED)\nrequest.setConfirmedAt(now)\nrequest.setConfirmedByParent(parent)
+
+svc -> rrRepo : save(request)
+activate rrRepo
+rrRepo -> db : UPDATE SET status=CONFIRMED
+db --> rrRepo : done
+rrRepo --> svc : RewardRequest
+deactivate rrRepo
+
+svc --> ctrl : RewardRequestResponse
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<RewardRequestResponse>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ "XÃ¡c nháº­n nháº­n quÃ  thÃ nh cÃ´ng"
+ui --> user : Cáº­p nháº­t tráº¡ng thÃ¡i â†’ CONFIRMED
+deactivate ui
+
+@enduml
+
+=== seq_partnership_get_deliveries.puml ===
+@startuml seq_partnership_get_deliveries
+title Sequence Diagram - GET /api/partnership/campaigns/{campaignId}/reward-deliveries (Partnership xem danh sÃ¡ch giao quÃ )
+
+actor "Partnership" as user
+boundary "Partnership UI\n(Frontend)" as ui
+participant "CampaignRewardDeliveryController" as ctrl
+participant "ICampaignRewardDeliveryService\n(CampaignRewardDeliveryServiceImpl)" as svc
+participant "PartnershipRepository" as partRepo
+participant "CampaignRewardDeliveryRepository" as delRepo
+participant "S3PresignedUrlService" as s3Svc
+database "Database" as db
+
+user -> ui : Má»Ÿ trang chiáº¿n dá»‹ch â†’ tab "Giao quÃ "
+activate ui
+
+ui -> ctrl : GET /api/partnership/campaigns/{campaignId}/reward-deliveries\n?status=PREPARING
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('THIRD_PARTY_PARTNERSHIP')")
+
+ctrl -> svc : getDeliveriesByCampaign(campaignId, status)
+activate svc
+
+svc -> svc : getCurrentUser() â†’ User
+svc -> partRepo : findByUserId(userId)
+activate partRepo
+partRepo --> svc : Partnership
+deactivate partRepo
+
+alt status != null
+    svc -> delRepo : findByCampaignIdAndStatusOrderByLeaderboardRankAsc(campaignId, status)
+else
+    svc -> delRepo : findByCampaignIdOrderByLeaderboardRankAsc(campaignId)
+end
+activate delRepo
+delRepo -> db : SELECT FROM campaign_reward_deliveries ...
+db --> delRepo : List<CampaignRewardDelivery>
+delRepo --> svc : List<CampaignRewardDelivery>
+deactivate delRepo
+
+svc -> svc : Filter: chá»‰ láº¥y deliveries\ncá»§a campaign thuá»™c partnership nÃ y
+
+loop for each delivery
+    svc -> s3Svc : generatePresignedUrl(rewardImageUrl)
+    svc -> svc : mapToResponse(delivery)
+end
+
+svc --> ctrl : List<CampaignRewardDeliveryResponse>
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<List<CampaignRewardDeliveryResponse>>
+deactivate ctrl
+
+ui -> ui : Render báº£ng giao quÃ \n(studentName, schoolName, rewardName,\nleaderboardRank, totalScore, status)
+ui --> user : Hiá»ƒn thá»‹ danh sÃ¡ch giao quÃ 
+deactivate ui
+
+@enduml
+
+=== seq_partnership_ship_reward.puml ===
+@startuml seq_partnership_ship_reward
+title Sequence Diagram - PUT /api/partnership/reward-deliveries/{id}/ship (Partnership gá»­i quÃ )
+
+actor "Partnership" as user
+boundary "Partnership UI\n(Frontend)" as ui
+participant "CampaignRewardDeliveryController" as ctrl
+participant "ICampaignRewardDeliveryService\n(CampaignRewardDeliveryServiceImpl)" as svc
+participant "PartnershipRepository" as partRepo
+participant "CampaignRewardDeliveryRepository" as delRepo
+participant "ApplicationEventPublisher" as eventPub
+database "Database" as db
+
+user -> ui : Xem danh sÃ¡ch quÃ  tráº¡ng thÃ¡i PREPARING
+activate ui
+user -> ui : Nháº¥n "Gá»­i quÃ ", nháº­p mÃ£ váº­n Ä‘Æ¡n (tÃ¹y chá»n)
+
+ui -> ctrl : PUT /api/partnership/reward-deliveries/{id}/ship\n{ "trackingCode": "VN123456", "notes": "..." }
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('THIRD_PARTY_PARTNERSHIP')")
+
+ctrl -> svc : shipReward(id, request)
+activate svc
+
+svc -> svc : getCurrentUser() â†’ User
+svc -> partRepo : findByUserId(userId)
+activate partRepo
+partRepo --> svc : Partnership
+deactivate partRepo
+
+svc -> delRepo : findById(deliveryId)
+activate delRepo
+delRepo --> svc : CampaignRewardDelivery
+deactivate delRepo
+
+svc -> svc : Kiá»ƒm tra campaign thuá»™c partnership
+
+alt delivery khÃ´ng thuá»™c partnership nÃ y
+    svc --> ctrl : throw BadRequestException\n("Báº¡n khÃ´ng cÃ³ quyá»n")
+end
+
+alt status != PREPARING
+    svc --> ctrl : throw BadRequestException\n("Chá»‰ cÃ³ thá»ƒ ship khi status lÃ  PREPARING")
+end
+
+svc -> svc : delivery.setStatus(SHIPPING)\ndelivery.setShippedAt(now)\ndelivery.setShippingTrackingCode(trackingCode)
+
+svc -> delRepo : save(delivery)
+activate delRepo
+delRepo -> db : UPDATE SET status=SHIPPING, ...
+db --> delRepo : done
+delRepo --> svc : CampaignRewardDelivery
+deactivate delRepo
+
+svc -> eventPub : publishEvent â†’ ThÃ´ng bÃ¡o Há»c sinh
+svc -> eventPub : publishEvent â†’ ThÃ´ng bÃ¡o Phá»¥ huynh
+svc -> eventPub : publishEvent â†’ ThÃ´ng bÃ¡o TrÆ°á»ng
+
+svc --> ctrl : CampaignRewardDeliveryResponse
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<CampaignRewardDeliveryResponse>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ "Gá»­i quÃ  thÃ nh cÃ´ng"
+ui --> user : Cáº­p nháº­t status â†’ SHIPPING
+deactivate ui
+
+@enduml
+
+=== seq_register_send_otp.puml ===
+@startuml seq_register_send_otp
+title Sequence Diagram - POST /api/auth/register (Gá»­i OTP Ä‘Äƒng kÃ½)
+
+actor "NgÆ°á»i dÃ¹ng" as user
+boundary "Registration UI\n(Frontend)" as ui
+participant "AuthenticationController" as ctrl
+participant "IAuthenticationService\n(AuthenticationServiceImpl)" as svc
+participant "UserRepository" as userRepo
+participant "IOtpService" as otpSvc
+participant "IEmailService" as emailSvc
+database "Database" as db
+
+user -> ui : Truy cáº­p trang Ä‘Äƒng kÃ½
+activate ui
+ui -> ui : Hiá»ƒn thá»‹ form nháº­p email
+
+user -> ui : Nháº­p email vÃ  nháº¥n "Gá»­i OTP"
+ui -> ui : Validate email format phÃ­a client
+
+ui -> ctrl : POST /api/auth/register\n{ "email": "user@example.com" }
+activate ctrl
+ctrl -> ctrl : @Valid validate RegisterRequest
+
+ctrl -> svc : register(registerRequest)
+activate svc
+
+svc -> userRepo : existsByEmail(email)
+activate userRepo
+userRepo -> db : SELECT EXISTS FROM users\nWHERE email=?
+db --> userRepo : boolean
+userRepo --> svc : boolean
+deactivate userRepo
+
+alt email Ä‘Ã£ tá»“n táº¡i
+    svc --> ctrl : throw DuplicateEntity("Email nÃ y Ä‘Ã£ Ä‘Æ°á»£c sá»­ dá»¥ng!")
+    ctrl --> ui : 409 Conflict
+    ui -> ui : Hiá»ƒn thá»‹ lá»—i "Email Ä‘Ã£ Ä‘Æ°á»£c sá»­ dá»¥ng"
+    ui --> user : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> otpSvc : generateOtp(email)
+activate otpSvc
+otpSvc --> svc : OTP code (6 digits)
+deactivate otpSvc
+
+svc -> emailSvc : sendOtpEmail(email, otp)
+activate emailSvc
+emailSvc -> emailSvc : Gá»­i email chá»©a mÃ£ OTP
+emailSvc --> svc : void
+deactivate emailSvc
+
+svc --> ctrl : void
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(null, "Please check mail to get OTP")
+ctrl --> ui : 200 OK\nResponseDto<String>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o\n"Vui lÃ²ng kiá»ƒm tra email Ä‘á»ƒ láº¥y mÃ£ OTP"
+ui -> ui : Chuyá»ƒn sang form nháº­p OTP
+ui --> user : Hiá»ƒn thá»‹ form xÃ¡c thá»±c OTP
+deactivate ui
+
+@enduml
+
+=== seq_renew_subscription.puml ===
+@startuml seq_renew_subscription
+title Sequence Diagram - POST /api/subscriptions/renew (Gia háº¡n GÃ³i Ä‘Äƒng kÃ½)
+
+actor "School/Partnership" as user
+boundary "Subscription UI\n(Frontend)" as ui
+participant "SubscriptionController" as ctrl
+participant "ISubscriptionService\n(SubscriptionServiceImpl)" as svc
+participant "UserRepository" as userRepo
+participant "SubscriptionRepository" as subRepo
+participant "SubscriptionPlanRepository" as planRepo
+participant "PaymentRepository" as payRepo
+participant "IPaymentService" as paySvc
+database "Database" as db
+
+user -> ui : Xem gÃ³i Ä‘Äƒng kÃ½ Ä‘Ã£ háº¿t háº¡n
+activate ui
+ui -> ui : Hiá»ƒn thá»‹ nÃºt "Gia háº¡n"
+
+user -> ui : Nháº¥n "Gia háº¡n" (cÃ³ thá»ƒ chá»n gÃ³i má»›i)
+
+ui -> ctrl : POST /api/subscriptions/renew\n{ "subscriptionId": "uuid", "planId": "uuid" (optional) }
+activate ctrl
+note over ctrl : @PreAuthorize("hasAnyAuthority(\n'PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
+
+ctrl -> svc : renewSubscription(request, userId)
+activate svc
+
+svc -> userRepo : findById(userId)
+activate userRepo
+userRepo --> svc : User
+deactivate userRepo
+
+svc -> subRepo : findById(subscriptionId)
+activate subRepo
+subRepo --> svc : Subscription (old)
+deactivate subRepo
+
+alt status != EXPIRED && status != PENDING_RENEWAL
+    svc --> ctrl : throw FuncErrorException\n("Only expired subscriptions can be renewed.")
+    ctrl --> ui : 400 Bad Request
+    ui --> user : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> svc : verifyOwnership(oldSubscription, userId)
+
+alt planId provided
+    svc -> planRepo : findById(planId)
+    activate planRepo
+    planRepo --> svc : SubscriptionPlan (new)
+    deactivate planRepo
+    svc -> svc : Validate: plan.isActive\n&& plan.subscriberType matches
+else planId == null
+    svc -> svc : plan = oldSubscription.getPlan()
+end
+
+svc -> svc : new Subscription()\nset code, subscriberType, school/partnership,\nplan, renewedFrom, startDate, endDate
+
+alt gÃ³i miá»…n phÃ­
+    svc -> svc : status = ACTIVE
+    svc -> subRepo : save(newSubscription)
+    svc -> svc : createFreePaymentRecord(...)
+    svc -> payRepo : save(freePayment)
+    svc --> ctrl : PaymentResponse
+else gÃ³i tráº£ phÃ­
+    svc -> svc : status = PENDING_RENEWAL
+    svc -> subRepo : save(newSubscription)
+    svc -> paySvc : createPayment(newSubscription, user)
+    activate paySvc
+    paySvc --> svc : PaymentResponse (with checkoutUrl)
+    deactivate paySvc
+    svc --> ctrl : PaymentResponse
+end
+
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.created(response,\n"Subscription renewal initiated.")
+ctrl --> ui : 201 Created\nResponseDto<PaymentResponse>
+deactivate ctrl
+
+alt gÃ³i miá»…n phÃ­
+    ui -> ui : "Gia háº¡n gÃ³i miá»…n phÃ­ thÃ nh cÃ´ng!"
+    ui --> user : Cáº­p nháº­t dashboard
+else gÃ³i tráº£ phÃ­
+    ui -> ui : Redirect Ä‘áº¿n trang thanh toÃ¡n PayOS
+    ui --> user : Trang thanh toÃ¡n
+end
+deactivate ui
+
+@enduml
+
+=== seq_school_approve_reject_reward_request.puml ===
+@startuml seq_school_approve_reject_reward_request
+title Sequence Diagram - PUT /api/school/rewards/requests/{id}/approve (Duyá»‡t/Tá»« chá»‘i yÃªu cáº§u Ä‘á»•i quÃ )
+
+actor "TrÆ°á»ng há»c" as user
+boundary "School Reward UI\n(Frontend)" as ui
+participant "RewardRequestController" as ctrl
+participant "IRewardRequestService\n(RewardRequestServiceImpl)" as svc
+participant "SchoolRepository" as schoolRepo
+participant "RewardRequestRepository" as rrRepo
+participant "RewardRepository" as rewardRepo
+participant "StudentRepository" as stuRepo
+participant "CoinTransactionRepository" as txRepo
+participant "ApplicationEventPublisher" as eventPub
+database "Database" as db
+
+user -> ui : Xem yÃªu cáº§u Ä‘á»•i quÃ  PENDING
+activate ui
+
+user -> ui : Nháº¥n "Duyá»‡t" hoáº·c "Tá»« chá»‘i"\n(náº¿u tá»« chá»‘i: nháº­p lÃ½ do)
+
+ui -> ctrl : PUT /api/school/rewards/requests/{id}/approve\n{ "approved": true/false, "reason": "..." }
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('PARTNERSHIP_SCHOOL')")
+
+ctrl -> svc : approveOrRejectRequest(requestId, dto)
+activate svc
+
+svc -> svc : getCurrentUser() â†’ User
+svc -> schoolRepo : findByUserId(userId)
+activate schoolRepo
+schoolRepo --> svc : School
+deactivate schoolRepo
+
+svc -> rrRepo : findByIdAndSchoolId(requestId, schoolId)
+activate rrRepo
+rrRepo --> svc : Optional<RewardRequest>
+deactivate rrRepo
+
+alt request not found
+    svc --> ctrl : throw NotFoundException
+end
+
+alt status != PENDING
+    svc --> ctrl : throw BadRequestException\n("Chá»‰ cÃ³ thá»ƒ duyá»‡t khi status lÃ  PENDING")
+end
+
+alt dto.approved == true
+    svc -> svc : request.setStatus(APPROVED)\nrequest.setApprovedAt(now)
+else dto.approved == false
+    svc -> svc : request.setStatus(REJECTED)\nrequest.setRejectedReason(reason)\nrequest.setRejectedAt(now)
+
+    note over svc : HoÃ n coin cho há»c sinh
+    svc -> stuRepo : save(student) [totalCoins += totalCoins]
+    svc -> txRepo : save(CoinTransaction REFUND)
+
+    note over svc : HoÃ n stock cho reward
+    svc -> rewardRepo : save(reward) [stockQuantity += quantity]
+end
+
+svc -> rrRepo : save(request)
+activate rrRepo
+rrRepo -> db : UPDATE reward_requests ...
+db --> rrRepo : done
+rrRepo --> svc : RewardRequest
+deactivate rrRepo
+
+svc -> eventPub : publishEvent(NotificationEvent)\nâ†’ ThÃ´ng bÃ¡o há»c sinh + phá»¥ huynh
+activate eventPub
+eventPub --> svc : void
+deactivate eventPub
+
+svc --> ctrl : RewardRequestResponse
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<RewardRequestResponse>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o thÃ nh cÃ´ng
+ui -> ui : Cáº­p nháº­t tráº¡ng thÃ¡i yÃªu cáº§u
+ui --> user : Hiá»ƒn thá»‹ yÃªu cáº§u Ä‘Ã£ duyá»‡t/tá»« chá»‘i
+deactivate ui
+
+@enduml
+
+=== seq_school_confirm_arrived.puml ===
+@startuml seq_school_confirm_arrived
+title Sequence Diagram - PUT /api/school/reward-deliveries/{id}/arrived (TrÆ°á»ng xÃ¡c nháº­n nháº­n quÃ  tá»« Partnership)
+
+actor "TrÆ°á»ng há»c" as user
+boundary "School UI\n(Frontend)" as ui
+participant "CampaignRewardDeliveryController" as ctrl
+participant "ICampaignRewardDeliveryService\n(CampaignRewardDeliveryServiceImpl)" as svc
+participant "SchoolRepository" as schoolRepo
+participant "CampaignRewardDeliveryRepository" as delRepo
+participant "ApplicationEventPublisher" as eventPub
+database "Database" as db
+
+user -> ui : Xem quÃ  tráº¡ng thÃ¡i SHIPPING
+activate ui
+user -> ui : Nháº¥n "XÃ¡c nháº­n Ä‘Ã£ nháº­n hÃ ng"
+
+ui -> ctrl : PUT /api/school/reward-deliveries/{id}/arrived
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('PARTNERSHIP_SCHOOL')")
+
+ctrl -> svc : confirmArrived(id)
+activate svc
+
+svc -> svc : getCurrentUser() â†’ User
+svc -> schoolRepo : findByUserId(userId)
+activate schoolRepo
+schoolRepo --> svc : School
+deactivate schoolRepo
+
+svc -> delRepo : findById(deliveryId)
+activate delRepo
+delRepo --> svc : CampaignRewardDelivery
+deactivate delRepo
+
+alt delivery khÃ´ng thuá»™c trÆ°á»ng nÃ y
+    svc --> ctrl : throw BadRequestException
+end
+
+alt status != SHIPPING
+    svc --> ctrl : throw BadRequestException
+end
+
+svc -> svc : delivery.setStatus(ARRIVED)\ndelivery.setArrivedAt(now)\ndelivery.setArrivedConfirmedBy(currentUser)
+
+svc -> delRepo : save(delivery)
+activate delRepo
+delRepo -> db : UPDATE SET status=ARRIVED
+db --> delRepo : done
+delRepo --> svc : CampaignRewardDelivery
+deactivate delRepo
+
+svc -> eventPub : publishEvent â†’ ThÃ´ng bÃ¡o Há»c sinh
+svc -> eventPub : publishEvent â†’ ThÃ´ng bÃ¡o Phá»¥ huynh
+svc -> eventPub : publishEvent â†’ ThÃ´ng bÃ¡o Partnership
+
+svc --> ctrl : CampaignRewardDeliveryResponse
+deactivate svc
+
+ctrl --> ui : 200 OK
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ "XÃ¡c nháº­n nháº­n quÃ  thÃ nh cÃ´ng"
+ui --> user : Cáº­p nháº­t status â†’ ARRIVED
+deactivate ui
+
+@enduml
+
+=== seq_school_create_reward.puml ===
+@startuml seq_school_create_reward
+title Sequence Diagram - POST /api/school/rewards (Táº¡o quÃ  thÆ°á»Ÿng)
+
+actor "TrÆ°á»ng há»c" as user
+boundary "School Reward UI\n(Frontend)" as ui
+participant "RewardController" as ctrl
+participant "IRewardService\n(RewardServiceImpl)" as svc
+participant "SchoolRepository" as schoolRepo
+participant "RewardRepository" as rewardRepo
+participant "S3PresignedUrlService" as s3Svc
+database "Database" as db
+
+user -> ui : Má»Ÿ trang quáº£n lÃ½ quÃ  thÆ°á»Ÿng
+activate ui
+user -> ui : Nháº¥n "Táº¡o quÃ  má»›i"
+ui -> ui : Hiá»ƒn thá»‹ form táº¡o quÃ \n(rewardName, rewardType, coinCost,\nimageUrl, stockQuantity, isUnlimited, ...)
+
+user -> ui : Äiá»n thÃ´ng tin vÃ  nháº¥n "LÆ°u"
+ui -> ui : Validate form phÃ­a client
+
+ui -> ctrl : POST /api/school/rewards\n@RequestBody CreateRewardRequest
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('PARTNERSHIP_SCHOOL')")
+
+ctrl -> svc : createReward(request)
+activate svc
+
+svc -> svc : getCurrentUser() â†’ User
+
+svc -> schoolRepo : findByUserId(userId)
+activate schoolRepo
+schoolRepo --> svc : School
+deactivate schoolRepo
+
+svc -> rewardRepo : existsByRewardNameAndSchoolIdAndIsDeleteFalse(name, schoolId)
+activate rewardRepo
+rewardRepo --> svc : boolean
+deactivate rewardRepo
+
+alt tÃªn quÃ  Ä‘Ã£ tá»“n táº¡i
+    svc --> ctrl : throw BadRequestException\n("TÃªn quÃ  Ä‘Ã£ tá»“n táº¡i trong trÆ°á»ng nÃ y")
+    ctrl --> ui : 400 Bad Request
+    ui --> user : Hiá»ƒn thá»‹ lá»—i
+end
+
+alt !isUnlimited && stockQuantity == null
+    svc --> ctrl : throw BadRequestException\n("Pháº£i nháº­p sá»‘ lÆ°á»£ng tá»“n kho")
+    ctrl --> ui : 400 Bad Request
+    ui --> user : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> svc : new Reward()\nset school, createdBy, rewardName,\nrewardType, coinCost, imageUrl,\nisUnlimited, stockQuantity, isActive=true
+
+svc -> rewardRepo : save(reward)
+activate rewardRepo
+rewardRepo -> db : INSERT INTO rewards ...
+db --> rewardRepo : Reward
+rewardRepo --> svc : Reward
+deactivate rewardRepo
+
+svc -> s3Svc : generatePresignedUrl(imageUrl)
+activate s3Svc
+s3Svc --> svc : presignedUrl
+deactivate s3Svc
+
+svc -> svc : mapToResponse(reward)
+
+svc --> ctrl : RewardResponse
+deactivate svc
+
+ctrl --> ui : 201 Created\nResponseDto<RewardResponse>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o "Táº¡o quÃ  thÃ nh cÃ´ng"
+ui -> ui : Cáº­p nháº­t danh sÃ¡ch quÃ 
+ui --> user : Hiá»ƒn thá»‹ quÃ  má»›i
+deactivate ui
+
+@enduml
+
+=== seq_school_delete_reward.puml ===
+@startuml seq_school_delete_reward
+title Sequence Diagram - DELETE /api/school/rewards/{rewardId} (XÃ³a má»m quÃ  thÆ°á»Ÿng)
+
+actor "TrÆ°á»ng há»c" as user
+boundary "School Reward UI\n(Frontend)" as ui
+participant "RewardController" as ctrl
+participant "IRewardService\n(RewardServiceImpl)" as svc
+participant "SchoolRepository" as schoolRepo
+participant "RewardRepository" as rewardRepo
+database "Database" as db
+
+user -> ui : Xem danh sÃ¡ch quÃ  thÆ°á»Ÿng
+activate ui
+user -> ui : Nháº¥n nÃºt "XÃ³a" trÃªn quÃ  cáº§n xÃ³a
+ui -> ui : Hiá»ƒn thá»‹ dialog xÃ¡c nháº­n\n"Báº¡n cÃ³ cháº¯c muá»‘n xÃ³a quÃ  nÃ y?"
+
+user -> ui : Nháº¥n "XÃ¡c nháº­n"
+
+ui -> ctrl : DELETE /api/school/rewards/{rewardId}
+activate ctrl
+
+ctrl -> svc : deleteReward(rewardId)
+activate svc
+
+svc -> svc : getCurrentUser() â†’ User
+svc -> schoolRepo : findByUserId(userId)
+activate schoolRepo
+schoolRepo --> svc : School
+deactivate schoolRepo
+
+svc -> rewardRepo : findByIdAndSchoolIdAndIsDeleteFalse(rewardId, schoolId)
+activate rewardRepo
+rewardRepo --> svc : Optional<Reward>
+deactivate rewardRepo
+
+alt quÃ  khÃ´ng tÃ¬m tháº¥y
+    svc --> ctrl : throw NotFoundException
+    ctrl --> ui : 404 Not Found
+    ui --> user : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> svc : reward.setIsDelete(true)
+
+svc -> rewardRepo : save(reward)
+activate rewardRepo
+rewardRepo -> db : UPDATE rewards SET is_delete=true
+db --> rewardRepo : done
+rewardRepo --> svc : Reward
+deactivate rewardRepo
+
+svc --> ctrl : void
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<Void>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ "XÃ³a quÃ  thÃ nh cÃ´ng"
+ui -> ui : XÃ³a quÃ  khá»i danh sÃ¡ch
+ui --> user : Danh sÃ¡ch quÃ  Ä‘Ã£ cáº­p nháº­t
+deactivate ui
+
+@enduml
+
+=== seq_school_deliver_partnership_reward.puml ===
+@startuml seq_school_deliver_partnership_reward
+title Sequence Diagram - PUT /api/school/reward-deliveries/{id}/deliver (TrÆ°á»ng giao quÃ  Partnership cho há»c sinh)
+
+actor "TrÆ°á»ng há»c" as user
+boundary "School UI\n(Frontend)" as ui
+participant "CampaignRewardDeliveryController" as ctrl
+participant "ICampaignRewardDeliveryService\n(CampaignRewardDeliveryServiceImpl)" as svc
+participant "SchoolRepository" as schoolRepo
+participant "CampaignRewardDeliveryRepository" as delRepo
+participant "ApplicationEventPublisher" as eventPub
+database "Database" as db
+
+user -> ui : Xem quÃ  tráº¡ng thÃ¡i ARRIVED
+activate ui
+user -> ui : Upload áº£nh báº±ng chá»©ng giao quÃ \nvÃ  nháº¥n "XÃ¡c nháº­n giao cho há»c sinh"
+
+ui -> ctrl : PUT /api/school/reward-deliveries/{id}/deliver\n{ "deliveryImageUrl": "s3-key", "notes": "..." }
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('PARTNERSHIP_SCHOOL')")
+
+ctrl -> svc : markDelivered(id, request)
+activate svc
+
+svc -> svc : getCurrentUser() â†’ User
+svc -> schoolRepo : findByUserId(userId)
+activate schoolRepo
+schoolRepo --> svc : School
+deactivate schoolRepo
+
+svc -> delRepo : findById(deliveryId)
+activate delRepo
+delRepo --> svc : CampaignRewardDelivery
+deactivate delRepo
+
+alt delivery khÃ´ng thuá»™c trÆ°á»ng
+    svc --> ctrl : throw BadRequestException
+end
+
+alt status != ARRIVED
+    svc --> ctrl : throw BadRequestException
+end
+
+svc -> svc : delivery.setStatus(DELIVERED)\ndelivery.setDeliveredAt(now)\ndelivery.setDeliveredBy(currentUser)\ndelivery.setDeliveryImageUrl(imageUrl)
+
+svc -> delRepo : save(delivery)
+activate delRepo
+delRepo -> db : UPDATE SET status=DELIVERED
+db --> delRepo : done
+delRepo --> svc : CampaignRewardDelivery
+deactivate delRepo
+
+svc -> eventPub : publishEvent â†’ ThÃ´ng bÃ¡o Há»c sinh
+svc -> eventPub : publishEvent â†’ ThÃ´ng bÃ¡o Phá»¥ huynh\n(cáº§n xÃ¡c nháº­n nháº­n quÃ )
+svc -> eventPub : publishEvent â†’ ThÃ´ng bÃ¡o Partnership
+
+svc --> ctrl : CampaignRewardDeliveryResponse
+deactivate svc
+
+ctrl --> ui : 200 OK
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ "Giao quÃ  thÃ nh cÃ´ng"
+ui --> user : Cáº­p nháº­t status â†’ DELIVERED
+deactivate ui
+
+@enduml
+
+=== seq_school_deliver_reward.puml ===
+@startuml seq_school_deliver_reward
+title Sequence Diagram - PUT /api/school/rewards/requests/{id}/deliver (TrÆ°á»ng giao quÃ  cho há»c sinh)
+
+actor "TrÆ°á»ng há»c" as user
+boundary "School Reward UI\n(Frontend)" as ui
+participant "RewardRequestController" as ctrl
+participant "IRewardRequestService\n(RewardRequestServiceImpl)" as svc
+participant "SchoolRepository" as schoolRepo
+participant "RewardRequestRepository" as rrRepo
+participant "ApplicationEventPublisher" as eventPub
+database "Database" as db
+
+user -> ui : Xem yÃªu cáº§u Ä‘á»•i quÃ  tráº¡ng thÃ¡i APPROVED
+activate ui
+
+user -> ui : Upload áº£nh báº±ng chá»©ng giao quÃ \nvÃ  nháº¥n "XÃ¡c nháº­n giao quÃ "
+
+ui -> ctrl : PUT /api/school/rewards/requests/{id}/deliver\n{ "imageUrl": "s3-key" }
+activate ctrl
+
+ctrl -> svc : markDelivered(requestId, imageUrl)
+activate svc
+
+svc -> svc : getCurrentUser() â†’ User
+svc -> schoolRepo : findByUserId(userId)
+activate schoolRepo
+schoolRepo --> svc : School
+deactivate schoolRepo
+
+svc -> rrRepo : findByIdAndSchoolId(requestId, schoolId)
+activate rrRepo
+rrRepo --> svc : Optional<RewardRequest>
+deactivate rrRepo
+
+alt status != APPROVED
+    svc --> ctrl : throw BadRequestException\n("Chá»‰ cÃ³ thá»ƒ giao khi status lÃ  APPROVED")
+end
+
+svc -> svc : request.setStatus(DELIVERED)\nrequest.setDeliveredAt(now)\nrequest.setDeliveryImageUrl(imageUrl)
+
+svc -> rrRepo : save(request)
+activate rrRepo
+rrRepo -> db : UPDATE reward_requests SET status=DELIVERED
+db --> rrRepo : done
+rrRepo --> svc : RewardRequest
+deactivate rrRepo
+
+svc -> eventPub : publishEvent(NotificationEvent)\nâ†’ ThÃ´ng bÃ¡o phá»¥ huynh cáº§n xÃ¡c nháº­n nháº­n quÃ 
+activate eventPub
+eventPub --> svc : void
+deactivate eventPub
+
+svc --> ctrl : RewardRequestResponse
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<RewardRequestResponse>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ "XÃ¡c nháº­n giao quÃ  thÃ nh cÃ´ng"
+ui --> user : Cáº­p nháº­t tráº¡ng thÃ¡i â†’ DELIVERED
+deactivate ui
+
+@enduml
+
+=== seq_school_get_partnership_deliveries.puml ===
+@startuml seq_school_get_partnership_deliveries
+title Sequence Diagram - GET /api/school/campaigns/{campaignId}/reward-deliveries (TrÆ°á»ng xem quÃ  Partnership)
+
+actor "TrÆ°á»ng há»c" as user
+boundary "School UI\n(Frontend)" as ui
+participant "CampaignRewardDeliveryController" as ctrl
+participant "ICampaignRewardDeliveryService\n(CampaignRewardDeliveryServiceImpl)" as svc
+participant "SchoolRepository" as schoolRepo
+participant "CampaignRewardDeliveryRepository" as delRepo
+participant "S3PresignedUrlService" as s3Svc
+database "Database" as db
+
+user -> ui : Má»Ÿ chiáº¿n dá»‹ch Partnership â†’ tab "QuÃ  thÆ°á»Ÿng"
+activate ui
+
+ui -> ctrl : GET /api/school/campaigns/{campaignId}/reward-deliveries\n?status=ARRIVED
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('PARTNERSHIP_SCHOOL')")
+
+ctrl -> svc : getDeliveriesBySchool(campaignId, status)
+activate svc
+
+svc -> svc : getCurrentUser() â†’ User
+svc -> schoolRepo : findByUserId(userId)
+activate schoolRepo
+schoolRepo --> svc : School
+deactivate schoolRepo
+
+alt status != null
+    svc -> delRepo : findBySchoolIdAndCampaignIdAndStatusOrderByLeaderboardRankAsc(schoolId, campaignId, status)
+else
+    svc -> delRepo : findBySchoolIdAndCampaignIdOrderByLeaderboardRankAsc(schoolId, campaignId)
+end
+activate delRepo
+delRepo -> db : SELECT FROM campaign_reward_deliveries ...
+db --> delRepo : List<CampaignRewardDelivery>
+delRepo --> svc : List<CampaignRewardDelivery>
+deactivate delRepo
+
+loop for each delivery
+    svc -> s3Svc : generatePresignedUrl(rewardImageUrl)
+    svc -> svc : mapToResponse(delivery)
+end
+
+svc --> ctrl : List<CampaignRewardDeliveryResponse>
+deactivate svc
+
+ctrl --> ui : 200 OK
+deactivate ctrl
+
+ui -> ui : Render báº£ng quÃ \n(studentName, rewardName, rank,\nstatus, trackingCode)
+ui --> user : Hiá»ƒn thá»‹ danh sÃ¡ch quÃ 
+deactivate ui
+
+@enduml
+
+=== seq_school_get_rewards.puml ===
+@startuml seq_school_get_rewards
+title Sequence Diagram - GET /api/school/rewards (Láº¥y danh sÃ¡ch quÃ  cá»§a trÆ°á»ng)
+
+actor "TrÆ°á»ng há»c" as user
+boundary "School Reward UI\n(Frontend)" as ui
+participant "RewardController" as ctrl
+participant "IRewardService\n(RewardServiceImpl)" as svc
+participant "SchoolRepository" as schoolRepo
+participant "RewardRepository" as rewardRepo
+participant "S3PresignedUrlService" as s3Svc
+database "Database" as db
+
+user -> ui : Má»Ÿ trang quáº£n lÃ½ quÃ  thÆ°á»Ÿng
+activate ui
+
+ui -> ctrl : GET /api/school/rewards?rewardType=PHYSICAL
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('PARTNERSHIP_SCHOOL')")
+
+ctrl -> svc : getRewardsForSchool(rewardType)
+activate svc
+
+svc -> svc : getCurrentUser() â†’ User
+svc -> schoolRepo : findByUserId(userId)
+activate schoolRepo
+schoolRepo --> svc : School
+deactivate schoolRepo
+
+alt rewardType != null
+    svc -> rewardRepo : findBySchoolIdAndRewardTypeAndIsDeleteFalseOrderByCreatedAtDesc(schoolId, rewardType)
+else rewardType == null
+    svc -> rewardRepo : findBySchoolIdAndIsDeleteFalseOrderByCreatedAtDesc(schoolId)
+end
+activate rewardRepo
+rewardRepo -> db : SELECT FROM rewards WHERE ...
+db --> rewardRepo : List<Reward>
+rewardRepo --> svc : List<Reward>
+deactivate rewardRepo
+
+loop for each Reward
+    svc -> s3Svc : generatePresignedUrl(imageUrl)
+    svc -> svc : mapToResponse(reward)
+end
+
+svc --> ctrl : List<RewardResponse>
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<List<RewardResponse>>
+deactivate ctrl
+
+ui -> ui : Render danh sÃ¡ch quÃ \n(rewardName, coinCost, stockQuantity,\nrewardType, imagePresignedUrl)
+ui --> user : Hiá»ƒn thá»‹ danh sÃ¡ch quÃ 
+deactivate ui
+
+@enduml
+
+=== seq_school_get_reward_requests.puml ===
+@startuml seq_school_get_reward_requests
+title Sequence Diagram - GET /api/school/rewards/requests (TrÆ°á»ng xem yÃªu cáº§u Ä‘á»•i quÃ )
+
+actor "TrÆ°á»ng há»c" as user
+boundary "School Reward UI\n(Frontend)" as ui
+participant "RewardRequestController" as ctrl
+participant "IRewardRequestService\n(RewardRequestServiceImpl)" as svc
+participant "SchoolRepository" as schoolRepo
+participant "RewardRequestRepository" as rrRepo
+participant "S3PresignedUrlService" as s3Svc
+database "Database" as db
+
+user -> ui : Má»Ÿ trang "YÃªu cáº§u Ä‘á»•i quÃ "
+activate ui
+
+ui -> ctrl : GET /api/school/rewards/requests?status=PENDING
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('PARTNERSHIP_SCHOOL')")
+
+ctrl -> svc : getSchoolRequests(status)
+activate svc
+
+svc -> svc : getCurrentUser() â†’ User
+svc -> schoolRepo : findByUserId(userId)
+activate schoolRepo
+schoolRepo --> svc : School
+deactivate schoolRepo
+
+alt status != null
+    svc -> rrRepo : findBySchoolIdAndStatusOrderByCreatedAtDesc(schoolId, status)
+else
+    svc -> rrRepo : findBySchoolIdOrderByCreatedAtDesc(schoolId)
+end
+activate rrRepo
+rrRepo -> db : SELECT FROM reward_requests WHERE ...
+db --> rrRepo : List<RewardRequest>
+rrRepo --> svc : List<RewardRequest>
+deactivate rrRepo
+
+loop for each RewardRequest
+    svc -> s3Svc : generatePresignedUrl(rewardImageUrl)
+    svc -> svc : mapToResponse(request)
+end
+
+svc --> ctrl : List<RewardRequestResponse>
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<List<RewardRequestResponse>>
+deactivate ctrl
+
+ui -> ui : Render báº£ng yÃªu cáº§u\n(requestCode, studentName, rewardName,\nquantity, totalCoins, status)
+ui --> user : Hiá»ƒn thá»‹ danh sÃ¡ch yÃªu cáº§u
+deactivate ui
+
+@enduml
+
+=== seq_school_update_reward.puml ===
+@startuml seq_school_update_reward
+title Sequence Diagram - PUT /api/school/rewards/{rewardId} (Cáº­p nháº­t quÃ  thÆ°á»Ÿng)
+
+actor "TrÆ°á»ng há»c" as user
+boundary "School Reward UI\n(Frontend)" as ui
+participant "RewardController" as ctrl
+participant "IRewardService\n(RewardServiceImpl)" as svc
+participant "SchoolRepository" as schoolRepo
+participant "RewardRepository" as rewardRepo
+participant "S3PresignedUrlService" as s3Svc
+database "Database" as db
+
+user -> ui : Má»Ÿ chi tiáº¿t quÃ , nháº¥n "Chá»‰nh sá»­a"
+activate ui
+ui -> ui : Hiá»ƒn thá»‹ form vá»›i dá»¯ liá»‡u hiá»‡n táº¡i
+
+user -> ui : Sá»­a thÃ´ng tin vÃ  nháº¥n "Cáº­p nháº­t"
+ui -> ui : Validate form phÃ­a client
+
+ui -> ctrl : PUT /api/school/rewards/{rewardId}\n@RequestBody UpdateRewardRequest
+activate ctrl
+
+ctrl -> svc : updateReward(rewardId, request)
+activate svc
+
+svc -> svc : getCurrentUser() â†’ User
+svc -> schoolRepo : findByUserId(userId)
+activate schoolRepo
+schoolRepo --> svc : School
+deactivate schoolRepo
+
+svc -> rewardRepo : findByIdAndSchoolIdAndIsDeleteFalse(rewardId, schoolId)
+activate rewardRepo
+rewardRepo --> svc : Optional<Reward>
+deactivate rewardRepo
+
+alt quÃ  khÃ´ng tÃ¬m tháº¥y
+    svc --> ctrl : throw NotFoundException
+    ctrl --> ui : 404 Not Found
+    ui --> user : Hiá»ƒn thá»‹ lá»—i
+end
+
+opt rewardName changed
+    svc -> rewardRepo : existsByRewardNameAndSchoolIdAndIsDeleteFalse(newName, schoolId)
+    activate rewardRepo
+    rewardRepo --> svc : boolean
+    deactivate rewardRepo
+    alt tÃªn trÃ¹ng
+        svc --> ctrl : throw BadRequestException("TÃªn quÃ  Ä‘Ã£ tá»“n táº¡i")
+        ctrl --> ui : 400 Bad Request
+        ui --> user : Hiá»ƒn thá»‹ lá»—i
+    end
+end
+
+svc -> svc : Partial update:\nrewardName, rewardType, description,\ncoinCost, imageUrl, isUnlimited,\nstockQuantity, termsConditions
+
+svc -> rewardRepo : save(reward)
+activate rewardRepo
+rewardRepo -> db : UPDATE rewards SET ...
+db --> rewardRepo : Reward
+rewardRepo --> svc : Reward
+deactivate rewardRepo
+
+svc -> s3Svc : generatePresignedUrl(imageUrl)
+svc -> svc : mapToResponse(reward)
+
+svc --> ctrl : RewardResponse
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<RewardResponse>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ "Cáº­p nháº­t quÃ  thÃ nh cÃ´ng"
+ui --> user : Hiá»ƒn thá»‹ quÃ  Ä‘Ã£ cáº­p nháº­t
+deactivate ui
+
+@enduml
+
+=== seq_student_get_game_history.puml ===
+@startuml seq_student_get_game_history
+title Sequence Diagram - GET /api/student/game/.../history (Get Game Session History)
+
+actor Student as user
+boundary "Game UI\n(Frontend)" as ui
+participant "StudentGameController" as ctrl
+participant "IStudentGameService\n(StudentGameServiceImpl)" as svc
+participant "CampaignParticipantRepository" as cpRepo
+participant "CampaignRoundRepository" as crRepo
+participant "RoundGameConfigRepository" as rgcRepo
+participant "GameSessionRepository" as gsRepo
+database "Database" as db
+
+user -> ui : Open game history tab
+activate ui
+
+ui -> ctrl : GET /api/student/game/campaigns/{campaignId}\n/rounds/{roundId}/configs/{roundGameConfigId}/history
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('STUDENT')")
+
+ctrl -> svc : getGameSessionHistory(campaignId,\nroundId, roundGameConfigId)
+activate svc
+
+svc -> svc : getCurrentStudent() -> Student
+
+svc -> cpRepo : findByCampaignIdAndStudentIdAndIsActiveTrue\n(campaignId, studentId)
+activate cpRepo
+cpRepo --> svc : CampaignParticipant
+deactivate cpRepo
+
+svc -> crRepo : findByIdAndCampaignId(roundId, campaignId)
+activate crRepo
+crRepo --> svc : CampaignRound
+deactivate crRepo
+
+svc -> rgcRepo : findByIdAndCampaignRoundId\n(roundGameConfigId, roundId)
+activate rgcRepo
+rgcRepo --> svc : RoundGameConfig
+deactivate rgcRepo
+
+svc -> gsRepo : findByParticipantAndRound\n(participantId, roundId)
+activate gsRepo
+gsRepo -> db : SELECT FROM game_sessions\nWHERE campaign_participant_id = ?\nAND round related
+db --> gsRepo : List<GameSession>
+gsRepo --> svc : List<GameSession>
+deactivate gsRepo
+
+svc -> svc : Filter by roundGameConfigId\nMap to StudentGameSessionSummaryResponse
+
+svc --> ctrl : List<StudentGameSessionSummaryResponse>
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<List<StudentGameSessionSummaryResponse>>
+deactivate ctrl
+
+ui -> ui : Render history table:\nsessionId, level, accuracy,\ntimeTaken, passed, coinAwarded
+ui --> user : "Láº¥y lá»‹ch sá»­ phiÃªn chÆ¡i thÃ nh cÃ´ng"
+deactivate ui
+
+@enduml
+
+=== seq_student_get_game_result.puml ===
+@startuml seq_student_get_game_result
+title Sequence Diagram - GET /api/student/game/sessions/{sessionId}/result (Get Game Session Result)
+
+actor Student as user
+boundary "Game UI\n(Frontend)" as ui
+participant "StudentGameController" as ctrl
+participant "IStudentGameService\n(StudentGameServiceImpl)" as svc
+participant "GameSessionRepository" as gsRepo
+database "Database" as db
+
+user -> ui : Open game result screen
+activate ui
+
+ui -> ctrl : GET /api/student/game/sessions/{sessionId}/result
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('STUDENT')")
+
+ctrl -> svc : getGameSessionResult(sessionId)
+activate svc
+
+svc -> svc : getCurrentStudent() -> Student
+
+svc -> gsRepo : findById(sessionId)
+activate gsRepo
+gsRepo -> db : SELECT FROM game_sessions WHERE id = ?
+db --> gsRepo : GameSession
+gsRepo --> svc : GameSession
+deactivate gsRepo
+
+alt session does not belong to student
+    svc --> ctrl : throw BadRequestException\n("Báº¡n khÃ´ng cÃ³ quyá»n xem phiÃªn game nÃ y")
+end
+
+svc -> svc : mapResult(session)\n-> Build response with feedbackMessage
+
+svc --> ctrl : StudentGameSessionResultResponse
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<StudentGameSessionResultResponse>
+deactivate ctrl
+
+ui -> ui : Display result:\naccuracy, passed/failed,\ncoinAwarded, feedbackMessage
+ui --> user : "Láº¥y káº¿t quáº£ phiÃªn chÆ¡i thÃ nh cÃ´ng"
+deactivate ui
+
+@enduml
+
+=== seq_student_start_game_session.puml ===
+@startuml seq_student_start_game_session
+title Sequence Diagram - POST /api/student/game/.../start (Start Game Session)
+
+actor Student as user
+boundary "Game UI\n(Frontend)" as ui
+participant "StudentGameController" as ctrl
+participant "IStudentGameService\n(StudentGameServiceImpl)" as svc
+participant "StudentRepository" as stuRepo
+participant "CampaignParticipantRepository" as cpRepo
+participant "CampaignRoundRepository" as crRepo
+participant "RoundGameConfigRepository" as rgcRepo
+participant "GameSessionRepository" as gsRepo
+participant "WasteItemRepository" as wiRepo
+participant "S3PresignedUrlService" as s3Svc
+database "Database" as db
+
+user -> ui : Select campaign round game\nand press "Play"
+activate ui
+
+ui -> ctrl : POST /api/student/game/campaigns/{campaignId}\n/rounds/{roundId}/configs/{roundGameConfigId}/start\n?presetId=...&levelNumber=1
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('STUDENT')")
+
+ctrl -> svc : startGameSession(campaignId, roundId,\nroundGameConfigId, presetId, levelNumber)
+activate svc
+
+svc -> svc : getCurrentStudent() -> Student
+
+svc -> cpRepo : findByCampaignIdAndStudentIdAndIsActiveTrue(campaignId, studentId)
+activate cpRepo
+cpRepo --> svc : CampaignParticipant
+deactivate cpRepo
+
+note over svc : Validate participant:\n- isActive == true\n- parentApprovalStatus == APPROVED\n- campaign status == ON_GOING
+
+svc -> crRepo : findByIdAndCampaignId(roundId, campaignId)
+activate crRepo
+crRepo --> svc : CampaignRound
+deactivate crRepo
+
+note over svc : Validate round:\n- status == ACTIVE\n- now between startTime and endTime
+
+svc -> rgcRepo : findByIdAndCampaignRoundId(configId, roundId)
+activate rgcRepo
+rgcRepo --> svc : RoundGameConfig
+deactivate rgcRepo
+
+alt Partnership campaign
+    svc -> svc : ensurePartnershipRoundAccess(participant, round)\n-> Check round advancement from previous round
+end
+
+svc -> svc : resolvePreset(config, presetId)\n-> GameLevelPreset
+svc -> svc : resolveLevelItem(preset, targetLevel)\n-> GameLevelPresetItem
+
+svc -> gsRepo : Check level unlocked\n(previous level must be passed)
+svc -> gsRepo : Check daily play quota\n(MAX_PLAYS_PER_LEVEL_PER_DAY = 100)
+
+svc -> wiRepo : Find waste items by category/sub-category
+activate wiRepo
+wiRepo --> svc : List<WasteItem>
+deactivate wiRepo
+
+svc -> svc : Shuffle and limit items\nby levelItem.itemCount
+
+loop for each WasteItem
+    svc -> s3Svc : generatePresignedUrl(imageUrl)
+end
+
+svc -> svc : buildPresetSnapshot(config, preset, levelItem)
+
+svc -> gsRepo : Auto-close all open sessions\nfor this student
+svc -> gsRepo : save(new GameSession)
+activate gsRepo
+gsRepo -> db : INSERT INTO game_sessions ...
+db --> gsRepo : GameSession
+gsRepo --> svc : GameSession
+deactivate gsRepo
+
+svc --> ctrl : StudentGameSessionStartResponse
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<StudentGameSessionStartResponse>
+deactivate ctrl
+
+ui -> ui : Render game screen with\nwasteItems, timeLimit, lives
+ui --> user : "Báº¯t Ä‘áº§u phiÃªn chÆ¡i game thÃ nh cÃ´ng"
+deactivate ui
+
+@enduml
+
+=== seq_student_submit_game_session.puml ===
+@startuml seq_student_submit_game_session
+title Sequence Diagram - POST /api/student/game/sessions/{sessionId}/submit (Submit Game Session)
+
+actor Student as user
+boundary "Game UI\n(Frontend)" as ui
+participant "StudentGameController" as ctrl
+participant "IStudentGameService\n(StudentGameServiceImpl)" as svc
+participant "GameSessionRepository" as gsRepo
+participant "DefaultCoinConfigRepository" as coinCfgRepo
+participant "StudentRepository" as stuRepo
+participant "CoinTransactionRepository" as txRepo
+participant "RoundLeaderboardRepository" as rlbRepo
+participant "SchoolLeaderboardRepository" as slbRepo
+database "Database" as db
+
+user -> ui : Complete game, press "Submit"
+activate ui
+
+ui -> ctrl : POST /api/student/game/sessions/{sessionId}/submit\n@RequestBody SubmitGameSessionRequest
+activate ctrl
+
+ctrl -> svc : submitGameSession(sessionId, request)
+activate svc
+
+svc -> svc : getCurrentStudent() -> Student
+
+svc -> gsRepo : findById(sessionId)
+activate gsRepo
+gsRepo --> svc : GameSession
+deactivate gsRepo
+
+note over svc : Validate:\n- session belongs to student\n- session not yet completed\n- partnership round access check
+
+svc -> svc : validateSubmitRequest(request)\n(correctItems + incorrectItems <= totalItems)
+
+svc -> svc : Calculate accuracy =\n(correctItems / totalItems) * 100
+svc -> svc : passed = accuracy > 75.00
+
+svc -> svc : Update session:\nsetSessionEnd, setTimeTakenSeconds,\nsetTotalItems, setCorrectItems,\nsetAccuracyPercentage, setPassed,\nsetCompleted(true)
+
+== Coin Award (School Campaign Only) ==
+
+alt campaignType == SCHOOL_INTERNAL && passed
+    alt config.coinPerSession != null
+        svc -> svc : coinAwarded = config.coinPerSession
+    else
+        svc -> coinCfgRepo : findByGameTypeIdAndDifficulty\n(gameTypeId, resolvedDifficulty)
+        activate coinCfgRepo
+        coinCfgRepo --> svc : DefaultCoinConfig
+        deactivate coinCfgRepo
+        svc -> svc : coinAwarded = defaultCoin
+    end
+
+    svc -> stuRepo : save(student)\n[totalCoins += coinAwarded]
+    activate stuRepo
+    stuRepo -> db : UPDATE students SET total_coins = ...
+    stuRepo --> svc : Student
+    deactivate stuRepo
+
+    svc -> txRepo : save(CoinTransaction EARN_GAME)
+    activate txRepo
+    txRepo -> db : INSERT INTO coin_transactions ...
+    txRepo --> svc : CoinTransaction
+    deactivate txRepo
+end
+
+svc -> gsRepo : save(session)
+activate gsRepo
+gsRepo -> db : UPDATE game_sessions ...
+gsRepo --> svc : GameSession
+deactivate gsRepo
+
+== Update Leaderboard ==
+
+svc -> svc : updateLeaderboardAfterGameSubmit\n(participant, round)
+
+svc -> gsRepo : findCompletedByParticipantAndRound(...)
+svc -> svc : Calculate gameAccuracy,\navgGameTime, gamesCompleted
+
+svc -> rlbRepo : findByCampaignRoundIdAndStudentId\nor create new RoundLeaderboard
+svc -> svc : Update combinedAccuracyPercentage,\navgTimeSeconds, totalCoinsEarned
+svc -> rlbRepo : save(roundLeaderboard)
+svc -> svc : reRankRound(roundId)\n-> Sort by accuracy DESC, time ASC
+
+alt campaignType == SCHOOL_INTERNAL
+    svc -> slbRepo : findByCampaignIdAndStudentId\nor create new SchoolLeaderboard
+    svc -> svc : Update metrics and ranking
+    svc -> slbRepo : save(schoolLeaderboard)
+    svc -> svc : reRankSchoolCampaign(campaignId)
+end
+
+svc --> ctrl : StudentGameSessionResultResponse
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<StudentGameSessionResultResponse>
+deactivate ctrl
+
+ui -> ui : Show result screen:\naccuracy, passed/failed,\ncoinAwarded, feedbackMessage
+ui --> user : "Ná»™p káº¿t quáº£ phiÃªn chÆ¡i thÃ nh cÃ´ng"
+deactivate ui
+
+@enduml
+
+=== seq_subscribe.puml ===
+@startuml seq_subscribe
+title Sequence Diagram - POST /api/subscriptions (ÄÄƒng kÃ½ GÃ³i)
+
+actor "School/Partnership" as user
+boundary "Subscription UI\n(Frontend)" as ui
+participant "SubscriptionController" as ctrl
+participant "ISubscriptionService\n(SubscriptionServiceImpl)" as svc
+participant "UserRepository" as userRepo
+participant "SubscriptionPlanRepository" as planRepo
+participant "SchoolRepository" as schoolRepo
+participant "PartnershipRepository" as partRepo
+participant "SubscriptionRepository" as subRepo
+participant "PaymentRepository" as payRepo
+participant "IPaymentService" as paySvc
+database "Database" as db
+
+user -> ui : Chá»n gÃ³i Ä‘Äƒng kÃ½ muá»‘n mua
+activate ui
+
+user -> ui : Nháº¥n "ÄÄƒng kÃ½ gÃ³i"
+ui -> ui : Validate planId
+
+ui -> ctrl : POST /api/subscriptions\n{ "planId": "uuid" }
+activate ctrl
+note over ctrl : @PreAuthorize("hasAnyAuthority(\n'PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
+
+ctrl -> svc : subscribe(request, userId)
+activate svc
+
+svc -> userRepo : findById(userId)
+activate userRepo
+userRepo --> svc : User
+deactivate userRepo
+
+svc -> planRepo : findById(request.planId)
+activate planRepo
+planRepo --> svc : SubscriptionPlan
+deactivate planRepo
+
+alt plan not active
+    svc --> ctrl : throw FuncErrorException\n("This subscription plan is no longer available.")
+    ctrl --> ui : 400 Bad Request
+    ui --> user : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> svc : resolveSubscriberType(user)\nâ†’ SCHOOL or PARTNERSHIP
+
+alt plan.subscriberType != subscriberType
+    svc --> ctrl : throw FuncErrorException\n("This plan is not available for your account type.")
+    ctrl --> ui : 400 Bad Request
+    ui --> user : Hiá»ƒn thá»‹ lá»—i
+end
+
+alt subscriberType == SCHOOL
+    svc -> schoolRepo : findByUserId(userId)
+    activate schoolRepo
+    schoolRepo --> svc : School
+    deactivate schoolRepo
+    svc -> subRepo : findBySchoolIdAndStatus(schoolId, ACTIVE)
+    activate subRepo
+    subRepo --> svc : Optional<Subscription>
+    deactivate subRepo
+else subscriberType == PARTNERSHIP
+    svc -> partRepo : findByUserId(userId)
+    activate partRepo
+    partRepo --> svc : Partnership
+    deactivate partRepo
+    svc -> subRepo : findByPartnershipIdAndStatus(partnershipId, ACTIVE)
+    activate subRepo
+    subRepo --> svc : Optional<Subscription>
+    deactivate subRepo
+end
+
+alt Ä‘Ã£ cÃ³ gÃ³i active
+    note over svc : Kiá»ƒm tra logic nÃ¢ng/háº¡ gÃ³i:\n- Freeâ†’Paid: cho phÃ©p\n- Paidâ†’Free: validate sá»‘ há»c sinh\n- Paidâ†’Paid: chá»‰ cho phÃ©p nÃ¢ng gÃ³i\n- Freeâ†’Free: throw lá»—i
+end
+
+svc -> svc : new Subscription()\nset subscriptionCode, subscriberType,\nschool/partnership, plan,\nstartDate, endDate
+
+alt gÃ³i miá»…n phÃ­ (price == 0)
+    svc -> svc : subscription.setStatus(ACTIVE)
+    svc -> subRepo : save(subscription)
+    activate subRepo
+    subRepo --> svc : Subscription
+    deactivate subRepo
+
+    svc -> svc : createFreePaymentRecord(...)
+    svc -> payRepo : save(freePayment)
+    activate payRepo
+    payRepo --> svc : Payment
+    deactivate payRepo
+
+    svc --> ctrl : PaymentResponse (no checkout URL)
+else gÃ³i tráº£ phÃ­ (price > 0)
+    svc -> svc : subscription.setStatus(PENDING_RENEWAL)
+    svc -> subRepo : save(subscription)
+    activate subRepo
+    subRepo --> svc : Subscription
+    deactivate subRepo
+
+    svc -> paySvc : createPayment(subscription, user)
+    activate paySvc
+    paySvc --> svc : PaymentResponse (with checkout URL)
+    deactivate paySvc
+
+    svc --> ctrl : PaymentResponse
+end
+
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.created(response,\n"Subscription created successfully.")
+ctrl --> ui : 201 Created\nResponseDto<PaymentResponse>
+deactivate ctrl
+
+alt gÃ³i miá»…n phÃ­
+    ui -> ui : Hiá»ƒn thá»‹ "ÄÄƒng kÃ½ gÃ³i miá»…n phÃ­ thÃ nh cÃ´ng!"
+    ui --> user : Chuyá»ƒn vá» trang dashboard
+else gÃ³i tráº£ phÃ­
+    ui -> ui : Redirect Ä‘áº¿n trang thanh toÃ¡n PayOS\n(checkoutUrl from response)
+    ui --> user : Trang thanh toÃ¡n
+end
+deactivate ui
+
+@enduml
+
+=== seq_toggle_subscription_plan_active.puml ===
+@startuml seq_toggle_subscription_plan_active
+title Sequence Diagram - PATCH /api/subscription-plans/{id}/toggle-active (Báº­t/táº¯t tráº¡ng thÃ¡i gÃ³i)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "SubscriptionPlanController" as ctrl
+participant "ISubscriptionPlanService\n(SubscriptionPlanServiceImpl)" as svc
+participant "SubscriptionPlanRepository" as planRepo
+database "Database" as db
+
+admin -> ui : Xem danh sÃ¡ch gÃ³i Ä‘Äƒng kÃ½
+activate ui
+
+admin -> ui : Nháº¥n nÃºt toggle Active/Inactive\ntrÃªn má»™t gÃ³i
+ui -> ui : Hiá»ƒn thá»‹ confirm dialog\n"Báº¡n cÃ³ muá»‘n thay Ä‘á»•i tráº¡ng thÃ¡i gÃ³i nÃ y?"
+
+admin -> ui : XÃ¡c nháº­n
+
+ui -> ctrl : PATCH /api/subscription-plans/{id}/toggle-active
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('ADMINISTRATOR')")
+
+ctrl -> svc : toggleActiveStatus(id)
+activate svc
+
+svc -> planRepo : findById(id)
+activate planRepo
+planRepo -> db : SELECT FROM subscription_plans WHERE id=?
+db --> planRepo : result
+planRepo --> svc : Optional<SubscriptionPlan>
+deactivate planRepo
+
+alt plan not found
+    svc --> ctrl : throw ResourceNotFoundException
+    ctrl --> ui : 404 Not Found
+    ui --> admin : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> svc : plan.setActive(!plan.isActive())
+
+svc -> planRepo : save(plan)
+activate planRepo
+planRepo -> db : UPDATE subscription_plans\nSET is_active = !current
+db --> planRepo : updated plan
+planRepo --> svc : SubscriptionPlan
+deactivate planRepo
+
+svc --> ctrl : void
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(null,\n"Subscription plan active status toggled successfully.")
+ctrl --> ui : 200 OK\nResponseDto<Void>
+deactivate ctrl
+
+ui -> ui : Cáº­p nháº­t tráº¡ng thÃ¡i hiá»ƒn thá»‹
+ui --> admin : Hiá»ƒn thá»‹ tráº¡ng thÃ¡i má»›i
+deactivate ui
+
+@enduml
+
+=== seq_update_game_level_preset.puml ===
+@startuml seq_update_game_level_preset
+title Sequence Diagram - PUT /api/admin/game-types/{gameTypeId}/presets/{presetId} (Update Game Level Preset)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "AdminController" as ctrl
+participant "IAdminService\n(AdminServiceImpl)" as svc
+participant "GameTypeRepository" as gtRepo
+participant "GameLevelPresetRepository" as glpRepo
+database "Database" as db
+
+admin -> ui : Má»Ÿ trang chi tiáº¿t Preset
+activate ui
+ui -> ui : Hiá»ƒn thá»‹ thÃ´ng tin Preset hiá»‡n táº¡i\nvÃ  danh sÃ¡ch level items
+
+admin -> ui : Nháº¥n nÃºt "Chá»‰nh sá»­a"
+ui -> ui : Hiá»ƒn thá»‹ form chá»‰nh sá»­a Preset\nvá»›i dá»¯ liá»‡u hiá»‡n táº¡i Ä‘Æ°á»£c fill sáºµn\n(difficulty, items list)
+
+admin -> ui : Sá»­a thÃ´ng tin preset\n(thay Ä‘á»•i difficulty, thÃªm/sá»­a/xÃ³a items)
+admin -> ui : Nháº¥n "Cáº­p nháº­t"
+ui -> ui : Validate form phÃ­a client
+
+ui -> ctrl : PUT /api/admin/game-types/{gameTypeId}/presets/{presetId}\n@RequestBody AdminGameLevelPresetUpsertRequest
+activate ctrl
+ctrl -> ctrl : @Valid validate request
+
+ctrl -> svc : updateGameLevelPreset(gameTypeId, presetId, request)
+activate svc
+
+note over svc : getActiveGameTypeOrThrow(gameTypeId)
+svc -> gtRepo : findByIdAndIsDeleteFalse(gameTypeId)
+activate gtRepo
+gtRepo -> db : SELECT FROM game_types ...
+db --> gtRepo : result
+gtRepo --> svc : Optional<GameType>
+deactivate gtRepo
+
+alt GameType not found
+    svc --> ctrl : throw NotFoundException("KhÃ´ng tÃ¬m tháº¥y game type")
+    ctrl --> ui : 404 Not Found
+    ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o lá»—i
+    ui --> admin : Hiá»ƒn thá»‹ lá»—i
+end
+
+note over svc : getPresetOrThrow(gameTypeId, presetId)
+svc -> glpRepo : findById(presetId)
+activate glpRepo
+glpRepo -> db : SELECT FROM game_level_presets\nWHERE id=?
+db --> glpRepo : result
+glpRepo --> svc : Optional<GameLevelPreset>
+deactivate glpRepo
+
+svc -> svc : filter: preset.gameType.id == gameTypeId
+
+alt Preset not found or wrong gameType
+    svc --> ctrl : throw NotFoundException("KhÃ´ng tÃ¬m tháº¥y preset")
+    ctrl --> ui : 404 Not Found
+    ui --> admin : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> glpRepo : existsByGameTypeIdAndDifficultyAndIdNot(\ngameTypeId, difficulty, presetId)
+activate glpRepo
+glpRepo -> db : SELECT EXISTS ...
+db --> glpRepo : boolean
+glpRepo --> svc : boolean
+deactivate glpRepo
+
+alt another preset with same difficulty exists
+    svc --> ctrl : throw BadRequestException("Preset cho difficulty nÃ y Ä‘Ã£ tá»“n táº¡i")
+    ctrl --> ui : 400 Bad Request
+    ui --> admin : Hiá»ƒn thá»‹ lá»—i trÃªn form
+end
+
+note over svc : applyPresetUpsert(preset, request)
+svc -> svc : preset.setDifficulty(request.getDifficulty())
+svc -> svc : Validate duplicate levelNumbers
+
+loop for each item request
+    alt existing item for levelNumber
+        svc -> svc : update existing GameLevelPresetItem
+    else new levelNumber
+        svc -> svc : new GameLevelPresetItem()
+    end
+    svc -> svc : applyPresetItemRequest(item, itemRequest, preset)
+end
+
+svc -> svc : Validate: each item has >= 1 wasteCategory
+svc -> svc : preset.getItems().clear()\npreset.getItems().addAll(newItems)
+
+svc -> glpRepo : save(preset)
+activate glpRepo
+glpRepo -> db : UPDATE game_level_presets ...\nDELETE orphaned items\nINSERT/UPDATE preset_items\nINSERT/UPDATE waste_categories
+db --> glpRepo : updated preset
+glpRepo --> svc : GameLevelPreset
+deactivate glpRepo
+
+svc -> svc : mapGameLevelPreset(preset)
+
+svc --> ctrl : AdminGameLevelPresetResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response, "Cáº­p nháº­t preset thÃ nh cÃ´ng")
+ctrl --> ui : 200 OK\nResponseDto<AdminGameLevelPresetResponse>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o thÃ nh cÃ´ng\n"Cáº­p nháº­t preset thÃ nh cÃ´ng"
+ui -> ui : Cáº­p nháº­t dá»¯ liá»‡u hiá»ƒn thá»‹
+ui --> admin : Hiá»ƒn thá»‹ Preset Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t
+deactivate ui
+
+@enduml
+
+=== seq_update_game_type.puml ===
+@startuml seq_update_game_type
+title Sequence Diagram - PUT /api/admin/game-types/{id} (Update Game Type)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "AdminController" as ctrl
+participant "IAdminService\n(AdminServiceImpl)" as svc
+participant "GameTypeRepository" as gtRepo
+participant "S3PresignedUrlService" as s3
+participant "SecurityContextHolder" as sec
+database "Database" as db
+
+admin -> ui : Má»Ÿ trang chi tiáº¿t Game Type
+activate ui
+ui -> ui : Hiá»ƒn thá»‹ thÃ´ng tin Game Type hiá»‡n táº¡i
+
+admin -> ui : Nháº¥n nÃºt "Chá»‰nh sá»­a"
+ui -> ui : Hiá»ƒn thá»‹ form chá»‰nh sá»­a\nvá»›i dá»¯ liá»‡u hiá»‡n táº¡i Ä‘Æ°á»£c fill sáºµn
+
+admin -> ui : Sá»­a thÃ´ng tin vÃ  nháº¥n "Cáº­p nháº­t"
+ui -> ui : Validate form phÃ­a client
+
+ui -> ctrl : PUT /api/admin/game-types/{id}\n@RequestBody AdminGameTypeUpsertRequest
+activate ctrl
+ctrl -> ctrl : @Valid validate request
+
+ctrl -> svc : updateGameType(id, request)
+activate svc
+
+note over svc : getActiveGameTypeOrThrow(id)
+svc -> gtRepo : findByIdAndIsDeleteFalse(id)
+activate gtRepo
+gtRepo -> db : SELECT FROM game_types WHERE id=? AND is_delete=false
+db --> gtRepo : result
+gtRepo --> svc : Optional<GameType>
+deactivate gtRepo
+
+alt GameType not found
+    svc --> ctrl : throw NotFoundException("KhÃ´ng tÃ¬m tháº¥y game type")
+    ctrl --> ui : 404 Not Found
+    ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o lá»—i\n"KhÃ´ng tÃ¬m tháº¥y game type"
+    ui --> admin : Hiá»ƒn thá»‹ lá»—i
+end
+
+alt typeCode changed
+    svc -> gtRepo : existsByTypeCodeAndIsDeleteFalse(request.getTypeCode())
+    activate gtRepo
+    gtRepo --> svc : boolean
+    deactivate gtRepo
+    alt typeCode exists
+        svc --> ctrl : throw BadRequestException("Game type code Ä‘Ã£ tá»“n táº¡i")
+        ctrl --> ui : 400 Bad Request
+        ui --> admin : Hiá»ƒn thá»‹ lá»—i trÃªn form
+    end
+end
+
+alt name changed
+    svc -> gtRepo : existsByNameIgnoreCaseAndIsDeleteFalse(request.getName())
+    activate gtRepo
+    gtRepo --> svc : boolean
+    deactivate gtRepo
+    alt name exists
+        svc --> ctrl : throw BadRequestException("TÃªn game type Ä‘Ã£ tá»“n táº¡i")
+        ctrl --> ui : 400 Bad Request
+        ui --> admin : Hiá»ƒn thá»‹ lá»—i trÃªn form
+    end
+end
+
+svc -> svc : gameType.set(typeCode, name,\nshortDescription, fullDescription,\nhowToPlay, thumbnailUrl, iconUrl)
+
+opt features != null
+    svc -> svc : gameType.setFeatures(features)
+end
+
+opt supportsCoin != null
+    svc -> svc : gameType.setSupportsCoin(supportsCoin)
+end
+
+opt maxLevels != null
+    svc -> svc : gameType.setMaxLevels(maxLevels)
+end
+
+opt displayOrder != null
+    svc -> svc : gameType.setDisplayOrder(displayOrder)
+end
+
+svc -> sec : getCurrentAdmin()
+activate sec
+sec --> svc : User (admin)
+deactivate sec
+
+svc -> svc : gameType.setUpdatedBy(admin)
+
+svc -> gtRepo : save(gameType)
+activate gtRepo
+gtRepo -> db : UPDATE game_types SET ...
+db --> gtRepo : updated GameType
+gtRepo --> svc : GameType
+deactivate gtRepo
+
+svc -> svc : mapGameType(gameType)
+svc -> s3 : generatePresignedUrl(thumbnailUrl)
+activate s3
+s3 --> svc : presigned thumbnail URL
+deactivate s3
+svc -> s3 : generatePresignedUrl(iconUrl)
+activate s3
+s3 --> svc : presigned icon URL
+deactivate s3
+
+svc --> ctrl : AdminGameTypeResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response, "Cáº­p nháº­t game type thÃ nh cÃ´ng")
+ctrl --> ui : 200 OK\nResponseDto<AdminGameTypeResponse>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o thÃ nh cÃ´ng\n"Cáº­p nháº­t game type thÃ nh cÃ´ng"
+ui -> ui : Cáº­p nháº­t dá»¯ liá»‡u hiá»ƒn thá»‹
+ui --> admin : Hiá»ƒn thá»‹ Game Type Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t
+deactivate ui
+
+@enduml
+
+=== seq_update_subscription_plan.puml ===
+@startuml seq_update_subscription_plan
+title Sequence Diagram - PUT /api/subscription-plans/{id} (Cáº­p nháº­t GÃ³i Ä‘Äƒng kÃ½)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "SubscriptionPlanController" as ctrl
+participant "ISubscriptionPlanService\n(SubscriptionPlanServiceImpl)" as svc
+participant "SubscriptionPlanRepository" as planRepo
+participant "SubscriptionPlanMapper" as mapper
+database "Database" as db
+
+admin -> ui : Má»Ÿ trang chi tiáº¿t GÃ³i Ä‘Äƒng kÃ½
+activate ui
+admin -> ui : Nháº¥n "Chá»‰nh sá»­a"
+ui -> ui : Hiá»ƒn thá»‹ form chá»‰nh sá»­a\nvá»›i dá»¯ liá»‡u hiá»‡n táº¡i
+
+admin -> ui : Sá»­a thÃ´ng tin vÃ  nháº¥n "Cáº­p nháº­t"
+ui -> ui : Validate form phÃ­a client
+
+ui -> ctrl : PUT /api/subscription-plans/{id}\n@RequestBody UpdateSubscriptionPlanRequest
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('ADMINISTRATOR')")
+
+ctrl -> svc : updatePlan(id, request)
+activate svc
+
+svc -> planRepo : findById(planId)
+activate planRepo
+planRepo -> db : SELECT FROM subscription_plans WHERE id=?
+db --> planRepo : result
+planRepo --> svc : Optional<SubscriptionPlan>
+deactivate planRepo
+
+alt plan not found
+    svc --> ctrl : throw ResourceNotFoundException\n("Subscription plan not found")
+    ctrl --> ui : 404 Not Found
+    ui --> admin : Hiá»ƒn thá»‹ lá»—i
+end
+
+opt planName changed
+    svc -> planRepo : existsByPlanNameAndIdNot(planName, planId)
+    activate planRepo
+    planRepo --> svc : boolean
+    deactivate planRepo
+
+    alt planName exists
+        svc --> ctrl : throw FuncErrorException\n("Plan name already exists")
+        ctrl --> ui : 400 Bad Request
+        ui --> admin : Hiá»ƒn thá»‹ lá»—i
+    end
+end
+
+svc -> mapper : updateEntity(plan, request)
+activate mapper
+mapper --> svc : void (plan updated in-place)
+deactivate mapper
+
+svc -> planRepo : save(plan)
+activate planRepo
+planRepo -> db : UPDATE subscription_plans SET ...
+db --> planRepo : updated plan
+planRepo --> svc : SubscriptionPlan
+deactivate planRepo
+
+svc -> mapper : toResponse(updatedPlan)
+activate mapper
+mapper --> svc : SubscriptionPlanResponse
+deactivate mapper
+
+svc --> ctrl : SubscriptionPlanResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response,\n"Subscription plan updated successfully.")
+ctrl --> ui : 200 OK\nResponseDto<SubscriptionPlanResponse>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o thÃ nh cÃ´ng
+ui -> ui : Cáº­p nháº­t dá»¯ liá»‡u hiá»ƒn thá»‹
+ui --> admin : Hiá»ƒn thá»‹ gÃ³i Ä‘Ã£ cáº­p nháº­t
+deactivate ui
+
+@enduml
+
+=== seq_verify_otp.puml ===
+@startuml seq_verify_otp
+title Sequence Diagram - POST /api/auth/verify-otp (XÃ¡c thá»±c OTP)
+
+actor "NgÆ°á»i dÃ¹ng" as user
+boundary "Registration UI\n(Frontend)" as ui
+participant "AuthenticationController" as ctrl
+participant "IAuthenticationService\n(AuthenticationServiceImpl)" as svc
+participant "IOtpService" as otpSvc
+
+user -> ui : Nháº­p mÃ£ OTP nháº­n Ä‘Æ°á»£c tá»« email
+activate ui
+
+user -> ui : Nháº¥n "XÃ¡c thá»±c OTP"
+ui -> ui : Validate form (email, otp khÃ´ng trá»‘ng)
+
+ui -> ctrl : POST /api/auth/verify-otp\n{ "email": "user@example.com", "otp": "123456" }
+activate ctrl
+ctrl -> ctrl : @Valid validate VerifyOtpRequest
+
+ctrl -> svc : verifyOtpOrThrow(email, otp)
+activate svc
+
+svc -> otpSvc : verifyOtp(email, otp)
+activate otpSvc
+otpSvc --> svc : boolean (true/false)
+deactivate otpSvc
+
+alt OTP khÃ´ng há»£p lá»‡ hoáº·c háº¿t háº¡n
+    svc --> ctrl : throw NotFoundException("OTP khÃ´ng há»£p lá»‡ hoáº·c Ä‘Ã£ háº¿t háº¡n")
+    ctrl --> ui : 404 Not Found
+    ui -> ui : Hiá»ƒn thá»‹ lá»—i "OTP khÃ´ng há»£p lá»‡"
+    ui --> user : Hiá»ƒn thá»‹ lá»—i
+end
+
+svc -> otpSvc : markAsVerified(email)
+activate otpSvc
+otpSvc --> svc : void
+deactivate otpSvc
+
+svc --> ctrl : void
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(null, "XÃ¡c thá»±c otp thÃ nh cÃ´ng")
+ctrl --> ui : 200 OK\nResponseDto<Void>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o "OTP xÃ¡c thá»±c thÃ nh cÃ´ng"
+ui -> ui : Chuyá»ƒn sang form Ä‘iá»n thÃ´ng tin Ä‘Äƒng kÃ½\n(School hoáº·c Partnership)
+ui --> user : Hiá»ƒn thá»‹ form Ä‘Äƒng kÃ½ chi tiáº¿t
+deactivate ui
+
+@enduml
+
+=== seq_verify_register_partnership.puml ===
+@startuml seq_verify_register_partnership
+title Sequence Diagram - POST /api/auth/verify-register/partnership (ÄÄƒng kÃ½ Äá»‘i tÃ¡c)
+
+actor "NgÆ°á»i dÃ¹ng\n(Äá»‘i tÃ¡c)" as user
+boundary "Registration UI\n(Frontend)" as ui
+participant "AuthenticationController" as ctrl
+participant "IAuthenticationService\n(AuthenticationServiceImpl)" as svc
+participant "IOtpService" as otpSvc
+participant "UserRepository" as userRepo
+participant "PartnershipRepository" as partRepo
+participant "BCryptPasswordEncoder" as encoder
+database "Database" as db
+
+user -> ui : Äiá»n thÃ´ng tin Ä‘á»‘i tÃ¡c\n(organizationName, contactEmail, phoneNumber,\nprovince, ward, streetAddress,\ncontactPerson, position, taxCode,\npartnershipType, password, logoUrl, licenseUrl)
+activate ui
+
+user -> ui : Nháº¥n "ÄÄƒng kÃ½"
+ui -> ui : Validate form phÃ­a client
+
+ui -> ctrl : POST /api/auth/verify-register/partnership\n@RequestBody VerifyRegisterPartnershipRequest
+activate ctrl
+ctrl -> ctrl : @Valid validate request
+
+ctrl -> svc : verifyRegisterPartnership(request)
+activate svc
+
+svc -> otpSvc : isEmailVerified(contactEmail)
+activate otpSvc
+otpSvc --> svc : boolean
+deactivate otpSvc
+
+alt email chÆ°a verified OTP
+    svc --> ctrl : throw IllegalArgumentException\n("Email chÆ°a Ä‘Æ°á»£c xÃ¡c thá»±c OTP")
+    ctrl --> ui : 400 Bad Request
+    ui --> user : Hiá»ƒn thá»‹ lá»—i
+end
+
+note over svc : buildUser(contactEmail, password, THIRD_PARTY_PARTNERSHIP)
+svc -> encoder : encode(password)
+activate encoder
+encoder --> svc : passwordHash
+deactivate encoder
+
+svc -> userRepo : save(newUser)
+activate userRepo
+userRepo -> db : INSERT INTO users ...
+db --> userRepo : User
+userRepo --> svc : User
+deactivate userRepo
+
+svc -> svc : new Partnership()
+svc -> svc : partnership.setUser(newUser)\npartnership.set(organizationName,\ncontactEmail, province, ward,\nregisteredAddress, phoneNumber,\ncontactPerson, taxCode,\npartnershipType, logoUrl, licenseUrl, ...)
+
+svc -> partRepo : save(partnership)
+activate partRepo
+partRepo -> db : INSERT INTO partnerships ...
+db --> partRepo : Partnership
+partRepo --> svc : Partnership
+deactivate partRepo
+
+svc -> otpSvc : clearVerified(contactEmail)
+activate otpSvc
+otpSvc --> svc : void
+deactivate otpSvc
+
+svc -> svc : modelMapper.map(newUser, UserResponse)
+
+svc --> ctrl : UserResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(userResponse,\n"ÄÄƒng kÃ½ thÃ nh cÃ´ng, chá» há»‡ thá»‘ng xÃ©t duyá»‡t")
+ctrl --> ui : 200 OK\nResponseDto<UserResponse>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o thÃ nh cÃ´ng\n"ÄÄƒng kÃ½ thÃ nh cÃ´ng!\nTÃ i khoáº£n Ä‘ang chá» Admin xÃ©t duyá»‡t"
+ui --> user : Chuyá»ƒn Ä‘áº¿n trang Ä‘Äƒng nháº­p
+deactivate ui
+
+@enduml
+
+=== seq_verify_register_school.puml ===
+@startuml seq_verify_register_school
+title Sequence Diagram - POST /api/auth/verify-register/school (ÄÄƒng kÃ½ TrÆ°á»ng há»c)
+
+actor "NgÆ°á»i dÃ¹ng\n(TrÆ°á»ng há»c)" as user
+boundary "Registration UI\n(Frontend)" as ui
+participant "AuthenticationController" as ctrl
+participant "IAuthenticationService\n(AuthenticationServiceImpl)" as svc
+participant "IOtpService" as otpSvc
+participant "UserRepository" as userRepo
+participant "SchoolRepository" as schoolRepo
+participant "BCryptPasswordEncoder" as encoder
+database "Database" as db
+
+user -> ui : Äiá»n thÃ´ng tin trÆ°á»ng há»c\n(schoolName, contactEmail, phoneNumber,\nprovince, ward, streetAddress,\nprincipalName, position, taxCode,\nschoolType, password, logoUrl, licenseUrl)
+activate ui
+
+user -> ui : Nháº¥n "ÄÄƒng kÃ½"
+ui -> ui : Validate form phÃ­a client
+
+ui -> ctrl : POST /api/auth/verify-register/school\n@RequestBody VerifyRegisterSchoolRequest
+activate ctrl
+ctrl -> ctrl : @Valid validate request
+
+ctrl -> svc : verifyRegisterSchool(request)
+activate svc
+
+svc -> otpSvc : isEmailVerified(contactEmail)
+activate otpSvc
+otpSvc --> svc : boolean
+deactivate otpSvc
+
+alt email chÆ°a verified OTP
+    svc --> ctrl : throw IllegalArgumentException\n("Email chÆ°a Ä‘Æ°á»£c xÃ¡c thá»±c OTP")
+    ctrl --> ui : 400 Bad Request
+    ui --> user : Hiá»ƒn thá»‹ lá»—i "Vui lÃ²ng xÃ¡c thá»±c OTP trÆ°á»›c"
+end
+
+note over svc : buildUser(contactEmail, password, PARTNERSHIP_SCHOOL)
+svc -> encoder : encode(password)
+activate encoder
+encoder --> svc : passwordHash
+deactivate encoder
+
+svc -> userRepo : save(newUser)
+activate userRepo
+userRepo -> db : INSERT INTO users ...
+db --> userRepo : User (with PENDING status)
+userRepo --> svc : User
+deactivate userRepo
+
+svc -> svc : new School()
+svc -> svc : school.setUser(newUser)\nschool.set(schoolName, contactEmail,\nprovince, ward, address, phoneNumber,\nprincipalName, taxCode, schoolType,\nlogoUrl, licenseUrl, ...)
+
+svc -> schoolRepo : save(school)
+activate schoolRepo
+schoolRepo -> db : INSERT INTO schools ...
+db --> schoolRepo : School
+schoolRepo --> svc : School
+deactivate schoolRepo
+
+svc -> otpSvc : clearVerified(contactEmail)
+activate otpSvc
+otpSvc --> svc : void
+deactivate otpSvc
+
+svc -> svc : modelMapper.map(newUser, UserResponse)
+
+svc --> ctrl : UserResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(userResponse,\n"ÄÄƒng kÃ½ thÃ nh cÃ´ng, chá» há»‡ thá»‘ng xÃ©t duyá»‡t")
+ctrl --> ui : 200 OK\nResponseDto<UserResponse>
+deactivate ctrl
+
+ui -> ui : Hiá»ƒn thá»‹ thÃ´ng bÃ¡o thÃ nh cÃ´ng\n"ÄÄƒng kÃ½ thÃ nh cÃ´ng!\nTÃ i khoáº£n Ä‘ang chá» Admin xÃ©t duyá»‡t"
+ui --> user : Chuyá»ƒn Ä‘áº¿n trang Ä‘Äƒng nháº­p
+deactivate ui
+
+@enduml

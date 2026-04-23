@@ -11,7 +11,8 @@ import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
 @Entity
@@ -53,18 +54,18 @@ public class Campaign extends BaseEntity {
     private Partnership creatorPartnership;
 
     @Column(nullable = false)
-    private LocalDateTime startDate;
+    private OffsetDateTime startDate;
 
     @Column(nullable = false)
-    private LocalDateTime endDate;
+    private OffsetDateTime endDate;
 
-    private LocalDateTime registrationDate;
+    private OffsetDateTime registrationDate;
 
-    private LocalDateTime registrationDeadline;
+    private OffsetDateTime registrationDeadline;
 
-    private LocalDateTime invitationDate;
+    private OffsetDateTime invitationDate;
 
-    private LocalDateTime invitationDeadline;
+    private OffsetDateTime invitationDeadline;
 
     @Enumerated(EnumType.STRING)
     private SchoolCampaignStatus schoolStatus = SchoolCampaignStatus.DRAFT;

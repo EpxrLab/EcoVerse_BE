@@ -1,0 +1,43 @@
+@startuml class_toggle_subscription_plan_active
+title Class Diagram - PATCH /api/subscription-plans/{id}/toggle-active
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class SubscriptionPlanController {
+        - subscriptionPlanService : ISubscriptionPlanService
+        + toggleActiveStatus(id: UUID) : ResponseEntity<ResponseDto<Void>>
+    }
+}
+
+package "service" {
+    interface ISubscriptionPlanService {
+        + toggleActiveStatus(planId: UUID) : void
+    }
+
+    class SubscriptionPlanServiceImpl implements ISubscriptionPlanService {
+        - subscriptionPlanRepository : SubscriptionPlanRepository
+        + toggleActiveStatus(planId: UUID) : void
+    }
+}
+
+package "entity" {
+    class SubscriptionPlan {
+        - id : UUID
+        - planCode : String
+        - planName : String
+        - isActive : boolean
+    }
+}
+
+package "repository" {
+    interface SubscriptionPlanRepository extends JpaRepository {
+        + findById(id: UUID) : Optional<SubscriptionPlan>
+        + save(plan: SubscriptionPlan) : SubscriptionPlan
+    }
+}
+
+SubscriptionPlanController --> ISubscriptionPlanService : uses
+SubscriptionPlanServiceImpl --> SubscriptionPlanRepository : uses
+
+@enduml

@@ -4,7 +4,8 @@ import com.sep490.ecoverse_be.enums.CampaignType;
 import com.sep490.ecoverse_be.enums.ParticipationStatus;
 import lombok.Builder;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Builder
@@ -15,12 +16,12 @@ public record CampaignSummaryResponse(
         CampaignType campaignType,
         String status,
         ParticipationStatus participationStatus,
-        LocalDateTime startDate,
-        LocalDateTime endDate,
-        LocalDateTime registrationDate,
-        LocalDateTime registrationDateDeadline,
-        LocalDateTime invitationDate,
-        LocalDateTime invitationDeadline,
+        OffsetDateTime startDate,
+        OffsetDateTime endDate,
+        OffsetDateTime registrationDate,
+        OffsetDateTime registrationDateDeadline,
+        OffsetDateTime invitationDate,
+        OffsetDateTime invitationDeadline,
         String description,
         boolean hasQuiz,
         boolean hasGame

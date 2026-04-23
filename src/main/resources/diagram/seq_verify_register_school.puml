@@ -1,0 +1,79 @@
+@startuml seq_verify_register_school
+title Sequence Diagram - POST /api/auth/verify-register/school (Register School)
+
+actor "Người dùng\n(Trường học)" as user
+boundary "Registration UI\n(Frontend)" as ui
+participant "AuthenticationController" as ctrl
+participant "IAuthenticationService\n(AuthenticationServiceImpl)" as svc
+participant "IOtpService" as otpSvc
+participant "UserRepository" as userRepo
+participant "SchoolRepository" as schoolRepo
+participant "BCryptPasswordEncoder" as encoder
+database "Database" as db
+
+user -> ui : Fill details School\n(schoolName, contactEmail, phoneNumber,\nprovince, ward, streetAddress,\nprincipalName, position, taxCode,\nschoolType, password, logoUrl, licenseUrl)
+activate ui
+
+user -> ui : Click "Đăng ký"
+ui -> ui : Validate form client side
+
+ui -> ctrl : POST /api/auth/verify-register/school\n@RequestBody VerifyRegisterSchoolRequest
+activate ctrl
+ctrl -> ctrl : @Valid validate request
+
+ctrl -> svc : verifyRegisterSchool(request)
+activate svc
+
+svc -> otpSvc : isEmailVerified(contactEmail)
+activate otpSvc
+otpSvc --> svc : boolean
+deactivate otpSvc
+
+alt email not yet verified OTP
+ svc --> ctrl : throw IllegalArgumentException\n("Email chưa được xác thực OTP")
+ ctrl --> ui : 400 Bad Request
+ ui --> user : Display error "Vui lòng xác thực OTP trước"
+end
+
+note over svc : buildUser(contactEmail, password, PARTNERSHIP_SCHOOL)
+svc -> encoder : encode(password)
+activate encoder
+encoder --> svc : passwordHash
+deactivate encoder
+
+svc -> userRepo : save(newUser)
+activate userRepo
+userRepo -> db : INSERT INTO users ...
+db --> userRepo : User (with PENDING status)
+userRepo --> svc : User
+deactivate userRepo
+
+svc -> svc : new School()
+svc -> svc : school.setUser(newUser)\nschool.set(schoolName, contactEmail,\nprovince, ward, address, phoneNumber,\nprincipalName, taxCode, schoolType,\nlogoUrl, licenseUrl, ...)
+
+svc -> schoolRepo : save(school)
+activate schoolRepo
+schoolRepo -> db : INSERT INTO schools ...
+db --> schoolRepo : School
+schoolRepo --> svc : School
+deactivate schoolRepo
+
+svc -> otpSvc : clearVerified(contactEmail)
+activate otpSvc
+otpSvc --> svc : void
+deactivate otpSvc
+
+svc -> svc : modelMapper.map(newUser, UserResponse)
+
+svc --> ctrl : UserResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(userResponse,\n"Đăng ký thành công, chờ hệ thống xét duyệt")
+ctrl --> ui : 200 OK\nResponseDto<UserResponse>
+deactivate ctrl
+
+ui -> ui : Display notification Successfully\n"Đăng ký thành công!\nTài khoản đang chờ Admin xét duyệt"
+ui --> user : Navigate to page login
+deactivate ui
+
+@enduml

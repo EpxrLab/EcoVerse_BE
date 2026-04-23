@@ -15,7 +15,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
@@ -38,8 +39,8 @@ public class SubscriptionScheduler {
     public void checkExpiringSubscriptions() {
         log.info("Running subscription expiry check...");
 
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime sevenDaysLater = now.plusDays(7);
+        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime sevenDaysLater = now.plusDays(7);
 
         List<Subscription> expiringSubscriptions = subscriptionRepository
                 .findByStatusAndEndDateBetween(SubscriptionStatus.ACTIVE, now, sevenDaysLater);
@@ -82,7 +83,7 @@ public class SubscriptionScheduler {
     public void enterRenewalWindow() {
         log.info("Running subscription renewal-window job...");
 
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
 
         List<Subscription> expiredSubscriptions = subscriptionRepository.findExpiredSubscriptions(now);
 
@@ -96,9 +97,9 @@ public class SubscriptionScheduler {
                 eventPublisher.publishEvent(NotificationEvent.builder()
                         .recipientUserId(owner.getId())
                         .type(NotificationType.SUBSCRIPTION_EXPIRED)
-                        .title("Gói đăng ký đã hết hạn – Vui lòng gia hạn")
+                        .title("Gói đăng ký đã hết hạn")
                         .message("Gói đăng ký \"" + subscription.getPlan().getPlanName()
-                                + "\" đã hết hạn. Bạn có 7 ngày để gia hạn trước khi bị chuyển về gói miễn phí.")
+                                + "\" đã hết hạn. Vui lòng gia hạn để tiếp tục sử dụng tính năng cao cấp.")
                         .referenceType("subscription")
                         .referenceId(subscription.getId())
                         .metadata(Map.of(
@@ -122,7 +123,7 @@ public class SubscriptionScheduler {
         log.info("Running overdue-renewal expiration job...");
 
         // Grace period 7 ngay: neu qua 7 ngay ke tu endDate van chua gia han → EXPIRED
-        LocalDateTime gracePeriodCutoff = LocalDateTime.now().minusDays(7);
+        OffsetDateTime gracePeriodCutoff = OffsetDateTime.now().minusDays(7);
 
         List<Subscription> overdueSubscriptions =
                 subscriptionRepository.findOverdueRenewalSubscriptions(gracePeriodCutoff);
@@ -144,7 +145,7 @@ public class SubscriptionScheduler {
     public void cancelStalePendingSubscriptions() {
         log.info("Running stale PENDING subscription cleanup...");
 
-        LocalDateTime cutoff = LocalDateTime.now().minusHours(24);
+        OffsetDateTime cutoff = OffsetDateTime.now().minusHours(24);
 
         List<Subscription> staleSubscriptions =
                 subscriptionRepository.findStalePendingSubscriptions(cutoff);
@@ -152,7 +153,7 @@ public class SubscriptionScheduler {
         for (Subscription subscription : staleSubscriptions) {
             subscription.setStatus(SubscriptionStatus.CANCELLED);
             subscription.setCancellationReason("Payment not received within 24 hours");
-            subscription.setCancelledAt(LocalDateTime.now());
+            subscription.setCancelledAt(OffsetDateTime.now());
             subscriptionRepository.save(subscription);
             log.info("Stale PENDING subscription {} cancelled (no payment in 24h)", subscription.getSubscriptionCode());
         }
@@ -207,8 +208,8 @@ public class SubscriptionScheduler {
         freeSub.setPartnership(expiredSubscription.getPartnership());
         freeSub.setPlan(freePlan);
         freeSub.setStatus(SubscriptionStatus.ACTIVE);
-        freeSub.setStartDate(LocalDateTime.now());
-        freeSub.setEndDate(LocalDateTime.now().plusDays(freePlan.getDurationDays()));
+        freeSub.setStartDate(OffsetDateTime.now());
+        freeSub.setEndDate(OffsetDateTime.now().plusDays(freePlan.getDurationDays()));
         freeSub.setRenewedFrom(expiredSubscription);
         subscriptionRepository.save(freeSub);
 

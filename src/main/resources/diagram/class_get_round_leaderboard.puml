@@ -1,0 +1,83 @@
+@startuml class_get_round_leaderboard
+title Class Diagram - GET .../rounds/{roundId}/leaderboard (Get Round Leaderboard)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class StudentCampaignController {
+        - campaignService : ICampaignService
+        + getRoundLeaderboard(roundId: UUID) : ResponseEntity<ResponseDto<List<LeaderboardEntryResponse>>>
+    }
+
+    class SchoolCampaignController {
+        - campaignService : ICampaignService
+        + getRoundLeaderboard(id: UUID, roundId: UUID) : ResponseEntity<ResponseDto<List<LeaderboardEntryResponse>>>
+    }
+
+    class PartnershipCampaignController {
+        - campaignService : ICampaignService
+        + getRoundLeaderboard(id: UUID, roundId: UUID) : ResponseEntity<ResponseDto<List<LeaderboardEntryResponse>>>
+    }
+}
+
+package "service" {
+    interface ICampaignService {
+        + getCampaignRoundLeaderboard(roundId: UUID) : List<LeaderboardEntryResponse>
+    }
+
+    class CampaignServiceImpl implements ICampaignService {
+        - campaignRoundRepository : CampaignRoundRepository
+        - roundLeaderboardRepository : RoundLeaderboardRepository
+        + getCampaignRoundLeaderboard(roundId: UUID) : List<LeaderboardEntryResponse>
+        - mapRoundLeaderboard(entries: List<RoundLeaderboard>) : List<LeaderboardEntryResponse>
+    }
+}
+
+package "dto.response" {
+    class LeaderboardEntryResponse <<record>> {
+        - studentId : UUID
+        - studentName : String
+        - schoolId : UUID
+        - schoolName : String
+        - combinedAccuracyPercentage : BigDecimal
+        - avgTimeSeconds : BigDecimal
+        - rank : Integer
+        - totalCoinsEarned : Integer
+    }
+}
+
+package "entity" {
+    class RoundLeaderboard {
+        - campaign : Campaign
+        - campaignRound : CampaignRound
+        - student : Student
+        - school : School
+        - gameAccuracyPercentage : BigDecimal
+        - quizAccuracyPercentage : BigDecimal
+        - combinedAccuracyPercentage : BigDecimal
+        - avgTimeSeconds : BigDecimal
+        - gamesCompleted : int
+        - quizzesCompleted : int
+        - totalCoinsEarned : Integer
+        - overallRankInRound : Integer
+        - schoolRankInRound : Integer
+        - isAdvanced : boolean
+    }
+}
+
+package "repository" {
+    interface RoundLeaderboardRepository extends JpaRepository {
+        + findByCampaignRoundIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(\n  roundId: UUID) : List<RoundLeaderboard>
+    }
+}
+
+note bottom of RoundLeaderboard
+  Sorting: combinedAccuracyPercentage DESC
+  Tiebreaker: avgTimeSeconds ASC
+end note
+
+StudentCampaignController --> ICampaignService : uses
+SchoolCampaignController --> ICampaignService : uses
+PartnershipCampaignController --> ICampaignService : uses
+
+@enduml

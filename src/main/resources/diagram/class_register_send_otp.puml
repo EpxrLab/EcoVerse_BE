@@ -1,0 +1,67 @@
+@startuml class_register_send_otp
+title Class Diagram - POST /api/auth/register (Gửi OTP đăng ký)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class AuthenticationController {
+        - authenticationService : IAuthenticationService
+        + register(user: RegisterRequest) : ResponseEntity<ResponseDto<String>>
+    }
+}
+
+package "service" {
+    interface IAuthenticationService {
+        + register(registerRequest: RegisterRequest) : void
+    }
+
+    class AuthenticationServiceImpl implements IAuthenticationService {
+        - userRepository : UserRepository
+        - emailService : IEmailService
+        - otpService : IOtpService
+        + register(registerRequest: RegisterRequest) : void
+    }
+
+    interface IOtpService {
+        + generateOtp(email: String) : String
+    }
+
+    interface IEmailService {
+        + sendOtpEmail(email: String, otp: String) : void
+    }
+}
+
+package "dto.request" {
+    class RegisterRequest {
+        - email : String <<@NotBlank @Email>>
+    }
+}
+
+package "dto.response" {
+    class ResponseDto<T> {
+        - status : int
+        - message : String
+        - data : T
+        + {static} success(data: T, message: String) : ResponseDto<T>
+    }
+}
+
+package "repository" {
+    interface UserRepository extends JpaRepository {
+        + existsByEmail(email: String) : boolean
+    }
+}
+
+package "exception" {
+    class DuplicateEntity extends RuntimeException
+}
+
+AuthenticationController --> IAuthenticationService : uses
+AuthenticationServiceImpl --> UserRepository : uses
+AuthenticationServiceImpl --> IOtpService : uses
+AuthenticationServiceImpl --> IEmailService : uses
+AuthenticationController ..> RegisterRequest : receives
+AuthenticationController ..> ResponseDto : returns
+AuthenticationServiceImpl ..> DuplicateEntity : throws
+
+@enduml

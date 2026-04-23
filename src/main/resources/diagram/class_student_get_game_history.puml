@@ -1,0 +1,52 @@
+@startuml class_student_get_game_history
+title Class Diagram - GET /api/student/game/.../history (Get Game Session History)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class StudentGameController {
+        - studentGameService : IStudentGameService
+        + getGameSessionHistory(campaignId: UUID,\n  roundId: UUID, roundGameConfigId: UUID) : ResponseEntity<ResponseDto<List<StudentGameSessionSummaryResponse>>>
+    }
+}
+
+package "service" {
+    interface IStudentGameService {
+        + getGameSessionHistory(campaignId: UUID,\n  roundId: UUID, roundGameConfigId: UUID) : List<StudentGameSessionSummaryResponse>
+    }
+
+    class StudentGameServiceImpl implements IStudentGameService {
+        - gameSessionRepository : GameSessionRepository
+        - campaignParticipantRepository : CampaignParticipantRepository
+        - campaignRoundRepository : CampaignRoundRepository
+        - roundGameConfigRepository : RoundGameConfigRepository
+        + getGameSessionHistory(...) : List<StudentGameSessionSummaryResponse>
+    }
+}
+
+package "dto.response" {
+    class StudentGameSessionSummaryResponse {
+        - sessionId : UUID
+        - presetId : UUID
+        - currentLevel : int
+        - totalItems : Integer
+        - correctItems : Integer
+        - incorrectItems : Integer
+        - accuracyPercentage : BigDecimal
+        - timeTakenSeconds : Integer
+        - isPassed : Boolean
+        - coinAwarded : Integer
+        - sessionStart : LocalDateTime
+        - sessionEnd : LocalDateTime
+    }
+}
+
+package "repository" {
+    interface GameSessionRepository extends JpaRepository {
+        + findByParticipantAndRound(participantId: UUID,\n  roundId: UUID) : List<GameSession>
+    }
+}
+
+StudentGameController --> IStudentGameService : uses
+
+@enduml
