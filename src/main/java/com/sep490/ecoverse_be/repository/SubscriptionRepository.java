@@ -37,8 +37,17 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
                                                      @Param("from") OffsetDateTime from,
                                                      @Param("to") OffsetDateTime to);
 
+    // ACTIVE đã quá endDate → chuyển PENDING_RENEWAL (đầu grace period)
     @Query("SELECT s FROM Subscription s WHERE s.status = 'ACTIVE' AND s.endDate < :now")
     List<Subscription> findExpiredSubscriptions(@Param("now") OffsetDateTime now);
+
+    // PENDING_RENEWAL đã quá grace period → chuyển EXPIRED (lưu trữ)
+    @Query("SELECT s FROM Subscription s WHERE s.status = 'PENDING_RENEWAL' AND s.endDate < :gracePeriodCutoff")
+    List<Subscription> findOverdueRenewalSubscriptions(@Param("gracePeriodCutoff") OffsetDateTime gracePeriodCutoff);
+
+    // PENDING chờ thanh toán quá 24 giờ → chuyển CANCELLED
+    @Query("SELECT s FROM Subscription s WHERE s.status = 'PENDING' AND s.createdAt < :cutoff")
+    List<Subscription> findStalePendingSubscriptions(@Param("cutoff") OffsetDateTime cutoff);
 
     // ── Report aggregate queries ───────────────────────────────────────────────
 
