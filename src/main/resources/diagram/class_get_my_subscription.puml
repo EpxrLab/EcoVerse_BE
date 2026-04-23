@@ -1,0 +1,90 @@
+@startuml class_get_my_subscription
+title Class Diagram - GET /api/subscriptions/my (Lấy Gói đang sử dụng)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class SubscriptionController {
+        - subscriptionService : ISubscriptionService
+        + getMySubscription(principal: UserPrincipal) : ResponseEntity<ResponseDto<SubscriptionResponse>>
+    }
+}
+
+package "service" {
+    interface ISubscriptionService {
+        + getMySubscription(userId: UUID) : SubscriptionResponse
+    }
+
+    class SubscriptionServiceImpl implements ISubscriptionService {
+        - subscriptionRepository : SubscriptionRepository
+        - schoolRepository : SchoolRepository
+        - partnershipRepository : PartnershipRepository
+        - userRepository : UserRepository
+        - paymentRepository : PaymentRepository
+        - subscriptionMapper : SubscriptionMapper
+        - studentRepository : StudentRepository
+        - campaignRepository : CampaignRepository
+        - aiGenerationLogRepository : AiGenerationLogRepository
+        + getMySubscription(userId: UUID) : SubscriptionResponse
+        - resolveSubscriberType(user: User) : SubscriberType
+        - toSubscriptionResponse(subscription: Subscription) : SubscriptionResponse
+    }
+}
+
+package "dto.response" {
+    class SubscriptionResponse <<record>> {
+        + id : UUID
+        + subscriptionCode : String
+        + subscriberType : SubscriberType
+        + subscriberName : String
+        + planId : UUID
+        + planCode : String
+        + planName : String
+        + status : SubscriptionStatus
+        + startDate : LocalDateTime
+        + endDate : LocalDateTime
+        + maxStudents : Integer
+        + usedStudents : Long
+        + maxCampaignsPerMonth : Integer
+        + usedCampaignsCurrentMonth : Long
+        + maxAiQuizGenerations : Integer
+        + usedAiQuizGenerations : Long
+        + transactions : List<SubscriptionTransactionResponse>
+    }
+
+    class SubscriptionTransactionResponse {
+        + paymentCode : String
+        + amount : BigDecimal
+        + status : PaymentStatus
+        + paidAt : LocalDateTime
+    }
+}
+
+package "entity" {
+    class Subscription {
+        - id : UUID
+        - subscriptionCode : String
+        - plan : SubscriptionPlan
+        - school : School
+        - partnership : Partnership
+        - status : SubscriptionStatus
+        - startDate : LocalDateTime
+        - endDate : LocalDateTime
+    }
+}
+
+package "repository" {
+    interface SubscriptionRepository extends JpaRepository {
+        + findBySchoolIdAndStatus(schoolId: UUID, status: SubscriptionStatus) : Optional<Subscription>
+        + findByPartnershipIdAndStatus(partnershipId: UUID, status: SubscriptionStatus) : Optional<Subscription>
+    }
+
+    interface PaymentRepository extends JpaRepository {
+        + findAllBySubscriptionIdOrderByCreatedAtDesc(subscriptionId: UUID) : List<Payment>
+    }
+}
+
+SubscriptionController --> ISubscriptionService : uses
+SubscriptionResponse "1" *-- "0..*" SubscriptionTransactionResponse : transactions
+
+@enduml

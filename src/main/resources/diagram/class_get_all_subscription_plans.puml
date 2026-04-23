@@ -1,0 +1,64 @@
+@startuml class_get_all_subscription_plans
+title Class Diagram - GET /api/subscription-plans (Lấy danh sách Gói đăng ký)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class SubscriptionPlanController {
+        - subscriptionPlanService : ISubscriptionPlanService
+        + getAllPlans(subscriberType: SubscriberType, isActive: Boolean, keyword: String, page: int, size: int) : ResponseEntity<ResponseDto<PageResponse<SubscriptionPlanResponse>>>
+    }
+}
+
+package "service" {
+    interface ISubscriptionPlanService {
+        + getAllPlans(subscriberType: SubscriberType, isActive: Boolean, keyword: String, pageable: Pageable) : PageResponse<SubscriptionPlanResponse>
+    }
+
+    class SubscriptionPlanServiceImpl implements ISubscriptionPlanService {
+        - subscriptionPlanRepository : SubscriptionPlanRepository
+        - subscriptionPlanMapper : SubscriptionPlanMapper
+        + getAllPlans(...) : PageResponse<SubscriptionPlanResponse>
+    }
+}
+
+package "dto.response" {
+    class PageResponse<T> {
+        - content : List<T>
+        - page : int
+        - size : int
+        - totalElements : long
+        - totalPages : int
+        - last : boolean
+        + {static} from(page: Page, mapper: Function) : PageResponse
+    }
+
+    class SubscriptionPlanResponse <<record>> {
+        + id : UUID
+        + planCode : String
+        + planName : String
+        + subscriberType : SubscriberType
+        + price : BigDecimal
+        + durationDays : int
+        + isActive : boolean
+        + displayOrder : int
+    }
+}
+
+package "repository" {
+    interface SubscriptionPlanRepository extends JpaRepository {
+        + findAll(spec: Specification, pageable: Pageable) : Page<SubscriptionPlan>
+    }
+}
+
+package "enums" {
+    enum SubscriberType {
+        SCHOOL
+        PARTNERSHIP
+    }
+}
+
+SubscriptionPlanController --> ISubscriptionPlanService : uses
+SubscriptionPlanServiceImpl --> SubscriptionPlanRepository : uses
+
+@enduml

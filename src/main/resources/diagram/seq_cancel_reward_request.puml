@@ -1,0 +1,72 @@
+@startuml seq_cancel_reward_request
+title Sequence Diagram - PUT /api/rewards/requests/{id}/cancel (Cancel Reward request)
+
+actor "Học sinh/Phụ huynh" as user
+boundary "Reward UI\n(Frontend)" as ui
+participant "RewardRequestController" as ctrl
+participant "IRewardRequestService\n(RewardRequestServiceImpl)" as svc
+participant "StudentRepository" as stuRepo
+participant "ParentRepository" as parRepo
+participant "StudentParentLinkRepository" as splRepo
+participant "RewardRequestRepository" as rrRepo
+participant "RewardRepository" as rewardRepo
+participant "CoinTransactionRepository" as txRepo
+database "Database" as db
+
+user -> ui : View Reward request status PENDING
+activate ui
+user -> ui : Click "Hủy", Enter Reason (tùy Select)
+
+ui -> ctrl : PUT /api/rewards/requests/{id}/cancel\n{ "reason": "Không cần nữa" }
+activate ctrl
+note over ctrl : @PreAuthorize("hasAnyAuthority('STUDENT', 'PARENT')")
+
+ctrl -> svc : cancelRequest(requestId, dto)
+activate svc
+
+svc -> svc : getCurrentUser() → User
+
+alt role == STUDENT
+ svc -> stuRepo : findByUserId(userId)
+ svc -> rrRepo : findByIdAndStudentId(requestId, studentId)
+else role == PARENT
+ svc -> parRepo : findByUserId(userId)
+ svc -> splRepo : findByParentId(parentId)
+ svc -> rrRepo : findByIdAndStudentId(requestId, childStudentId)
+end
+
+alt request not found
+ svc --> ctrl : throw NotFoundException
+end
+
+alt status != PENDING
+ svc --> ctrl : throw BadRequestException\n("Chỉ có thể hủy khi status là PENDING")
+end
+
+svc -> svc : request.setStatus(CANCELLED)\nrequest.setCancelledAt(now)\nrequest.setCancelledReason(reason)
+
+svc -> rrRepo : save(request)
+activate rrRepo
+rrRepo -> db : UPDATE SET status=CANCELLED
+db --> rrRepo : done
+rrRepo --> svc : RewardRequest
+deactivate rrRepo
+
+note over svc : refundCoins: refund coins
+svc -> stuRepo : save(student) [totalCoins += totalCoins]
+svc -> txRepo : save(CoinTransaction REFUND)
+
+note over svc : releaseStock: refund stock
+svc -> rewardRepo : save(reward) [stockQuantity += quantity]
+
+svc --> ctrl : RewardRequestResponse
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<RewardRequestResponse>
+deactivate ctrl
+
+ui -> ui : Display "Hủy yêu cầu thành công"\n(coin and inventory stock has been hoàn)
+ui --> user : Update status
+deactivate ui
+
+@enduml

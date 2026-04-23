@@ -1,0 +1,58 @@
+@startuml seq_delete_subscription_plan
+title Sequence Diagram - DELETE /api/subscription-plans/{id} ( Delete Subscription plan)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "SubscriptionPlanController" as ctrl
+participant "ISubscriptionPlanService\n(SubscriptionPlanServiceImpl)" as svc
+participant "SubscriptionPlanRepository" as planRepo
+database "Database" as db
+
+admin -> ui : View List of Subscription plan
+activate ui
+
+admin -> ui : Click button "Xóa" trên plan needs to delete
+ui -> ui : Display confirmation dialog\n"Bạn có chắc muốn xóa gói đăng ký này?"
+
+admin -> ui : Click "Xác nhận xóa"
+
+ui -> ctrl : DELETE /api/subscription-plans/{id}
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('ADMINISTRATOR')")
+
+ctrl -> svc : deletePlan(id)
+activate svc
+
+svc -> planRepo : findById(id)
+activate planRepo
+planRepo -> db : SELECT FROM subscription_plans WHERE id=?
+db --> planRepo : result
+planRepo --> svc : Optional<SubscriptionPlan>
+deactivate planRepo
+
+alt plan not found
+ svc --> ctrl : throw ResourceNotFoundException
+ ctrl --> ui : 404 Not Found
+ ui --> admin : Display error
+end
+
+svc -> planRepo : delete(plan)
+activate planRepo
+planRepo -> db : DELETE FROM subscription_plans WHERE id=?
+db --> planRepo : done
+planRepo --> svc : void
+deactivate planRepo
+
+svc --> ctrl : void
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(null,\n"Subscription plan deleted successfully.")
+ctrl --> ui : 200 OK\nResponseDto<Void>
+deactivate ctrl
+
+ui -> ui : Display notification Successfully
+ui -> ui : Delete plan khỏi List of
+ui --> admin : List of plan has Update
+deactivate ui
+
+@enduml

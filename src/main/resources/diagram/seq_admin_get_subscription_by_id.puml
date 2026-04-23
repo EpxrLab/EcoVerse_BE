@@ -1,0 +1,59 @@
+@startuml seq_admin_get_subscription_by_id
+title Sequence Diagram - GET /api/subscriptions/{id} (Admin - View Details Subscription)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "SubscriptionController" as ctrl
+participant "ISubscriptionService\n(SubscriptionServiceImpl)" as svc
+participant "SubscriptionRepository" as subRepo
+participant "PaymentRepository" as payRepo
+participant "SubscriptionMapper" as mapper
+database "Database" as db
+
+admin -> ui : Click on một subscription in List of
+activate ui
+
+ui -> ctrl : GET /api/subscriptions/{id}
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('ADMINISTRATOR')")
+
+ctrl -> svc : getSubscriptionById(id)
+activate svc
+
+svc -> subRepo : findById(id)
+activate subRepo
+subRepo -> db : SELECT FROM subscriptions WHERE id=?
+db --> subRepo : result
+subRepo --> svc : Optional<Subscription>
+deactivate subRepo
+
+alt subscription not found
+ svc --> ctrl : throw ResourceNotFoundException
+ ctrl --> ui : 404 Not Found
+ ui --> admin : Display error
+end
+
+svc -> payRepo : findAllBySubscriptionIdOrderByCreatedAtDesc(id)
+activate payRepo
+payRepo --> svc : List<Payment>
+deactivate payRepo
+
+svc -> svc : Calculate usage stats\n(usedStudents, usedCampaigns, usedAiQuiz)
+
+svc -> mapper : toResponse(subscription, transactions, usageStats)
+activate mapper
+mapper --> svc : SubscriptionResponse
+deactivate mapper
+
+svc --> ctrl : SubscriptionResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response, "Subscription retrieved.")
+ctrl --> ui : 200 OK\nResponseDto<SubscriptionResponse>
+deactivate ctrl
+
+ui -> ui : Render Details subscription\n(code, plan, subscriber, status,\nstartDate, endDate, usage, transactions)
+ui --> admin : Display Details subscription
+deactivate ui
+
+@enduml

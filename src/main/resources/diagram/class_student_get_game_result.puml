@@ -1,0 +1,47 @@
+@startuml class_student_get_game_result
+title Class Diagram - GET /api/student/game/sessions/{sessionId}/result (Get Game Session Result)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class StudentGameController {
+        - studentGameService : IStudentGameService
+        + getGameSessionResult(sessionId: UUID) : ResponseEntity<ResponseDto<StudentGameSessionResultResponse>>
+    }
+}
+
+package "service" {
+    interface IStudentGameService {
+        + getGameSessionResult(sessionId: UUID) : StudentGameSessionResultResponse
+    }
+
+    class StudentGameServiceImpl implements IStudentGameService {
+        - gameSessionRepository : GameSessionRepository
+        + getGameSessionResult(sessionId: UUID) : StudentGameSessionResultResponse
+        - mapResult(session: GameSession) : StudentGameSessionResultResponse
+    }
+}
+
+package "dto.response" {
+    class StudentGameSessionResultResponse {
+        - sessionId : UUID
+        - campaignId : UUID
+        - roundId : UUID
+        - currentLevel : int
+        - accuracyPercentage : BigDecimal
+        - isPassed : Boolean
+        - coinAwarded : Integer
+        - feedbackMessage : String
+        - isCompleted : Boolean
+    }
+}
+
+package "repository" {
+    interface GameSessionRepository extends JpaRepository {
+        + findById(id: UUID) : Optional<GameSession>
+    }
+}
+
+StudentGameController --> IStudentGameService : uses
+
+@enduml

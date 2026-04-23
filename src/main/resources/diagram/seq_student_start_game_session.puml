@@ -1,0 +1,89 @@
+@startuml seq_student_start_game_session
+title Sequence Diagram - POST /api/student/game/.../start (Start Game Session)
+
+actor Student as user
+boundary "Game UI\n(Frontend)" as ui
+participant "StudentGameController" as ctrl
+participant "IStudentGameService\n(StudentGameServiceImpl)" as svc
+participant "StudentRepository" as stuRepo
+participant "CampaignParticipantRepository" as cpRepo
+participant "CampaignRoundRepository" as crRepo
+participant "RoundGameConfigRepository" as rgcRepo
+participant "GameSessionRepository" as gsRepo
+participant "WasteItemRepository" as wiRepo
+participant "S3PresignedUrlService" as s3Svc
+database "Database" as db
+
+user -> ui : Select campaign round game\nand press "Play"
+activate ui
+
+ui -> ctrl : POST /api/student/game/campaigns/{campaignId}\n/rounds/{roundId}/configs/{roundGameConfigId}/start\n?presetId=...&levelNumber=1
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('STUDENT')")
+
+ctrl -> svc : startGameSession(campaignId, roundId,\nroundGameConfigId, presetId, levelNumber)
+activate svc
+
+svc -> svc : getCurrentStudent() -> Student
+
+svc -> cpRepo : findByCampaignIdAndStudentIdAndIsActiveTrue(campaignId, studentId)
+activate cpRepo
+cpRepo --> svc : CampaignParticipant
+deactivate cpRepo
+
+note over svc : Validate participant:\n- isActive == true\n- parentApprovalStatus == APPROVED\n- campaign status == ON_GOING
+
+svc -> crRepo : findByIdAndCampaignId(roundId, campaignId)
+activate crRepo
+crRepo --> svc : CampaignRound
+deactivate crRepo
+
+note over svc : Validate round:\n- status == ACTIVE\n- now between startTime and endTime
+
+svc -> rgcRepo : findByIdAndCampaignRoundId(configId, roundId)
+activate rgcRepo
+rgcRepo --> svc : RoundGameConfig
+deactivate rgcRepo
+
+alt Partnership campaign
+ svc -> svc : ensurePartnershipRoundAccess(participant, round)\n-> Check round advancement from previous round
+end
+
+svc -> svc : resolvePreset(config, presetId)\n-> GameLevelPreset
+svc -> svc : resolveLevelItem(preset, targetLevel)\n-> GameLevelPresetItem
+
+svc -> gsRepo : Check level unlocked\n(previous level must be passed)
+svc -> gsRepo : Check daily play quota\n(MAX_PLAYS_PER_LEVEL_PER_DAY = 100)
+
+svc -> wiRepo : Find waste items by category/sub-category
+activate wiRepo
+wiRepo --> svc : List<WasteItem>
+deactivate wiRepo
+
+svc -> svc : Shuffle and limit items\nby levelItem.itemCount
+
+loop for each WasteItem
+ svc -> s3Svc : generatePresignedUrl(imageUrl)
+end
+
+svc -> svc : buildPresetSnapshot(config, preset, levelItem)
+
+svc -> gsRepo : Auto-close all open sessions\nfor this student
+svc -> gsRepo : save(new GameSession)
+activate gsRepo
+gsRepo -> db : INSERT INTO game_sessions ...
+db --> gsRepo : GameSession
+gsRepo --> svc : GameSession
+deactivate gsRepo
+
+svc --> ctrl : StudentGameSessionStartResponse
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<StudentGameSessionStartResponse>
+deactivate ctrl
+
+ui -> ui : Render game screen with\nwasteItems, timeLimit, lives
+ui --> user : "Bắt đầu phiên chơi game thành công"
+deactivate ui
+
+@enduml

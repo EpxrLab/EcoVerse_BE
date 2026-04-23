@@ -1,0 +1,47 @@
+@startuml class_delete_subscription_plan
+title Class Diagram - DELETE /api/subscription-plans/{id} (Xóa Gói đăng ký)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class SubscriptionPlanController {
+        - subscriptionPlanService : ISubscriptionPlanService
+        + deletePlan(id: UUID) : ResponseEntity<ResponseDto<Void>>
+    }
+}
+
+package "service" {
+    interface ISubscriptionPlanService {
+        + deletePlan(planId: UUID) : void
+    }
+
+    class SubscriptionPlanServiceImpl implements ISubscriptionPlanService {
+        - subscriptionPlanRepository : SubscriptionPlanRepository
+        + deletePlan(planId: UUID) : void
+    }
+}
+
+package "entity" {
+    class SubscriptionPlan {
+        - id : UUID
+        - planCode : String
+        - planName : String
+    }
+}
+
+package "repository" {
+    interface SubscriptionPlanRepository extends JpaRepository {
+        + findById(id: UUID) : Optional<SubscriptionPlan>
+        + delete(plan: SubscriptionPlan) : void
+    }
+}
+
+package "exception" {
+    class ResourceNotFoundException extends RuntimeException
+}
+
+SubscriptionPlanController --> ISubscriptionPlanService : uses
+SubscriptionPlanServiceImpl --> SubscriptionPlanRepository : uses
+SubscriptionPlanServiceImpl ..> ResourceNotFoundException : throws
+
+@enduml

@@ -1,0 +1,67 @@
+@startuml class_get_my_subscription_history
+title Class Diagram - GET /api/subscriptions/my/history (Lịch sử Gói đăng ký)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class SubscriptionController {
+        - subscriptionService : ISubscriptionService
+        + getMySubscriptionHistory(principal: UserPrincipal, status: SubscriptionStatus, keyword: String, page: int, size: int) : ResponseEntity<ResponseDto<PageResponse<SubscriptionResponse>>>
+    }
+}
+
+package "service" {
+    interface ISubscriptionService {
+        + getMySubscriptionHistory(userId: UUID, status: SubscriptionStatus, keyword: String, pageable: Pageable) : PageResponse<SubscriptionResponse>
+    }
+
+    class SubscriptionServiceImpl implements ISubscriptionService {
+        - subscriptionRepository : SubscriptionRepository
+        - userRepository : UserRepository
+        - schoolRepository : SchoolRepository
+        - partnershipRepository : PartnershipRepository
+        - paymentRepository : PaymentRepository
+        - subscriptionMapper : SubscriptionMapper
+        + getMySubscriptionHistory(...) : PageResponse<SubscriptionResponse>
+        - resolveSubscriberType(user: User) : SubscriberType
+        - toSubscriptionPageResponse(page: Page<Subscription>) : PageResponse<SubscriptionResponse>
+        - getTransactionMap(subscriptions: List<Subscription>) : Map<UUID, List<SubscriptionTransactionResponse>>
+    }
+}
+
+package "dto.response" {
+    class PageResponse<T> {
+        - content : List<T>
+        - page : int
+        - size : int
+        - totalElements : long
+        - totalPages : int
+        - last : boolean
+    }
+
+    class SubscriptionResponse <<record>> {
+        + id : UUID
+        + subscriptionCode : String
+        + status : SubscriptionStatus
+        + planName : String
+        + startDate : LocalDateTime
+        + endDate : LocalDateTime
+        + transactions : List<SubscriptionTransactionResponse>
+    }
+}
+
+package "repository" {
+    interface SubscriptionRepository extends JpaRepository {
+        + findAll(spec: Specification, pageable: Pageable) : Page<Subscription>
+    }
+
+    interface PaymentRepository extends JpaRepository {
+        + findAllBySubscriptionIdInOrderByCreatedAtDesc(ids: List<UUID>) : List<Payment>
+    }
+}
+
+SubscriptionController --> ISubscriptionService : uses
+SubscriptionServiceImpl --> SubscriptionRepository : uses
+SubscriptionServiceImpl --> PaymentRepository : uses
+
+@enduml
