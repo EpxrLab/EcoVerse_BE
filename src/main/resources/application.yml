@@ -20,6 +20,12 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  jackson:
+    deserialization:
+      adjust-dates-to-context-time-zone: false
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: UTC
   data:
     redis:
       host: ${REDIS_HOST:localhost}
