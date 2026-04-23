@@ -120,7 +120,7 @@ class SubscriptionServiceImplTest {
         verify(paymentService).createPayment(subscriptionCaptor.capture(), eq(user));
 
         Subscription createdSubscription = subscriptionCaptor.getValue();
-        assertEquals(SubscriptionStatus.PENDING_RENEWAL, createdSubscription.getStatus());
+        assertEquals(SubscriptionStatus.PENDING, createdSubscription.getStatus());
         assertSame(activeFree, createdSubscription.getRenewedFrom());
         assertNotNull(createdSubscription.getSubscriptionCode());
         assertSame(expectedResponse, result);

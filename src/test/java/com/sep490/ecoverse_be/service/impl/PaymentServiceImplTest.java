@@ -79,7 +79,7 @@ class PaymentServiceImplTest {
         newSubscription.setId(UUID.randomUUID());
         newSubscription.setSubscriberType(SubscriberType.SCHOOL);
         newSubscription.setSchool(school);
-        newSubscription.setStatus(SubscriptionStatus.PENDING_RENEWAL);
+        newSubscription.setStatus(SubscriptionStatus.PENDING);
         newSubscription.setPlan(paidPlan);
         newSubscription.setRenewedFrom(previousSubscription);
 

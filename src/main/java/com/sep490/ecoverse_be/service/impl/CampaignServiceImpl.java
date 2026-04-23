@@ -21,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @Service
@@ -171,12 +170,16 @@ public class CampaignServiceImpl implements ICampaignService {
 
     private Subscription getActiveSchoolSubscription(School school) {
         return subscriptionRepository.findBySchoolIdAndStatus(school.getId(), com.sep490.ecoverse_be.enums.SubscriptionStatus.ACTIVE)
-                .orElseThrow(() -> new BadRequestException("Trường chưa có gói subscription hoạt động"));
+                .or(() -> subscriptionRepository.findBySchoolIdAndStatus(
+                        school.getId(), com.sep490.ecoverse_be.enums.SubscriptionStatus.PENDING_RENEWAL))
+                .orElseThrow(() -> new BadRequestException("Trường chưa có gói subscription hợp lệ"));
     }
 
     private Subscription getActivePartnershipSubscription(Partnership partnership) {
         return subscriptionRepository.findByPartnershipIdAndStatus(partnership.getId(), com.sep490.ecoverse_be.enums.SubscriptionStatus.ACTIVE)
-                .orElseThrow(() -> new BadRequestException("Tổ chức chưa có gói subscription hoạt động"));
+                .or(() -> subscriptionRepository.findByPartnershipIdAndStatus(
+                        partnership.getId(), com.sep490.ecoverse_be.enums.SubscriptionStatus.PENDING_RENEWAL))
+                .orElseThrow(() -> new BadRequestException("Tổ chức chưa có gói subscription hợp lệ"));
     }
 
     private void checkCampaignPerMonthQuota(Subscription subscription, School school, Partnership partnership) {
@@ -470,10 +473,9 @@ public class CampaignServiceImpl implements ICampaignService {
                 })
                 .toList();
 
-        // Lấy tất cả học sinh đã được mời (không lọc isActive) để UI hiển thị đầy đủ
-        // trạng thái
+        // Chỉ lấy học sinh đang active (danh sách hiện tại sau replace)
         List<CampaignParticipantInfoResponse> participants = campaignParticipantRepository
-                .findByCampaignIdOrderByCreatedAtAsc(campaign.getId())
+                .findByCampaignIdAndIsActiveTrueOrderByCreatedAtAsc(campaign.getId())
                 .stream()
                 .map(p -> CampaignParticipantInfoResponse.builder()
                         .studentId(p.getStudent().getId())
@@ -2068,9 +2070,7 @@ public class CampaignServiceImpl implements ICampaignService {
         if (campaign.getCampaignType() == CampaignType.PARTNERSHIP_EVENT
                 && shouldUseCurrentRoundLeaderboardForRole(getCurrentUser().getRole())) {
             return resolvePartnershipDefaultRound(campaign)
-                    .map(round -> mapRoundLeaderboard(roundLeaderboardRepository
-                            .findByCampaignRoundIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(
-                                    round.getId())))
+                    .map(round -> mapRoundLeaderboard(getEffectiveRoundLeaderboardEntries(round)))
                     .orElse(List.of());
         }
 
@@ -2096,10 +2096,33 @@ public class CampaignServiceImpl implements ICampaignService {
 
     @Override
     public List<LeaderboardEntryResponse> getCampaignRoundLeaderboard(UUID roundId) {
-        campaignRoundRepository.findById(roundId)
+        CampaignRound round = campaignRoundRepository.findById(roundId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy round"));
-        return mapRoundLeaderboard(roundLeaderboardRepository
-                .findByCampaignRoundIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(roundId));
+        return mapRoundLeaderboard(getEffectiveRoundLeaderboardEntries(round));
+    }
+
+    private List<RoundLeaderboard> getEffectiveRoundLeaderboardEntries(CampaignRound round) {
+        List<RoundLeaderboard> entries = roundLeaderboardRepository
+                .findByCampaignRoundIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(round.getId());
+
+        if (round.getCampaign().getCampaignType() != CampaignType.PARTNERSHIP_EVENT) {
+            return entries;
+        }
+
+        Integer roundNumber = round.getRoundNumber();
+        if (roundNumber == null || roundNumber <= 1) {
+            return entries;
+        }
+
+        Set<UUID> eligibleStudentIds = new HashSet<>(
+                campaignRoundParticipantRepository.findStudentIdsByCampaignRoundId(round.getId()));
+        if (eligibleStudentIds.isEmpty()) {
+            return List.of();
+        }
+
+        return entries.stream()
+                .filter(entry -> eligibleStudentIds.contains(entry.getStudent().getId()))
+                .toList();
     }
 
     private List<LeaderboardEntryResponse> mapRoundLeaderboard(List<RoundLeaderboard> entries) {
