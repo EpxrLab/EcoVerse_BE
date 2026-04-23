@@ -26,7 +26,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -50,6 +51,8 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
     private final SubscriptionMapper subscriptionMapper;
     private final PaymentMapper paymentMapper;
     private final StudentRepository studentRepository;
+    private final CampaignRepository campaignRepository;
+    private final AiGenerationLogRepository aiGenerationLogRepository;
 
     @Override
     @Transactional
@@ -118,8 +121,8 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         if (activeSubscription != null) {
             subscription.setRenewedFrom(activeSubscription);
         }
-        subscription.setStartDate(LocalDateTime.now());
-        subscription.setEndDate(LocalDateTime.now().plusDays(plan.getDurationDays()));
+        subscription.setStartDate(OffsetDateTime.now());
+        subscription.setEndDate(OffsetDateTime.now().plusDays(plan.getDurationDays()));
 
         // Free plan: activate immediately
         if (plan.getPrice().compareTo(BigDecimal.ZERO) == 0) {
@@ -129,7 +132,7 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
             if (activeSubscription != null && !isFreePlan(activeSubscription.getPlan())) {
                 activeSubscription.setStatus(SubscriptionStatus.CANCELLED);
                 activeSubscription.setCancellationReason("Hạ xuống gói miễn phí");
-                activeSubscription.setCancelledAt(LocalDateTime.now());
+                activeSubscription.setCancelledAt(OffsetDateTime.now());
                 subscriptionRepository.save(activeSubscription);
             }
             log.info("Free subscription activated for user {}: plan={}", user.getEmail(), plan.getPlanCode());
@@ -186,8 +189,8 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         newSubscription.setPartnership(oldSubscription.getPartnership());
         newSubscription.setPlan(plan);
         newSubscription.setRenewedFrom(oldSubscription);
-        newSubscription.setStartDate(LocalDateTime.now());
-        newSubscription.setEndDate(LocalDateTime.now().plusDays(plan.getDurationDays()));
+        newSubscription.setStartDate(OffsetDateTime.now());
+        newSubscription.setEndDate(OffsetDateTime.now().plusDays(plan.getDurationDays()));
 
         if (plan.getPrice().compareTo(BigDecimal.ZERO) == 0) {
             newSubscription.setStatus(SubscriptionStatus.ACTIVE);
@@ -323,8 +326,8 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         retirePreviousActiveSubscriptionForUpgrade(subscription);
 
         subscription.setStatus(SubscriptionStatus.ACTIVE);
-        subscription.setStartDate(LocalDateTime.now());
-        subscription.setEndDate(LocalDateTime.now().plusDays(subscription.getPlan().getDurationDays()));
+        subscription.setStartDate(OffsetDateTime.now());
+        subscription.setEndDate(OffsetDateTime.now().plusDays(subscription.getPlan().getDurationDays()));
         subscription.setCancellationReason(null);
         subscription.setCancelledAt(null);
 
@@ -348,7 +351,7 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
 
         subscription.setStatus(SubscriptionStatus.CANCELLED);
         subscription.setCancellationReason(reason);
-        subscription.setCancelledAt(LocalDateTime.now());
+        subscription.setCancelledAt(OffsetDateTime.now());
 
         subscriptionRepository.save(subscription);
         log.info("Subscription {} cancelled by user {}", subscription.getSubscriptionCode(), userId);
@@ -408,8 +411,8 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
 
         previousSubscription.setStatus(SubscriptionStatus.CANCELLED);
         previousSubscription.setCancellationReason("Upgraded to plan " + subscription.getPlan().getPlanName());
-        previousSubscription.setCancelledAt(LocalDateTime.now());
-        previousSubscription.setEndDate(LocalDateTime.now());
+        previousSubscription.setCancelledAt(OffsetDateTime.now());
+        previousSubscription.setEndDate(OffsetDateTime.now());
         subscriptionRepository.save(previousSubscription);
     }
 
@@ -425,7 +428,7 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         payment.setCurrency("VND");
         payment.setPaymentMethod(PaymentMethod.OTHER);
         payment.setStatus(PaymentStatus.COMPLETED);
-        payment.setPaidAt(LocalDateTime.now());
+        payment.setPaidAt(OffsetDateTime.now());
         payment.setPayerName(user.getEmail());
         payment.setPayerEmail(user.getEmail());
         payment.setCreatedBy(user);
@@ -440,7 +443,24 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
                 .map(subscriptionMapper::toTransactionResponse)
                 .toList();
 
-        return subscriptionMapper.toResponse(subscription, transactions);
+        Long usedStudents = null;
+        Long usedCampaignsCurrentMonth = null;
+        Long usedAiQuizGenerations = null;
+
+        if (subscription.getStatus() == SubscriptionStatus.ACTIVE) {
+            OffsetDateTime startOfMonth = OffsetDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+            
+            if (subscription.getSubscriberType() == SubscriberType.SCHOOL && subscription.getSchool() != null) {
+                usedStudents = studentRepository.countBySchoolId(subscription.getSchool().getId());
+                usedCampaignsCurrentMonth = campaignRepository.countNonDraftByCreatorSchoolIdInMonth(subscription.getSchool().getId(), startOfMonth);
+                usedAiQuizGenerations = aiGenerationLogRepository.countChargedBySchoolIdInPeriod(subscription.getSchool().getId(), subscription.getStartDate(), subscription.getEndDate());
+            } else if (subscription.getSubscriberType() == SubscriberType.PARTNERSHIP && subscription.getPartnership() != null) {
+                usedCampaignsCurrentMonth = campaignRepository.countNonDraftByCreatorPartnershipIdInMonth(subscription.getPartnership().getId(), startOfMonth);
+                usedAiQuizGenerations = aiGenerationLogRepository.countChargedByPartnershipIdInPeriod(subscription.getPartnership().getId(), subscription.getStartDate(), subscription.getEndDate());
+            }
+        }
+
+        return subscriptionMapper.toResponse(subscription, transactions, usedStudents, usedCampaignsCurrentMonth, usedAiQuizGenerations);
     }
 
     private PageResponse<SubscriptionResponse> toSubscriptionPageResponse(Page<Subscription> page) {
@@ -448,10 +468,10 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         Map<UUID, List<SubscriptionTransactionResponse>> transactionMap = getTransactionMap(subscriptions);
 
         List<SubscriptionResponse> content = subscriptions.stream()
-                .map(subscription -> subscriptionMapper.toResponse(
-                        subscription,
-                        transactionMap.getOrDefault(subscription.getId(), Collections.emptyList())
-                ))
+                .map(subscription -> {
+                    List<SubscriptionTransactionResponse> txs = transactionMap.getOrDefault(subscription.getId(), Collections.emptyList());
+                    return subscriptionMapper.toResponse(subscription, txs, null, null, null);
+                })
                 .toList();
 
         return new PageResponse<>(

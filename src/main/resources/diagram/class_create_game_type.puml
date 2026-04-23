@@ -1,0 +1,149 @@
+@startuml class_create_game_type
+title Class Diagram - POST /api/admin/game-types (Create Game Type)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class AdminController {
+        - adminService : IAdminService
+        + createGameType(request: AdminGameTypeUpsertRequest) : ResponseEntity<ResponseDto<AdminGameTypeResponse>>
+    }
+}
+
+package "service" {
+    interface IAdminService {
+        + createGameType(request: AdminGameTypeUpsertRequest) : AdminGameTypeResponse
+    }
+
+    class AdminServiceImpl implements IAdminService {
+        - gameTypeRepository : GameTypeRepository
+        - s3PresignedUrlService : S3PresignedUrlService
+        + createGameType(request: AdminGameTypeUpsertRequest) : AdminGameTypeResponse
+        - getCurrentAdmin() : User
+        - mapGameType(gameType: GameType) : AdminGameTypeResponse
+    }
+
+    class S3PresignedUrlService {
+        - s3Presigner : S3Presigner
+        - bucketName : String
+        - presignedUrlDurationDays : int
+        + generatePresignedUrl(keyOrUrl: String) : String
+        - extractKey(keyOrUrl: String) : String
+    }
+}
+
+package "dto.request" {
+    class AdminGameTypeUpsertRequest {
+        - typeCode : GameTypeCode <<@NotNull>>
+        - name : String <<@NotBlank>>
+        - shortDescription : String <<@NotBlank>>
+        - fullDescription : String
+        - howToPlay : String <<@NotBlank>>
+        - thumbnailUrl : String
+        - iconUrl : String
+        - features : Map<String, Object>
+        - supportsCoin : Boolean
+        - maxLevels : Integer
+        - displayOrder : Integer
+    }
+}
+
+package "dto.response" {
+    class ResponseDto<T> {
+        - status : int
+        - message : String
+        - data : T
+        + {static} success(data: T, message: String) : ResponseDto<T>
+        + {static} created(data: T, message: String) : ResponseDto<T>
+    }
+
+    class AdminGameTypeResponse <<record>> {
+        + id : UUID
+        + typeCode : GameTypeCode
+        + name : String
+        + shortDescription : String
+        + fullDescription : String
+        + howToPlay : String
+        + thumbnailUrl : String
+        + thumbnailPresignedUrl : String
+        + iconUrl : String
+        + iconPresignedUrl : String
+        + features : Map<String, Object>
+        + supportsCoin : boolean
+        + maxLevels : int
+        + isActive : boolean
+        + displayOrder : int
+        + mappedWasteCategories : List<WasteCategory>
+    }
+}
+
+package "entity" {
+    abstract class BaseEntity {
+        - id : UUID <<@Id>>
+        - createdAt : LocalDateTime
+        - updatedAt : LocalDateTime
+    }
+
+    class GameType extends BaseEntity {
+        - typeCode : GameTypeCode
+        - name : String
+        - shortDescription : String
+        - fullDescription : String
+        - howToPlay : String
+        - thumbnailUrl : String
+        - iconUrl : String
+        - features : Map<String, Object>
+        - supportsCoin : boolean
+        - maxLevels : int
+        - isActive : boolean
+        - isDelete : boolean
+        - displayOrder : int
+        - createdBy : User
+        - updatedBy : User
+        - levelPresets : List<GameLevelPreset>
+    }
+
+    class User extends BaseEntity {
+        - email : String
+        - username : String
+        - role : Role
+    }
+}
+
+package "repository" {
+    interface GameTypeRepository extends JpaRepository {
+        + existsByTypeCodeAndIsDeleteFalse(typeCode: GameTypeCode) : boolean
+        + existsByNameIgnoreCaseAndIsDeleteFalse(name: String) : boolean
+        + findByIsDeleteFalse() : List<GameType>
+        + findByIdAndIsDeleteFalse(id: UUID) : Optional<GameType>
+    }
+}
+
+package "enums" {
+    enum GameTypeCode {
+        WASTE_SORTING
+        IMAGE_MATCHING
+        SPEED_CLASSIFY
+        RUN_SORTING
+        COLLECT_SORTING
+    }
+
+    enum WasteCategory {
+        RECYCLABLE
+        ORGANIC
+        HAZARDOUS
+        GENERAL
+    }
+}
+
+AdminController --> IAdminService : uses
+AdminServiceImpl --> GameTypeRepository : uses
+AdminServiceImpl --> S3PresignedUrlService : uses
+AdminController ..> AdminGameTypeUpsertRequest : receives
+AdminController ..> ResponseDto : returns
+AdminServiceImpl ..> AdminGameTypeResponse : creates
+AdminServiceImpl ..> GameType : manages
+GameType --> User : createdBy / updatedBy
+GameType ..> GameTypeCode : uses
+
+@enduml

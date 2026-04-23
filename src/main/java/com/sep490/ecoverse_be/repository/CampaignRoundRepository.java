@@ -6,7 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,7 +34,7 @@ public interface CampaignRoundRepository extends JpaRepository<CampaignRound, UU
                             )
                         """)
         List<CampaignRound> findRoundsReadyToActivate(@Param("status") RoundStatus status,
-                                                                                                    @Param("now") LocalDateTime now);
+                                                                                                    @Param("now") OffsetDateTime now);
 
         @Query("""
                         SELECT r
@@ -49,6 +50,6 @@ public interface CampaignRoundRepository extends JpaRepository<CampaignRound, UU
                             )
                         """)
         List<CampaignRound> findRoundsReadyToComplete(@Param("status") RoundStatus status,
-                                                                                                    @Param("now") LocalDateTime now);
+                                                                                                    @Param("now") OffsetDateTime now);
 }
 

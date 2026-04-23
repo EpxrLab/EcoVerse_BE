@@ -1,0 +1,75 @@
+@startuml class_delete_game_type
+title Class Diagram - DELETE /api/admin/game-types/{id} (Delete Game Type)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class AdminController {
+        - adminService : IAdminService
+        + deleteGameType(id: UUID) : ResponseEntity<ResponseDto<Void>>
+    }
+}
+
+package "service" {
+    interface IAdminService {
+        + deleteGameType(id: UUID) : void
+    }
+
+    class AdminServiceImpl implements IAdminService {
+        - gameTypeRepository : GameTypeRepository
+        + deleteGameType(id: UUID) : void
+        - getCurrentAdmin() : User
+        - getActiveGameTypeOrThrow(id: UUID) : GameType
+    }
+}
+
+package "dto.response" {
+    class ResponseDto<T> {
+        - status : int
+        - message : String
+        - data : T
+        + {static} success(data: T, message: String) : ResponseDto<T>
+    }
+}
+
+package "entity" {
+    abstract class BaseEntity {
+        - id : UUID
+        - createdAt : LocalDateTime
+        - updatedAt : LocalDateTime
+    }
+
+    class GameType extends BaseEntity {
+        - typeCode : GameTypeCode
+        - name : String
+        - isActive : boolean
+        - isDelete : boolean
+        - updatedBy : User
+    }
+
+    class User extends BaseEntity {
+        - email : String
+        - username : String
+        - role : Role
+    }
+}
+
+package "repository" {
+    interface GameTypeRepository extends JpaRepository {
+        + findByIdAndIsDeleteFalse(id: UUID) : Optional<GameType>
+        + save(gameType: GameType) : GameType
+    }
+}
+
+package "exception" {
+    class NotFoundException extends RuntimeException
+}
+
+AdminController --> IAdminService : uses
+AdminServiceImpl --> GameTypeRepository : uses
+AdminController ..> ResponseDto : returns
+AdminServiceImpl ..> GameType : soft deletes
+AdminServiceImpl ..> NotFoundException : throws
+GameType --> User : updatedBy
+
+@enduml

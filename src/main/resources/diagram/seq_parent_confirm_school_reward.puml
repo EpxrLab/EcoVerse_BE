@@ -1,0 +1,67 @@
+@startuml seq_parent_confirm_school_reward
+title Sequence Diagram - PUT /api/rewards/requests/{id}/confirm (Parent Confirm receiving reward School)
+
+actor "Phụ huynh" as user
+boundary "Parent UI\n(Frontend)" as ui
+participant "RewardRequestController" as ctrl
+participant "IRewardRequestService\n(RewardRequestServiceImpl)" as svc
+participant "ParentRepository" as parRepo
+participant "StudentParentLinkRepository" as splRepo
+participant "RewardRequestRepository" as rrRepo
+database "Database" as db
+
+user -> ui : View Reward request status DELIVERED
+activate ui
+user -> ui : Click "Xác nhận đã nhận quà"
+
+ui -> ctrl : PUT /api/rewards/requests/{id}/confirm
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('PARENT')")
+
+ctrl -> svc : confirmReceived(requestId)
+activate svc
+
+svc -> svc : getCurrentUser() → User
+svc -> parRepo : findByUserId(userId)
+activate parRepo
+parRepo --> svc : Parent
+deactivate parRepo
+
+svc -> splRepo : findByParentId(parentId)
+activate splRepo
+splRepo --> svc : List<StudentParentLink>
+deactivate splRepo
+
+svc -> rrRepo : findByIdAndStudentId(requestId, childStudentId)
+activate rrRepo
+rrRepo --> svc : Optional<RewardRequest>
+deactivate rrRepo
+
+alt not found
+ svc --> ctrl : throw NotFoundException
+end
+
+alt status != DELIVERED
+ svc --> ctrl : throw BadRequestException\n("Chỉ có thể xác nhận khi status là DELIVERED")
+end
+
+svc -> svc : request.setStatus(CONFIRMED)\nrequest.setConfirmedAt(now)\nrequest.setConfirmedByParent(parent)
+
+svc -> rrRepo : save(request)
+activate rrRepo
+rrRepo -> db : UPDATE SET status=CONFIRMED
+db --> rrRepo : done
+rrRepo --> svc : RewardRequest
+deactivate rrRepo
+
+svc --> ctrl : RewardRequestResponse
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<RewardRequestResponse>
+deactivate ctrl
+
+ui -> ui : Display "Xác nhận nhận quà thành công"
+ui --> user : Update status → CONFIRMED
+deactivate ui
+
+@enduml

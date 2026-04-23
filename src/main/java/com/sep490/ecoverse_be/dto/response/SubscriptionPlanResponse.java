@@ -3,7 +3,8 @@ package com.sep490.ecoverse_be.dto.response;
 import com.sep490.ecoverse_be.enums.SubscriberType;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.UUID;
 
@@ -26,7 +27,7 @@ public record SubscriptionPlanResponse(
         boolean isActive,
         int displayOrder,
         String createdByEmail,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
 ) {
 }

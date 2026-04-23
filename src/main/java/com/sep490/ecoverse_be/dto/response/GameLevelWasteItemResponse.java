@@ -15,6 +15,8 @@ public record GameLevelWasteItemResponse(
         String subCategoryDisplayName,
         String imageUrl,
         String imagePresignedUrl,
+        String model3dUrl,
+        String presignedModel3dUrl,
         String funFact,
         String decompositionTime,
         String recyclingTips,

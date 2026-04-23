@@ -1,0 +1,135 @@
+@startuml class_subscribe
+title Class Diagram - POST /api/subscriptions (Đăng ký Gói)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class SubscriptionController {
+        - subscriptionService : ISubscriptionService
+        + subscribe(request: CreateSubscriptionRequest, principal: UserPrincipal) : ResponseEntity<ResponseDto<PaymentResponse>>
+    }
+}
+
+package "service" {
+    interface ISubscriptionService {
+        + subscribe(request: CreateSubscriptionRequest, userId: UUID) : PaymentResponse
+    }
+
+    class SubscriptionServiceImpl implements ISubscriptionService {
+        - subscriptionRepository : SubscriptionRepository
+        - subscriptionPlanRepository : SubscriptionPlanRepository
+        - schoolRepository : SchoolRepository
+        - partnershipRepository : PartnershipRepository
+        - userRepository : UserRepository
+        - paymentRepository : PaymentRepository
+        - paymentService : IPaymentService
+        - subscriptionMapper : SubscriptionMapper
+        - paymentMapper : PaymentMapper
+        - studentRepository : StudentRepository
+        + subscribe(request: CreateSubscriptionRequest, userId: UUID) : PaymentResponse
+        - resolveSubscriberType(user: User) : SubscriberType
+        - isFreePlan(plan: SubscriptionPlan) : boolean
+        - validateDowngradeToFree(school: School, plan: SubscriptionPlan) : void
+        - createFreePaymentRecord(...) : Payment
+        - generateSubscriptionCode() : String
+    }
+
+    interface IPaymentService {
+        + createPayment(subscription: Subscription, user: User) : PaymentResponse
+    }
+}
+
+package "dto.request" {
+    class CreateSubscriptionRequest <<record>> {
+        + planId : UUID <<@NotNull>>
+    }
+}
+
+package "dto.response" {
+    class PaymentResponse {
+        + paymentId : UUID
+        + paymentCode : String
+        + amount : BigDecimal
+        + status : PaymentStatus
+        + checkoutUrl : String
+    }
+}
+
+package "entity" {
+    class Subscription {
+        - id : UUID
+        - subscriptionCode : String
+        - subscriberType : SubscriberType
+        - school : School
+        - partnership : Partnership
+        - plan : SubscriptionPlan
+        - renewedFrom : Subscription
+        - status : SubscriptionStatus
+        - startDate : LocalDateTime
+        - endDate : LocalDateTime
+        - cancellationReason : String
+        - cancelledAt : LocalDateTime
+    }
+
+    class SubscriptionPlan {
+        - id : UUID
+        - planCode : String
+        - planName : String
+        - subscriberType : SubscriberType
+        - price : BigDecimal
+        - durationDays : int
+        - isActive : boolean
+        - maxStudents : Integer
+    }
+
+    class Payment {
+        - id : UUID
+        - paymentCode : String
+        - subscription : Subscription
+        - amount : BigDecimal
+        - status : PaymentStatus
+    }
+
+    class School {
+        - id : UUID
+        - user : User
+        - schoolName : String
+    }
+
+    class Partnership {
+        - id : UUID
+        - user : User
+        - organizationName : String
+    }
+}
+
+package "enums" {
+    enum SubscriptionStatus {
+        ACTIVE
+        PENDING_RENEWAL
+        EXPIRED
+        CANCELLED
+    }
+
+    enum SubscriberType {
+        SCHOOL
+        PARTNERSHIP
+    }
+}
+
+package "repository" {
+    interface SubscriptionRepository extends JpaRepository {
+        + findBySchoolIdAndStatus(schoolId: UUID, status: SubscriptionStatus) : Optional<Subscription>
+        + findByPartnershipIdAndStatus(partnershipId: UUID, status: SubscriptionStatus) : Optional<Subscription>
+    }
+}
+
+SubscriptionController --> ISubscriptionService : uses
+SubscriptionServiceImpl --> IPaymentService : uses
+Subscription --> SubscriptionPlan : plan
+Subscription --> School : school
+Subscription --> Partnership : partnership
+Subscription --> Subscription : renewedFrom
+Subscription ..> SubscriptionStatus : status
+
+@enduml

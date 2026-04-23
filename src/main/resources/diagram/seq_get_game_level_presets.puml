@@ -1,0 +1,61 @@
+@startuml seq_get_game_level_presets
+title Sequence Diagram - GET /api/admin/game-types/{gameTypeId}/presets (Get All Game Level Presets)
+
+actor "Authenticated User" as user
+boundary "Admin UI\n(Frontend)" as ui
+participant "AdminController" as ctrl
+participant "IAdminService\n(AdminServiceImpl)" as svc
+participant "GameTypeRepository" as gtRepo
+participant "GameLevelPresetRepository" as glpRepo
+database "Database" as db
+
+user -> ui : Open page Details Game Type
+activate ui
+ui -> ui : Cần load List of Preset\ncủa Game Type this
+ui -> ctrl : GET /api/admin/game-types/{gameTypeId}/presets
+activate ctrl
+
+note over ctrl : @PreAuthorize("isAuthenticated()")
+
+ctrl -> svc : getGameLevelPresets(gameTypeId)
+activate svc
+
+note over svc : getActiveGameTypeOrThrow(gameTypeId)
+svc -> gtRepo : findByIdAndIsDeleteFalse(gameTypeId)
+activate gtRepo
+gtRepo -> db : SELECT FROM game_types\nWHERE id=? AND is_delete=false
+db --> gtRepo : result
+gtRepo --> svc : Optional<GameType>
+deactivate gtRepo
+
+alt GameType not found
+ svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
+ ctrl --> ui : 404 Not Found
+ ui -> ui : Display thông Report error
+ ui --> user : Display error
+end
+
+svc -> glpRepo : findByGameTypeIdOrderByDifficultyAsc(gameTypeId)
+activate glpRepo
+glpRepo -> db : SELECT * FROM game_level_presets\nWHERE game_type_id=?\nORDER BY difficulty ASC
+db --> glpRepo : List<GameLevelPreset>
+glpRepo --> svc : List<GameLevelPreset>
+deactivate glpRepo
+
+loop for each GameLevelPreset
+ svc -> svc : mapGameLevelPreset(preset)
+ note right : Build AdminGameLevelPresetResponse\nwith sorted items by levelNumber
+end
+
+svc --> ctrl : List<AdminGameLevelPresetResponse>
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(list, "Lấy danh sách preset thành công")
+ctrl --> ui : 200 OK\nResponseDto<List<AdminGameLevelPresetResponse>>
+deactivate ctrl
+
+ui -> ui : Render List of Preset\n(hiện difficulty, số levels,\nwasteCategories for mỗi preset)
+ui --> user : Display List of Preset\ncủa Game Type
+deactivate ui
+
+@enduml

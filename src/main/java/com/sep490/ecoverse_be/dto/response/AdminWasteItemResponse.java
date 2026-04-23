@@ -19,6 +19,10 @@ public record AdminWasteItemResponse(
         String imagePresignedUrl,
         String decompositionTime,
         String recyclingTips,
+        String model3dUrl,
+        String model3dPresignedUrl,
+        String tripoTaskId,
+        String tripoStatus,
         boolean isActive
 ) {
 }

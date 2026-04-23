@@ -1,0 +1,72 @@
+@startuml seq_parent_confirm_partnership_reward
+title Sequence Diagram - PUT /api/rewards/deliveries/{id}/confirm (Parent Confirm receiving reward Partnership)
+
+actor "Phụ huynh" as user
+boundary "Parent UI\n(Frontend)" as ui
+participant "CampaignRewardDeliveryController" as ctrl
+participant "ICampaignRewardDeliveryService\n(CampaignRewardDeliveryServiceImpl)" as svc
+participant "ParentRepository" as parentRepo
+participant "CampaignRewardDeliveryRepository" as delRepo
+participant "StudentParentLinkRepository" as splRepo
+participant "ApplicationEventPublisher" as eventPub
+database "Database" as db
+
+user -> ui : View reward status DELIVERED
+activate ui
+user -> ui : Click "Xác nhận đã nhận quà"
+
+ui -> ctrl : PUT /api/rewards/deliveries/{id}/confirm
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('PARENT')")
+
+ctrl -> svc : confirmReceived(id)
+activate svc
+
+svc -> svc : getCurrentUser() → User
+svc -> parentRepo : findByUserId(userId)
+activate parentRepo
+parentRepo --> svc : Parent
+deactivate parentRepo
+
+svc -> delRepo : findById(deliveryId)
+activate delRepo
+delRepo --> svc : CampaignRewardDelivery
+deactivate delRepo
+
+svc -> splRepo : existsByStudentIdAndParentId(studentId, parentId)
+activate splRepo
+splRepo --> svc : boolean
+deactivate splRepo
+
+alt Parent not liên kết with Student
+ svc --> ctrl : throw BadRequestException\n("Bạn không có quyền xác nhận")
+end
+
+alt status != DELIVERED
+ svc --> ctrl : throw BadRequestException
+end
+
+svc -> svc : delivery.setStatus(CONFIRMED)\ndelivery.setConfirmedAt(now)\ndelivery.setConfirmedBy(parent)
+
+svc -> delRepo : save(delivery)
+activate delRepo
+delRepo -> db : UPDATE SET status=CONFIRMED
+db --> delRepo : done
+delRepo --> svc : CampaignRewardDelivery
+deactivate delRepo
+
+svc -> eventPub : publishEvent → notification Student
+svc -> eventPub : publishEvent → notification Trường
+svc -> eventPub : publishEvent → notification Partnership
+
+svc --> ctrl : CampaignRewardDeliveryResponse
+deactivate svc
+
+ctrl --> ui : 200 OK
+deactivate ctrl
+
+ui -> ui : Display "Xác nhận nhận quà thành công"
+ui --> user : Update status → CONFIRMED
+deactivate ui
+
+@enduml

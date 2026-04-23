@@ -1,0 +1,91 @@
+@startuml class_delete_game_level_preset
+title Class Diagram - DELETE /api/admin/game-types/{gameTypeId}/presets/{presetId} (Delete Game Level Preset)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class AdminController {
+        - adminService : IAdminService
+        + deleteGamePreset(gameTypeId: UUID, presetId: UUID) : ResponseEntity<ResponseDto<Void>>
+    }
+}
+
+package "service" {
+    interface IAdminService {
+        + deleteGameLevelPreset(gameTypeId: UUID, presetId: UUID) : void
+    }
+
+    class AdminServiceImpl implements IAdminService {
+        - gameTypeRepository : GameTypeRepository
+        - gameLevelPresetRepository : GameLevelPresetRepository
+        + deleteGameLevelPreset(gameTypeId: UUID, presetId: UUID) : void
+        - getActiveGameTypeOrThrow(id: UUID) : GameType
+        - getPresetOrThrow(gameTypeId: UUID, presetId: UUID) : GameLevelPreset
+    }
+}
+
+package "dto.response" {
+    class ResponseDto<T> {
+        - status : int
+        - message : String
+        - data : T
+        + {static} success(data: T, message: String) : ResponseDto<T>
+    }
+}
+
+package "entity" {
+    abstract class BaseEntity {
+        - id : UUID
+        - createdAt : LocalDateTime
+        - updatedAt : LocalDateTime
+    }
+
+    class GameType extends BaseEntity {
+        - typeCode : GameTypeCode
+        - name : String
+        - isActive : boolean
+        - isDelete : boolean
+    }
+
+    class GameLevelPreset extends BaseEntity {
+        - gameType : GameType
+        - difficulty : QuizDifficulty
+        - items : List<GameLevelPresetItem>
+    }
+
+    class GameLevelPresetItem extends BaseEntity {
+        - preset : GameLevelPreset
+        - levelNumber : int
+        - itemCount : int
+        - timeLimitSeconds : int
+        - scorePerCorrect : int
+        - lives : Integer
+        - wasteCategories : Set<WasteCategory>
+    }
+}
+
+package "repository" {
+    interface GameTypeRepository extends JpaRepository {
+        + findByIdAndIsDeleteFalse(id: UUID) : Optional<GameType>
+    }
+
+    interface GameLevelPresetRepository extends JpaRepository {
+        + findById(id: UUID) : Optional<GameLevelPreset>
+        + delete(preset: GameLevelPreset) : void
+    }
+}
+
+package "exception" {
+    class NotFoundException extends RuntimeException
+}
+
+AdminController --> IAdminService : uses
+AdminServiceImpl --> GameTypeRepository : uses
+AdminServiceImpl --> GameLevelPresetRepository : uses
+AdminController ..> ResponseDto : returns
+AdminServiceImpl ..> NotFoundException : throws
+
+GameLevelPreset --> GameType : gameType
+GameLevelPreset "1" *-- "1..*" GameLevelPresetItem : items (CascadeType.ALL, orphanRemoval)
+
+@enduml

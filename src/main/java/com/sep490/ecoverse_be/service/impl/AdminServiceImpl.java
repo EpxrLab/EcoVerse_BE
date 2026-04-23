@@ -76,7 +76,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -143,6 +144,9 @@ public class AdminServiceImpl implements IAdminService {
 
     @Autowired
     private CampaignSchoolParticipateRepository campaignSchoolParticipateRepository;
+
+    @Autowired
+    private TripoApiService tripoApiService;
 
     private User getCurrentAdmin() {
         UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext()
@@ -396,6 +400,23 @@ public class AdminServiceImpl implements IAdminService {
         wasteItem.setRecyclingTips(request.getRecyclingTips());
         wasteItem.setActive(request.getIsActive() == null || request.getIsActive());
         wasteItem.setCreatedBy(getCurrentAdmin());
+        
+        if (request.getImageUrl() != null && request.getImageUrl().toLowerCase().endsWith(".glb")) {
+            wasteItem.setModel3dUrl(null);
+            wasteItem.setTripoTaskId(null);
+            wasteItem.setTripoStatus(null);
+        } else if (Boolean.TRUE.equals(request.getGenerate3dModel()) && request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
+            try {
+                String presignedUrl = s3PresignedUrlService.generatePresignedUrl(request.getImageUrl());
+                String taskId = tripoApiService.submitImageTo3dTask(presignedUrl);
+                wasteItem.setTripoTaskId(taskId);
+                wasteItem.setTripoStatus("PENDING");
+            } catch (Exception e) {
+                wasteItem.setTripoStatus("FAILED");
+                // Log naturally handled in TripoApiService, but fail gracefully for WasteItem setup
+            }
+        }
+
         return mapWasteItem(wasteItemRepository.save(wasteItem));
     }
 
@@ -418,6 +439,22 @@ public class AdminServiceImpl implements IAdminService {
         if (request.getIsActive() != null) {
             wasteItem.setActive(request.getIsActive());
         }
+
+        if (request.getImageUrl() != null && request.getImageUrl().toLowerCase().endsWith(".glb")) {
+            wasteItem.setModel3dUrl(null);
+            wasteItem.setTripoTaskId(null);
+            wasteItem.setTripoStatus(null);
+        } else if (Boolean.TRUE.equals(request.getGenerate3dModel()) && request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
+            try {
+                String presignedUrl = s3PresignedUrlService.generatePresignedUrl(request.getImageUrl());
+                String taskId = tripoApiService.submitImageTo3dTask(presignedUrl);
+                wasteItem.setTripoTaskId(taskId);
+                wasteItem.setTripoStatus("PENDING");
+            } catch (Exception e) {
+                wasteItem.setTripoStatus("FAILED");
+            }
+        }
+
         return mapWasteItem(wasteItemRepository.save(wasteItem));
     }
 
@@ -425,7 +462,7 @@ public class AdminServiceImpl implements IAdminService {
     @Transactional
     public void deleteWasteItem(UUID id) {
         WasteItem wasteItem = getActiveWasteItemOrThrow(id);
-        wasteItem.setActive(false);
+        wasteItem.setDelete(true);
         wasteItemRepository.save(wasteItem);
     }
 
@@ -521,7 +558,7 @@ public class AdminServiceImpl implements IAdminService {
 
         school.setApprovalStatus(request.getStatus());
         school.setApprovedBy(getCurrentAdmin());
-        school.setApprovedAt(LocalDateTime.now());
+        school.setApprovedAt(OffsetDateTime.now());
 
         if (request.getStatus() == ApprovalStatus.APPROVED) {
 
@@ -568,7 +605,7 @@ public class AdminServiceImpl implements IAdminService {
 
         partnership.setApprovalStatus(request.getStatus());
         partnership.setApprovedBy(getCurrentAdmin());
-        partnership.setApprovedAt(LocalDateTime.now());
+        partnership.setApprovedAt(OffsetDateTime.now());
 
         if (request.getStatus() == ApprovalStatus.APPROVED) {
 
@@ -1032,9 +1069,14 @@ public class AdminServiceImpl implements IAdminService {
                 .subCategoryDisplayName(subCategory != null ? subCategory.getDisplayName() : null)
                 .description(wasteItem.getDescription())
                 .funFact(wasteItem.getFunFact())
-                .imageUrl(s3PresignedUrlService.generatePresignedUrl(wasteItem.getImageUrl()))
+                .imageUrl(wasteItem.getImageUrl())
+                .imagePresignedUrl(s3PresignedUrlService.generatePresignedUrl(wasteItem.getImageUrl()))
                 .decompositionTime(wasteItem.getDecompositionTime())
                 .recyclingTips(wasteItem.getRecyclingTips())
+                .model3dUrl(wasteItem.getModel3dUrl())
+                .model3dPresignedUrl(s3PresignedUrlService.generatePresignedUrl(wasteItem.getModel3dUrl()))
+                .tripoTaskId(wasteItem.getTripoTaskId())
+                .tripoStatus(wasteItem.getTripoStatus())
                 .isActive(wasteItem.isActive())
                 .build();
     }
@@ -1067,7 +1109,7 @@ public class AdminServiceImpl implements IAdminService {
             return;
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
 
         Subscription subscription = new Subscription();
         subscription.setSubscriptionCode("SUB-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());

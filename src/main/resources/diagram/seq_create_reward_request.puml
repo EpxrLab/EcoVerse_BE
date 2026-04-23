@@ -1,0 +1,92 @@
+@startuml seq_create_reward_request
+title Sequence Diagram - POST /api/rewards/requests ( Create Reward request)
+
+actor "Học sinh/Phụ huynh" as user
+boundary "Reward UI\n(Frontend)" as ui
+participant "RewardRequestController" as ctrl
+participant "IRewardRequestService\n(RewardRequestServiceImpl)" as svc
+participant "StudentRepository" as stuRepo
+participant "ParentRepository" as parRepo
+participant "StudentParentLinkRepository" as splRepo
+participant "RewardRepository" as rewardRepo
+participant "RewardRequestRepository" as rrRepo
+participant "CoinTransactionRepository" as txRepo
+participant "ApplicationEventPublisher" as eventPub
+database "Database" as db
+
+user -> ui : Select reward muốn đổi,\nEnter số lượng, Click "Đổi quà"
+activate ui
+
+ui -> ctrl : POST /api/rewards/requests\n{ "rewardId": "uuid", "quantity": 1,\n"notes": "...", "studentId": "uuid" (parent only) }
+activate ctrl
+note over ctrl : @PreAuthorize("hasAnyAuthority('STUDENT', 'PARENT')")
+
+ctrl -> svc : createRequest(dto)
+activate svc
+
+svc -> svc : getCurrentUser() → User
+
+alt role == STUDENT
+ svc -> stuRepo : findByUserId(userId)
+ activate stuRepo
+ stuRepo --> svc : Student
+ deactivate stuRepo
+else role == PARENT
+ svc -> parRepo : findByUserId(userId)
+ activate parRepo
+ parRepo --> svc : Parent
+ deactivate parRepo
+
+ alt studentId == null
+ svc --> ctrl : throw BadRequestException\n("Phụ huynh phải chỉ định studentId")
+ end
+
+ svc -> stuRepo : findById(studentId)
+ svc -> splRepo : existsByStudentIdAndParentId(studentId, parentId)
+ alt not phải con
+ svc --> ctrl : throw BadRequestException\n("Học sinh này không phải con bạn")
+ end
+end
+
+svc -> rewardRepo : findByIdAndSchoolIdAndIsDeleteFalse(rewardId, schoolId)
+activate rewardRepo
+rewardRepo --> svc : Optional<Reward>
+deactivate rewardRepo
+
+note over svc : reserveStock: reserve inventory stock
+svc -> svc : Check stockQuantity >= quantity
+alt out of stock
+ svc --> ctrl : throw BadRequestException("Hết hàng")
+end
+svc -> rewardRepo : save(reward) [stockQuantity -= quantity]
+
+svc -> svc : totalCost = coinCost × quantity
+
+svc -> svc : new RewardRequest()\nset code, student, reward, school,\nquantity, totalCoins, status=PENDING
+
+svc -> rrRepo : save(rewardRequest)
+activate rrRepo
+rrRepo -> db : INSERT INTO reward_requests ...
+db --> rrRepo : RewardRequest
+rrRepo --> svc : RewardRequest
+deactivate rrRepo
+
+note over svc : deductCoins: deduct coins immediately
+svc -> svc : Check totalCoins >= totalCost
+svc -> stuRepo : save(student) [totalCoins -= totalCost]
+svc -> txRepo : save(CoinTransaction SPEND_REWARD)
+
+svc -> eventPub : publishEvent → notification Student
+svc -> eventPub : publishEvent → notification Parent
+
+svc --> ctrl : RewardRequestResponse
+deactivate svc
+
+ctrl --> ui : 201 Created\nResponseDto<RewardRequestResponse>
+deactivate ctrl
+
+ui -> ui : Display "Tạo yêu cầu thành công"
+ui --> user : View Reward request
+deactivate ui
+
+@enduml

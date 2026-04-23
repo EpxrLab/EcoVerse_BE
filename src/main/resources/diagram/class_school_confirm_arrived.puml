@@ -1,0 +1,36 @@
+@startuml class_school_confirm_arrived
+title Class Diagram - PUT /api/school/reward-deliveries/{id}/arrived (Trường xác nhận nhận quà)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class CampaignRewardDeliveryController {
+        - deliveryService : ICampaignRewardDeliveryService
+        + confirmArrived(id: UUID) : ResponseEntity<ResponseDto<CampaignRewardDeliveryResponse>>
+    }
+}
+
+package "service" {
+    interface ICampaignRewardDeliveryService {
+        + confirmArrived(deliveryId: UUID) : CampaignRewardDeliveryResponse
+    }
+
+    class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliveryService {
+        - deliveryRepository : CampaignRewardDeliveryRepository
+        - schoolRepository : SchoolRepository
+        - eventPublisher : ApplicationEventPublisher
+        + confirmArrived(deliveryId: UUID) : CampaignRewardDeliveryResponse
+    }
+}
+
+package "entity" {
+    class CampaignRewardDelivery extends BaseEntity {
+        - status : PartnershipRewardStatus
+        - arrivedAt : LocalDateTime
+        - arrivedConfirmedBy : User
+    }
+}
+
+CampaignRewardDeliveryController --> ICampaignRewardDeliveryService : uses
+
+@enduml

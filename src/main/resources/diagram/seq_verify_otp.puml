@@ -1,0 +1,52 @@
+@startuml seq_verify_otp
+title Sequence Diagram - POST /api/auth/verify-otp (Xác thực OTP)
+
+actor "Người dùng" as user
+boundary "Registration UI\n(Frontend)" as ui
+participant "AuthenticationController" as ctrl
+participant "IAuthenticationService\n(AuthenticationServiceImpl)" as svc
+participant "IOtpService" as otpSvc
+
+user -> ui : Enter code OTP receive được from email
+activate ui
+
+user -> ui : Click "Xác thực OTP"
+ui -> ui : Validate form (email, otp not empty)
+
+ui -> ctrl : POST /api/auth/verify-otp\n{ "email": "user@example.com", "otp": "123456" }
+activate ctrl
+ctrl -> ctrl : @Valid validate VerifyOtpRequest
+
+ctrl -> svc : verifyOtpOrThrow(email, otp)
+activate svc
+
+svc -> otpSvc : verifyOtp(email, otp)
+activate otpSvc
+otpSvc --> svc : boolean (true/false)
+deactivate otpSvc
+
+alt OTP invalid or expired
+ svc --> ctrl : throw NotFoundException("OTP không hợp lệ hoặc đã hết hạn")
+ ctrl --> ui : 404 Not Found
+ ui -> ui : Display error "OTP không hợp lệ"
+ ui --> user : Display error
+end
+
+svc -> otpSvc : markAsVerified(email)
+activate otpSvc
+otpSvc --> svc : void
+deactivate otpSvc
+
+svc --> ctrl : void
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(null, "Xác thực otp thành công")
+ctrl --> ui : 200 OK\nResponseDto<Void>
+deactivate ctrl
+
+ui -> ui : Display notification "OTP xác thực thành công"
+ui -> ui : Switch to form fill thông tin đăng ký\n(School or Partnership)
+ui --> user : Display form đăng ký Details
+deactivate ui
+
+@enduml

@@ -1,0 +1,42 @@
+@startuml class_school_deliver_reward
+title Class Diagram - PUT /api/school/rewards/requests/{id}/deliver (Trường giao quà)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class RewardRequestController {
+        - rewardRequestService : IRewardRequestService
+        + markDelivered(requestId: UUID, body: MarkDeliveredRequest) : ResponseEntity<ResponseDto<RewardRequestResponse>>
+    }
+}
+
+package "service" {
+    interface IRewardRequestService {
+        + markDelivered(requestId: UUID, imageUrl: String) : RewardRequestResponse
+    }
+
+    class RewardRequestServiceImpl implements IRewardRequestService {
+        - rewardRequestRepository : RewardRequestRepository
+        - schoolRepository : SchoolRepository
+        - eventPublisher : ApplicationEventPublisher
+        + markDelivered(requestId: UUID, imageUrl: String) : RewardRequestResponse
+    }
+}
+
+package "dto.request" {
+    class MarkDeliveredRequest {
+        - imageUrl : String
+    }
+}
+
+package "entity" {
+    class RewardRequest extends BaseEntity {
+        - status : RewardRequestStatus
+        - deliveredAt : LocalDateTime
+        - deliveryImageUrl : String
+    }
+}
+
+RewardRequestController --> IRewardRequestService : uses
+
+@enduml

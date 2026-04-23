@@ -1,0 +1,58 @@
+@startuml seq_admin_get_all_subscriptions
+title Sequence Diagram - GET /api/subscriptions/admin/all (Admin - List of All Subscriptions)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "SubscriptionController" as ctrl
+participant "ISubscriptionService\n(SubscriptionServiceImpl)" as svc
+participant "SubscriptionRepository" as subRepo
+participant "PaymentRepository" as payRepo
+participant "SubscriptionMapper" as mapper
+database "Database" as db
+
+admin -> ui : Open page Management Subscriptions
+activate ui
+ui -> ui : Display filter\n(subscriberType, status, keyword)
+
+ui -> ctrl : GET /api/subscriptions/admin/all\n?subscriberType=SCHOOL&status=ACTIVE\n&keyword=&page=0&size=10
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('ADMINISTRATOR')")
+
+ctrl -> svc : getAllSubscriptions(subscriberType, status, keyword, pageable)
+activate svc
+
+svc -> svc : Build Specification<Subscription>\n(filter by subscriberType, status, keyword)
+
+svc -> subRepo : findAll(spec, pageable)
+activate subRepo
+subRepo -> db : SELECT * FROM subscriptions\nJOIN subscription_plans\nWHERE conditions\nORDER BY created_at DESC
+db --> subRepo : Page<Subscription>
+subRepo --> svc : Page<Subscription>
+deactivate subRepo
+
+svc -> payRepo : findAllBySubscriptionIdInOrderByCreatedAtDesc(ids)
+activate payRepo
+payRepo --> svc : List<Payment>
+deactivate payRepo
+
+svc -> svc : Build transactionMap
+
+loop for each Subscription in page
+ svc -> mapper : toResponse(subscription, transactions, null, null, null)
+ activate mapper
+ mapper --> svc : SubscriptionResponse
+ deactivate mapper
+end
+
+svc --> ctrl : PageResponse<SubscriptionResponse>
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response,\n"Subscriptions retrieved.")
+ctrl --> ui : 200 OK\nResponseDto<PageResponse<SubscriptionResponse>>
+deactivate ctrl
+
+ui -> ui : Render Table List of subscriptions\n(code, subscriber, plan, status,\nstartDate, endDate)
+ui --> admin : Display List of subscriptions
+deactivate ui
+
+@enduml

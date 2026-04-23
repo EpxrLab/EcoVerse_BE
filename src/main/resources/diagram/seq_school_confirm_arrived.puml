@@ -1,0 +1,65 @@
+@startuml seq_school_confirm_arrived
+title Sequence Diagram - PUT /api/school/reward-deliveries/{id}/arrived (Trường Confirm receiving reward from Partnership)
+
+actor "Trường học" as user
+boundary "School UI\n(Frontend)" as ui
+participant "CampaignRewardDeliveryController" as ctrl
+participant "ICampaignRewardDeliveryService\n(CampaignRewardDeliveryServiceImpl)" as svc
+participant "SchoolRepository" as schoolRepo
+participant "CampaignRewardDeliveryRepository" as delRepo
+participant "ApplicationEventPublisher" as eventPub
+database "Database" as db
+
+user -> ui : View reward status SHIPPING
+activate ui
+user -> ui : Click "Xác nhận đã nhận hàng"
+
+ui -> ctrl : PUT /api/school/reward-deliveries/{id}/arrived
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('PARTNERSHIP_SCHOOL')")
+
+ctrl -> svc : confirmArrived(id)
+activate svc
+
+svc -> svc : getCurrentUser() → User
+svc -> schoolRepo : findByUserId(userId)
+activate schoolRepo
+schoolRepo --> svc : School
+deactivate schoolRepo
+
+svc -> delRepo : findById(deliveryId)
+activate delRepo
+delRepo --> svc : CampaignRewardDelivery
+deactivate delRepo
+
+alt delivery not thuộc field this svc --> ctrl : throw BadRequestException
+end
+
+alt status != SHIPPING
+ svc --> ctrl : throw BadRequestException
+end
+
+svc -> svc : delivery.setStatus(ARRIVED)\ndelivery.setArrivedAt(now)\ndelivery.setArrivedConfirmedBy(currentUser)
+
+svc -> delRepo : save(delivery)
+activate delRepo
+delRepo -> db : UPDATE SET status=ARRIVED
+db --> delRepo : done
+delRepo --> svc : CampaignRewardDelivery
+deactivate delRepo
+
+svc -> eventPub : publishEvent → notification Student
+svc -> eventPub : publishEvent → notification Parent
+svc -> eventPub : publishEvent → notification Partnership
+
+svc --> ctrl : CampaignRewardDeliveryResponse
+deactivate svc
+
+ctrl --> ui : 200 OK
+deactivate ctrl
+
+ui -> ui : Display "Xác nhận nhận quà thành công"
+ui --> user : Update status → ARRIVED
+deactivate ui
+
+@enduml

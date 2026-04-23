@@ -1,0 +1,83 @@
+@startuml class_renew_subscription
+title Class Diagram - POST /api/subscriptions/renew (Gia hạn Gói đăng ký)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class SubscriptionController {
+        - subscriptionService : ISubscriptionService
+        + renewSubscription(request: RenewSubscriptionRequest, principal: UserPrincipal) : ResponseEntity<ResponseDto<PaymentResponse>>
+    }
+}
+
+package "service" {
+    interface ISubscriptionService {
+        + renewSubscription(request: RenewSubscriptionRequest, userId: UUID) : PaymentResponse
+    }
+
+    class SubscriptionServiceImpl implements ISubscriptionService {
+        - subscriptionRepository : SubscriptionRepository
+        - subscriptionPlanRepository : SubscriptionPlanRepository
+        - userRepository : UserRepository
+        - paymentRepository : PaymentRepository
+        - paymentService : IPaymentService
+        + renewSubscription(request: RenewSubscriptionRequest, userId: UUID) : PaymentResponse
+        - verifyOwnership(subscription: Subscription, userId: UUID) : void
+        - generateSubscriptionCode() : String
+    }
+}
+
+package "dto.request" {
+    class RenewSubscriptionRequest <<record>> {
+        + subscriptionId : UUID <<@NotNull>>
+        + planId : UUID
+    }
+}
+
+package "dto.response" {
+    class PaymentResponse {
+        + paymentId : UUID
+        + paymentCode : String
+        + amount : BigDecimal
+        + status : PaymentStatus
+        + checkoutUrl : String
+    }
+}
+
+package "entity" {
+    class Subscription {
+        - id : UUID
+        - subscriptionCode : String
+        - subscriberType : SubscriberType
+        - plan : SubscriptionPlan
+        - renewedFrom : Subscription
+        - status : SubscriptionStatus
+        - startDate : LocalDateTime
+        - endDate : LocalDateTime
+    }
+
+    class SubscriptionPlan {
+        - id : UUID
+        - planCode : String
+        - price : BigDecimal
+        - durationDays : int
+        - subscriberType : SubscriberType
+        - isActive : boolean
+    }
+}
+
+package "repository" {
+    interface SubscriptionRepository extends JpaRepository {
+        + findById(id: UUID) : Optional<Subscription>
+    }
+
+    interface SubscriptionPlanRepository extends JpaRepository {
+        + findById(id: UUID) : Optional<SubscriptionPlan>
+    }
+}
+
+SubscriptionController --> ISubscriptionService : uses
+Subscription --> SubscriptionPlan : plan
+Subscription --> Subscription : renewedFrom
+
+@enduml

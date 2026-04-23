@@ -8,7 +8,8 @@ import lombok.Setter;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Entity
@@ -120,5 +121,5 @@ public class RoundLeaderboard {
 
     @UpdateTimestamp
     @Column(name = "last_updated")
-    private LocalDateTime lastUpdated;
+    private OffsetDateTime lastUpdated;
 }

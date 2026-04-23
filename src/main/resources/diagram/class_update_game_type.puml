@@ -1,0 +1,132 @@
+@startuml class_update_game_type
+title Class Diagram - PUT /api/admin/game-types/{id} (Update Game Type)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class AdminController {
+        - adminService : IAdminService
+        + updateGameType(id: UUID, request: AdminGameTypeUpsertRequest) : ResponseEntity<ResponseDto<AdminGameTypeResponse>>
+    }
+}
+
+package "service" {
+    interface IAdminService {
+        + updateGameType(id: UUID, request: AdminGameTypeUpsertRequest) : AdminGameTypeResponse
+    }
+
+    class AdminServiceImpl implements IAdminService {
+        - gameTypeRepository : GameTypeRepository
+        - s3PresignedUrlService : S3PresignedUrlService
+        + updateGameType(id: UUID, request: AdminGameTypeUpsertRequest) : AdminGameTypeResponse
+        - getCurrentAdmin() : User
+        - getActiveGameTypeOrThrow(id: UUID) : GameType
+        - mapGameType(gameType: GameType) : AdminGameTypeResponse
+    }
+
+    class S3PresignedUrlService {
+        + generatePresignedUrl(keyOrUrl: String) : String
+    }
+}
+
+package "dto.request" {
+    class AdminGameTypeUpsertRequest {
+        - typeCode : GameTypeCode <<@NotNull>>
+        - name : String <<@NotBlank>>
+        - shortDescription : String <<@NotBlank>>
+        - fullDescription : String
+        - howToPlay : String <<@NotBlank>>
+        - thumbnailUrl : String
+        - iconUrl : String
+        - features : Map<String, Object>
+        - supportsCoin : Boolean
+        - maxLevels : Integer
+        - displayOrder : Integer
+    }
+}
+
+package "dto.response" {
+    class ResponseDto<T> {
+        - status : int
+        - message : String
+        - data : T
+        + {static} success(data: T, message: String) : ResponseDto<T>
+    }
+
+    class AdminGameTypeResponse <<record>> {
+        + id : UUID
+        + typeCode : GameTypeCode
+        + name : String
+        + shortDescription : String
+        + fullDescription : String
+        + howToPlay : String
+        + thumbnailUrl : String
+        + thumbnailPresignedUrl : String
+        + iconUrl : String
+        + iconPresignedUrl : String
+        + features : Map<String, Object>
+        + supportsCoin : boolean
+        + maxLevels : int
+        + isActive : boolean
+        + displayOrder : int
+        + mappedWasteCategories : List<WasteCategory>
+    }
+}
+
+package "entity" {
+    abstract class BaseEntity {
+        - id : UUID
+        - createdAt : LocalDateTime
+        - updatedAt : LocalDateTime
+    }
+
+    class GameType extends BaseEntity {
+        - typeCode : GameTypeCode
+        - name : String
+        - shortDescription : String
+        - fullDescription : String
+        - howToPlay : String
+        - thumbnailUrl : String
+        - iconUrl : String
+        - features : Map<String, Object>
+        - supportsCoin : boolean
+        - maxLevels : int
+        - isActive : boolean
+        - isDelete : boolean
+        - displayOrder : int
+        - createdBy : User
+        - updatedBy : User
+    }
+
+    class User extends BaseEntity {
+        - email : String
+        - username : String
+        - role : Role
+    }
+}
+
+package "repository" {
+    interface GameTypeRepository extends JpaRepository {
+        + existsByTypeCodeAndIsDeleteFalse(typeCode: GameTypeCode) : boolean
+        + existsByNameIgnoreCaseAndIsDeleteFalse(name: String) : boolean
+        + findByIdAndIsDeleteFalse(id: UUID) : Optional<GameType>
+    }
+}
+
+package "exception" {
+    class NotFoundException extends RuntimeException
+    class BadRequestException extends RuntimeException
+}
+
+AdminController --> IAdminService : uses
+AdminServiceImpl --> GameTypeRepository : uses
+AdminServiceImpl --> S3PresignedUrlService : uses
+AdminController ..> AdminGameTypeUpsertRequest : receives
+AdminController ..> ResponseDto : returns
+AdminServiceImpl ..> AdminGameTypeResponse : creates
+AdminServiceImpl ..> GameType : manages
+AdminServiceImpl ..> NotFoundException : throws
+AdminServiceImpl ..> BadRequestException : throws
+GameType --> User : updatedBy
+
+@enduml

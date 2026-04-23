@@ -1,0 +1,72 @@
+@startuml class_activate_pending_subscription
+title Class Diagram - PATCH /api/subscriptions/{id}/activate (Kích hoạt Gói chờ)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class SubscriptionController {
+        - subscriptionService : ISubscriptionService
+        + activatePendingSubscription(id: UUID, principal: UserPrincipal) : ResponseEntity<ResponseDto<SubscriptionResponse>>
+    }
+}
+
+package "service" {
+    interface ISubscriptionService {
+        + activatePendingSubscription(subscriptionId: UUID, userId: UUID) : SubscriptionResponse
+    }
+
+    class SubscriptionServiceImpl implements ISubscriptionService {
+        - subscriptionRepository : SubscriptionRepository
+        + activatePendingSubscription(subscriptionId: UUID, userId: UUID) : SubscriptionResponse
+        - verifyOwnership(subscription: Subscription, userId: UUID) : void
+        - retirePreviousActiveSubscriptionForUpgrade(subscription: Subscription) : void
+        - toSubscriptionResponse(subscription: Subscription) : SubscriptionResponse
+    }
+}
+
+package "dto.response" {
+    class SubscriptionResponse <<record>> {
+        + id : UUID
+        + subscriptionCode : String
+        + status : SubscriptionStatus
+        + startDate : LocalDateTime
+        + endDate : LocalDateTime
+        + planName : String
+    }
+}
+
+package "entity" {
+    class Subscription {
+        - id : UUID
+        - subscriptionCode : String
+        - status : SubscriptionStatus
+        - startDate : LocalDateTime
+        - endDate : LocalDateTime
+        - plan : SubscriptionPlan
+        - renewedFrom : Subscription
+        - school : School
+        - partnership : Partnership
+    }
+}
+
+package "enums" {
+    enum SubscriptionStatus {
+        ACTIVE
+        PENDING_RENEWAL
+        EXPIRED
+        CANCELLED
+    }
+}
+
+package "repository" {
+    interface SubscriptionRepository extends JpaRepository {
+        + findById(id: UUID) : Optional<Subscription>
+        + save(sub: Subscription) : Subscription
+    }
+}
+
+SubscriptionController --> ISubscriptionService : uses
+Subscription --> Subscription : renewedFrom
+Subscription ..> SubscriptionStatus : status
+
+@enduml

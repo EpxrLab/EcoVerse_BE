@@ -4,7 +4,8 @@ import com.sep490.ecoverse_be.enums.ParticipationStatus;
 import com.sep490.ecoverse_be.enums.PartnershipCampaignStatus;
 import lombok.Builder;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Builder
@@ -15,13 +16,13 @@ public record PartnershipInvitationSummaryResponse(
         String campaignName,
         ParticipationStatus status,
         PartnershipCampaignStatus campaignPartnershipStatus,
-        LocalDateTime invitationSentAt,
-        LocalDateTime participationConfirmedAt,
+        OffsetDateTime invitationSentAt,
+        OffsetDateTime participationConfirmedAt,
         Integer studentsEnrolled,
         String partnershipName,
-        LocalDateTime startDate,
-        LocalDateTime endDate,
-        LocalDateTime registrationDeadline,
+        OffsetDateTime startDate,
+        OffsetDateTime endDate,
+        OffsetDateTime registrationDeadline,
         Integer maxStudentsPerSchool
 ) {
 }

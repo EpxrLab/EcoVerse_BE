@@ -1,0 +1,81 @@
+@startuml seq_update_subscription_plan
+title Sequence Diagram - PUT /api/subscription-plans/{id} (Update Subscription plan)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "SubscriptionPlanController" as ctrl
+participant "ISubscriptionPlanService\n(SubscriptionPlanServiceImpl)" as svc
+participant "SubscriptionPlanRepository" as planRepo
+participant "SubscriptionPlanMapper" as mapper
+database "Database" as db
+
+admin -> ui : Open page Details Subscription plan
+activate ui
+admin -> ui : Click "Chỉnh sửa"
+ui -> ui : Display form Edit\nvới data current
+admin -> ui : Edit thông tin and Click "Cập nhật"
+ui -> ui : Validate form client side
+
+ui -> ctrl : PUT /api/subscription-plans/{id}\n@RequestBody UpdateSubscriptionPlanRequest
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('ADMINISTRATOR')")
+
+ctrl -> svc : updatePlan(id, request)
+activate svc
+
+svc -> planRepo : findById(planId)
+activate planRepo
+planRepo -> db : SELECT FROM subscription_plans WHERE id=?
+db --> planRepo : result
+planRepo --> svc : Optional<SubscriptionPlan>
+deactivate planRepo
+
+alt plan not found
+ svc --> ctrl : throw ResourceNotFoundException\n("Subscription plan not found")
+ ctrl --> ui : 404 Not Found
+ ui --> admin : Display error
+end
+
+opt planName changed
+ svc -> planRepo : existsByPlanNameAndIdNot(planName, planId)
+ activate planRepo
+ planRepo --> svc : boolean
+ deactivate planRepo
+
+ alt planName exists
+ svc --> ctrl : throw FuncErrorException\n("Plan name already exists")
+ ctrl --> ui : 400 Bad Request
+ ui --> admin : Display error
+ end
+end
+
+svc -> mapper : updateEntity(plan, request)
+activate mapper
+mapper --> svc : void (plan updated in-place)
+deactivate mapper
+
+svc -> planRepo : save(plan)
+activate planRepo
+planRepo -> db : UPDATE subscription_plans SET ...
+db --> planRepo : updated plan
+planRepo --> svc : SubscriptionPlan
+deactivate planRepo
+
+svc -> mapper : toResponse(updatedPlan)
+activate mapper
+mapper --> svc : SubscriptionPlanResponse
+deactivate mapper
+
+svc --> ctrl : SubscriptionPlanResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.success(response,\n"Subscription plan updated successfully.")
+ctrl --> ui : 200 OK\nResponseDto<SubscriptionPlanResponse>
+deactivate ctrl
+
+ui -> ui : Display notification Successfully
+ui -> ui : Update data Display
+ui --> admin : Display plan has Update
+deactivate ui
+
+@enduml

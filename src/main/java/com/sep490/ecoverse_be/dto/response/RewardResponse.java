@@ -4,7 +4,8 @@ import com.sep490.ecoverse_be.enums.RewardType;
 import lombok.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Getter
@@ -25,6 +26,6 @@ public class RewardResponse {
     private Boolean isUnlimited;
     private Boolean isActive;
     private String termsConditions;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 }

@@ -1,0 +1,110 @@
+@startuml seq_create_game_level_preset
+title Sequence Diagram - POST /api/admin/game-types/{gameTypeId}/presets (Create Game Level Preset)
+
+actor "Admin" as admin
+boundary "Admin UI\n(Frontend)" as ui
+participant "AdminController" as ctrl
+participant "IAdminService\n(AdminServiceImpl)" as svc
+participant "GameTypeRepository" as gtRepo
+participant "GameLevelPresetRepository" as glpRepo
+database "Database" as db
+
+admin -> ui : Open page Details Game Type
+activate ui
+ui -> ui : Display List of Preset hiện có\nwith button "Tạo Preset mới"
+
+admin -> ui : Click button "Tạo Preset mới"
+ui -> ui : Display form create Preset\n(difficulty, List of items:\nlevelNumber, itemCount,\ntimeLimitSeconds, scorePerCorrect,\nlives, wasteCategories, configJson)
+
+admin -> ui : Fill details preset\nvà Add the level items
+admin -> ui : Click "Lưu"
+ui -> ui : Validate form client side\n(Check the field required,\nlevelNumber >= 1, itemCount >= 1)
+
+ui -> ctrl : POST /api/admin/game-types/{gameTypeId}/presets\n@RequestBody AdminGameLevelPresetUpsertRequest
+activate ctrl
+ctrl -> ctrl : @Valid validate request
+
+ctrl -> svc : createGameLevelPreset(gameTypeId, request)
+activate svc
+
+note over svc : getActiveGameTypeOrThrow(gameTypeId)
+svc -> gtRepo : findByIdAndIsDeleteFalse(gameTypeId)
+activate gtRepo
+gtRepo -> db : SELECT FROM game_types\nWHERE id=? AND is_delete=false
+db --> gtRepo : result
+gtRepo --> svc : Optional<GameType>
+deactivate gtRepo
+
+alt GameType not found
+ svc --> ctrl : throw NotFoundException("Không tìm thấy game type")
+ ctrl --> ui : 404 Not Found
+ ui -> ui : Display thông Report error\n"Không tìm thấy game type"
+ ui --> admin : Display error
+end
+
+svc -> glpRepo : existsByGameTypeIdAndDifficulty(gameTypeId, difficulty)
+activate glpRepo
+glpRepo -> db : SELECT EXISTS ...
+db --> glpRepo : boolean
+glpRepo --> svc : boolean
+deactivate glpRepo
+
+alt preset for difficulty exists
+ svc --> ctrl : throw BadRequestException("Preset cho difficulty này đã tồn tại")
+ ctrl --> ui : 400 Bad Request
+ ui -> ui : Display thông Report error\n"Preset cho difficulty này đã tồn tại"
+ ui --> admin : Display error on form
+end
+
+svc -> svc : new GameLevelPreset()
+svc -> svc : preset.setGameType(gameType)
+
+note over svc : applyPresetUpsert(preset, request)
+svc -> svc : preset.setDifficulty(request.getDifficulty())
+
+svc -> svc : Validate: check duplicate levelNumbers
+
+alt duplicate levelNumber found
+ svc --> ctrl : throw BadRequestException("levelNumber trong items không được trùng nhau")
+ ctrl --> ui : 400 Bad Request
+ ui --> admin : Display error on form
+end
+
+loop for each AdminGameLevelPresetItemUpsertRequest
+ svc -> svc : new GameLevelPresetItem()
+ svc -> svc : applyPresetItemRequest(item, request, preset)
+ note right : set preset, levelNumber, itemCount,\ntimeLimitSeconds, scorePerCorrect,\nlives, wasteCategories, configJson
+end
+
+svc -> svc : Validate: each item has >= 1 wasteCategory
+
+alt any item missing wasteCategories
+ svc --> ctrl : throw BadRequestException("Mỗi preset item phải có ít nhất 1 wasteCategory")
+ ctrl --> ui : 400 Bad Request
+ ui --> admin : Display error on form
+end
+
+svc -> svc : preset.setItems(items)
+
+svc -> glpRepo : save(preset)
+activate glpRepo
+glpRepo -> db : INSERT INTO game_level_presets ...\nINSERT INTO game_level_preset_items ...\nINSERT INTO game_level_preset_item_waste_categories ...
+db --> glpRepo : saved preset
+glpRepo --> svc : GameLevelPreset
+deactivate glpRepo
+
+svc -> svc : mapGameLevelPreset(preset)\n→ AdminGameLevelPresetResponse
+
+svc --> ctrl : AdminGameLevelPresetResponse
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.created(response, "Tạo preset thành công")
+ctrl --> ui : 201 Created\nResponseDto<AdminGameLevelPresetResponse>
+deactivate ctrl
+
+ui -> ui : Display notification Successfully\n"Tạo preset thành công"
+ui -> ui : Update List of Preset
+ui --> admin : Display Preset new in List of
+deactivate ui
+
+@enduml

@@ -1,0 +1,62 @@
+@startuml seq_school_delete_reward
+title Sequence Diagram - DELETE /api/school/rewards/{rewardId} (Soft delete Reward)
+
+actor "Trường học" as user
+boundary "School Reward UI\n(Frontend)" as ui
+participant "RewardController" as ctrl
+participant "IRewardService\n(RewardServiceImpl)" as svc
+participant "SchoolRepository" as schoolRepo
+participant "RewardRepository" as rewardRepo
+database "Database" as db
+
+user -> ui : View List of Reward
+activate ui
+user -> ui : Click button "Xóa" trên reward needs to delete
+ui -> ui : Display confirmation dialog\n"Bạn có chắc muốn xóa quà này?"
+
+user -> ui : Click "Xác nhận"
+
+ui -> ctrl : DELETE /api/school/rewards/{rewardId}
+activate ctrl
+
+ctrl -> svc : deleteReward(rewardId)
+activate svc
+
+svc -> svc : getCurrentUser() → User
+svc -> schoolRepo : findByUserId(userId)
+activate schoolRepo
+schoolRepo --> svc : School
+deactivate schoolRepo
+
+svc -> rewardRepo : findByIdAndSchoolIdAndIsDeleteFalse(rewardId, schoolId)
+activate rewardRepo
+rewardRepo --> svc : Optional<Reward>
+deactivate rewardRepo
+
+alt reward Not found
+ svc --> ctrl : throw NotFoundException
+ ctrl --> ui : 404 Not Found
+ ui --> user : Display error
+end
+
+svc -> svc : reward.setIsDelete(true)
+
+svc -> rewardRepo : save(reward)
+activate rewardRepo
+rewardRepo -> db : UPDATE rewards SET is_delete=true
+db --> rewardRepo : done
+rewardRepo --> svc : Reward
+deactivate rewardRepo
+
+svc --> ctrl : void
+deactivate svc
+
+ctrl --> ui : 200 OK\nResponseDto<Void>
+deactivate ctrl
+
+ui -> ui : Display "Xóa quà thành công"
+ui -> ui : Delete reward khỏi List of
+ui --> user : List of reward has Update
+deactivate ui
+
+@enduml

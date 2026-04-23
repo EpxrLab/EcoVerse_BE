@@ -10,7 +10,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.UUID;
 
@@ -51,10 +52,10 @@ public class DataDeletionRequest {
     private User approvedByUser;
 
     @Column(name = "approved_at")
-    private LocalDateTime approvedAt;
+    private OffsetDateTime approvedAt;
 
     @Column(name = "processed_at")
-    private LocalDateTime processedAt;
+    private OffsetDateTime processedAt;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "deletion_metadata", columnDefinition = "jsonb")
@@ -62,5 +63,5 @@ public class DataDeletionRequest {
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 }

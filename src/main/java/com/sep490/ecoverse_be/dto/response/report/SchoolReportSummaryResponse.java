@@ -3,7 +3,8 @@ package com.sep490.ecoverse_be.dto.response.report;
 import com.sep490.ecoverse_be.enums.SubscriptionStatus;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Getter
@@ -28,7 +29,7 @@ public class SchoolReportSummaryResponse {
 
     // Subscription
     private SubscriptionStatus subscriptionStatus;
-    private LocalDateTime subscriptionEndDate;
+    private OffsetDateTime subscriptionEndDate;
     private String subscriptionPlanName;
 
     // Top performers

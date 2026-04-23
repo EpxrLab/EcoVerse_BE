@@ -15,9 +15,10 @@ public record StudentPresetLevelConfigResponse(
         Integer lives,
         Set<WasteCategory> wasteCategories,
         Map<String, Object> configJson,
-        Boolean coinReceived,
-        Integer maxDailyAttempts,
-        Long todayAttempts
+    Boolean coinReceived,
+    Integer maxDailyAttempts,
+    Long todayAttempts,
+    Boolean isPassed
 ) {
 }
 

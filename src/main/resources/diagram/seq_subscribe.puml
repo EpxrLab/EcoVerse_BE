@@ -1,0 +1,124 @@
+@startuml seq_subscribe
+title Sequence Diagram - POST /api/subscriptions (Register Plan )
+
+actor "School/Partnership" as user
+boundary "Subscription UI\n(Frontend)" as ui
+participant "SubscriptionController" as ctrl
+participant "ISubscriptionService\n(SubscriptionServiceImpl)" as svc
+participant "UserRepository" as userRepo
+participant "SubscriptionPlanRepository" as planRepo
+participant "SchoolRepository" as schoolRepo
+participant "PartnershipRepository" as partRepo
+participant "SubscriptionRepository" as subRepo
+participant "PaymentRepository" as payRepo
+participant "IPaymentService" as paySvc
+database "Database" as db
+
+user -> ui : Select Subscription plan muốn mua
+activate ui
+
+user -> ui : Click "Đăng ký gói"
+ui -> ui : Validate planId
+
+ui -> ctrl : POST /api/subscriptions\n{ "planId": "uuid" }
+activate ctrl
+note over ctrl : @PreAuthorize("hasAnyAuthority(\n'PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
+
+ctrl -> svc : subscribe(request, userId)
+activate svc
+
+svc -> userRepo : findById(userId)
+activate userRepo
+userRepo --> svc : User
+deactivate userRepo
+
+svc -> planRepo : findById(request.planId)
+activate planRepo
+planRepo --> svc : SubscriptionPlan
+deactivate planRepo
+
+alt plan not active
+ svc --> ctrl : throw FuncErrorException\n("This subscription plan is no longer available.")
+ ctrl --> ui : 400 Bad Request
+ ui --> user : Display error
+end
+
+svc -> svc : resolveSubscriberType(user)\n→ SCHOOL or PARTNERSHIP
+
+alt plan.subscriberType != subscriberType
+ svc --> ctrl : throw FuncErrorException\n("This plan is not available for your account type.")
+ ctrl --> ui : 400 Bad Request
+ ui --> user : Display error
+end
+
+alt subscriberType == SCHOOL
+ svc -> schoolRepo : findByUserId(userId)
+ activate schoolRepo
+ schoolRepo --> svc : School
+ deactivate schoolRepo
+ svc -> subRepo : findBySchoolIdAndStatus(schoolId, ACTIVE)
+ activate subRepo
+ subRepo --> svc : Optional<Subscription>
+ deactivate subRepo
+else subscriberType == PARTNERSHIP
+ svc -> partRepo : findByUserId(userId)
+ activate partRepo
+ partRepo --> svc : Partnership
+ deactivate partRepo
+ svc -> subRepo : findByPartnershipIdAndStatus(partnershipId, ACTIVE)
+ activate subRepo
+ subRepo --> svc : Optional<Subscription>
+ deactivate subRepo
+end
+
+alt has has plan active
+ note over svc : Check logic nâng/hạ plan :\n- Free→Paid: for phép\n- Paid→Free: validate số Student\n- Paid→Paid: chỉ for phép nâng gói\n- Free→Free: throw lỗi
+end
+
+svc -> svc : new Subscription()\nset subscriptionCode, subscriberType,\nschool/partnership, plan,\nstartDate, endDate
+
+alt plan miễn phí (price == 0)
+ svc -> svc : subscription.setStatus(ACTIVE)
+ svc -> subRepo : save(subscription)
+ activate subRepo
+ subRepo --> svc : Subscription
+ deactivate subRepo
+
+ svc -> svc : createFreePaymentRecord(...)
+ svc -> payRepo : save(freePayment)
+ activate payRepo
+ payRepo --> svc : Payment
+ deactivate payRepo
+
+ svc --> ctrl : PaymentResponse (no checkout URL)
+else plan trả phí (price > 0)
+ svc -> svc : subscription.setStatus(PENDING_RENEWAL)
+ svc -> subRepo : save(subscription)
+ activate subRepo
+ subRepo --> svc : Subscription
+ deactivate subRepo
+
+ svc -> paySvc : createPayment(subscription, user)
+ activate paySvc
+ paySvc --> svc : PaymentResponse (with checkout URL)
+ deactivate paySvc
+
+ svc --> ctrl : PaymentResponse
+end
+
+deactivate svc
+
+ctrl -> ctrl : ResponseDto.created(response,\n"Subscription created successfully.")
+ctrl --> ui : 201 Created\nResponseDto<PaymentResponse>
+deactivate ctrl
+
+alt plan miễn phí
+ ui -> ui : Display "Đăng ký gói miễn phí thành công!"
+ ui --> user : Chuyển về page dashboard
+else plan trả phí
+ ui -> ui : Redirect đến page thanh toán PayOS\n(checkoutUrl from response)
+ ui --> user : Page thanh toán
+end
+deactivate ui
+
+@enduml

@@ -1,0 +1,137 @@
+@startuml class_update_game_level_preset
+title Class Diagram - PUT /api/admin/game-types/{gameTypeId}/presets/{presetId} (Update Game Level Preset)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class AdminController {
+        - adminService : IAdminService
+        + updateGamePreset(gameTypeId: UUID, presetId: UUID, request: AdminGameLevelPresetUpsertRequest) : ResponseEntity<ResponseDto<AdminGameLevelPresetResponse>>
+    }
+}
+
+package "service" {
+    interface IAdminService {
+        + updateGameLevelPreset(gameTypeId: UUID, presetId: UUID, request: AdminGameLevelPresetUpsertRequest) : AdminGameLevelPresetResponse
+    }
+
+    class AdminServiceImpl implements IAdminService {
+        - gameTypeRepository : GameTypeRepository
+        - gameLevelPresetRepository : GameLevelPresetRepository
+        + updateGameLevelPreset(gameTypeId: UUID, presetId: UUID, request: AdminGameLevelPresetUpsertRequest) : AdminGameLevelPresetResponse
+        - getActiveGameTypeOrThrow(id: UUID) : GameType
+        - getPresetOrThrow(gameTypeId: UUID, presetId: UUID) : GameLevelPreset
+        - applyPresetUpsert(preset: GameLevelPreset, request: AdminGameLevelPresetUpsertRequest) : void
+        - applyPresetItemRequest(item: GameLevelPresetItem, request: AdminGameLevelPresetItemUpsertRequest, preset: GameLevelPreset) : void
+        - mapGameLevelPreset(preset: GameLevelPreset) : AdminGameLevelPresetResponse
+    }
+}
+
+package "dto.request" {
+    class AdminGameLevelPresetUpsertRequest {
+        - difficulty : QuizDifficulty <<@NotNull>>
+        - items : List<AdminGameLevelPresetItemUpsertRequest> <<@Valid @NotEmpty>>
+    }
+
+    class AdminGameLevelPresetItemUpsertRequest {
+        - levelNumber : Integer <<@NotNull @Min(1)>>
+        - itemCount : Integer <<@NotNull @Min(1)>>
+        - timeLimitSeconds : Integer <<@NotNull @Min(0)>>
+        - scorePerCorrect : Integer <<@NotNull @Min(1)>>
+        - lives : Integer
+        - wasteCategories : Set<WasteCategory> <<@NotEmpty>>
+        - configJson : Map<String, Object>
+    }
+}
+
+package "dto.response" {
+    class ResponseDto<T> {
+        - status : int
+        - message : String
+        - data : T
+        + {static} success(data: T, message: String) : ResponseDto<T>
+    }
+
+    class AdminGameLevelPresetResponse <<record>> {
+        + id : UUID
+        + gameTypeId : UUID
+        + difficulty : QuizDifficulty
+        + items : List<AdminGameLevelPresetItemResponse>
+    }
+
+    class AdminGameLevelPresetItemResponse <<record>> {
+        + id : UUID
+        + levelNumber : int
+        + itemCount : int
+        + timeLimitSeconds : int
+        + scorePerCorrect : int
+        + lives : Integer
+        + wasteCategories : Set<WasteCategory>
+        + configJson : Map<String, Object>
+    }
+}
+
+package "entity" {
+    abstract class BaseEntity {
+        - id : UUID
+        - createdAt : LocalDateTime
+        - updatedAt : LocalDateTime
+    }
+
+    class GameType extends BaseEntity {
+        - typeCode : GameTypeCode
+        - name : String
+        - isActive : boolean
+        - isDelete : boolean
+    }
+
+    class GameLevelPreset extends BaseEntity {
+        - gameType : GameType
+        - difficulty : QuizDifficulty
+        - items : List<GameLevelPresetItem>
+    }
+
+    class GameLevelPresetItem extends BaseEntity {
+        - preset : GameLevelPreset
+        - levelNumber : int
+        - itemCount : int
+        - timeLimitSeconds : int
+        - scorePerCorrect : int
+        - lives : Integer
+        - configJson : Map<String, Object>
+        - wasteCategories : Set<WasteCategory>
+    }
+}
+
+package "repository" {
+    interface GameTypeRepository extends JpaRepository {
+        + findByIdAndIsDeleteFalse(id: UUID) : Optional<GameType>
+    }
+
+    interface GameLevelPresetRepository extends JpaRepository {
+        + findById(id: UUID) : Optional<GameLevelPreset>
+        + existsByGameTypeIdAndDifficultyAndIdNot(gameTypeId: UUID, difficulty: QuizDifficulty, id: UUID) : boolean
+        + save(preset: GameLevelPreset) : GameLevelPreset
+    }
+}
+
+package "exception" {
+    class NotFoundException extends RuntimeException
+    class BadRequestException extends RuntimeException
+}
+
+AdminController --> IAdminService : uses
+AdminServiceImpl --> GameTypeRepository : uses
+AdminServiceImpl --> GameLevelPresetRepository : uses
+AdminController ..> AdminGameLevelPresetUpsertRequest : receives
+AdminController ..> ResponseDto : returns
+
+GameLevelPreset --> GameType : gameType
+GameLevelPreset "1" *-- "1..*" GameLevelPresetItem : items (orphanRemoval)
+AdminServiceImpl ..> NotFoundException : throws
+AdminServiceImpl ..> BadRequestException : throws
+
+AdminGameLevelPresetUpsertRequest "1" *-- "1..*" AdminGameLevelPresetItemUpsertRequest : items
+AdminGameLevelPresetResponse "1" *-- "0..*" AdminGameLevelPresetItemResponse : items
+
+@enduml

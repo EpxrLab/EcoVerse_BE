@@ -23,7 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -209,8 +210,8 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
         saved.setTotalCoins(totalCost);
         saved.setStatus(RewardRequestStatus.PENDING);
         saved.setNotes(dto.getNotes());
-        saved.setCreatedAt(LocalDateTime.now());
-        saved.setUpdatedAt(LocalDateTime.now());
+        saved.setCreatedAt(OffsetDateTime.now());
+        saved.setUpdatedAt(OffsetDateTime.now());
         saved = rewardRequestRepository.save(saved);
 
         deductCoins(student, totalCost, saved.getId(),
@@ -293,9 +294,9 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
         }
 
         request.setStatus(RewardRequestStatus.CANCELLED);
-        request.setCancelledAt(LocalDateTime.now());
+        request.setCancelledAt(OffsetDateTime.now());
         request.setCancelledReason(dto.getReason());
-        request.setUpdatedAt(LocalDateTime.now());
+        request.setUpdatedAt(OffsetDateTime.now());
         rewardRequestRepository.save(request);
 
         refundCoins(request.getStudent(), request.getTotalCoins(), request.getId(),
@@ -338,13 +339,13 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
 
         if (dto.isApproved()) {
             request.setStatus(RewardRequestStatus.APPROVED);
-            request.setApprovedAt(LocalDateTime.now());
-            request.setUpdatedAt(LocalDateTime.now());
+            request.setApprovedAt(OffsetDateTime.now());
+            request.setUpdatedAt(OffsetDateTime.now());
         } else {
             request.setStatus(RewardRequestStatus.REJECTED);
             request.setRejectedReason(dto.getReason());
-            request.setRejectedAt(LocalDateTime.now());
-            request.setUpdatedAt(LocalDateTime.now());
+            request.setRejectedAt(OffsetDateTime.now());
+            request.setUpdatedAt(OffsetDateTime.now());
 
             refundCoins(request.getStudent(), request.getTotalCoins(), request.getId(),
                     "Hoàn coin do bị từ chối đổi quà: " + request.getReward().getRewardName() + " - " + request.getRequestCode(), currentUser);
@@ -433,9 +434,9 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
         }
 
         request.setStatus(RewardRequestStatus.DELIVERED);
-        request.setDeliveredAt(LocalDateTime.now());
+        request.setDeliveredAt(OffsetDateTime.now());
         request.setDeliveryImageUrl(imageUrl);
-        request.setUpdatedAt(LocalDateTime.now());
+        request.setUpdatedAt(OffsetDateTime.now());
         rewardRequestRepository.save(request);
 
         // Thong bao phu huynh: qua san sang giao, phu huynh can xac nhan
@@ -476,8 +477,8 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
         }
 
         request.setStatus(RewardRequestStatus.CONFIRMED);
-        request.setConfirmedAt(LocalDateTime.now());
-        request.setUpdatedAt(LocalDateTime.now());
+        request.setConfirmedAt(OffsetDateTime.now());
+        request.setUpdatedAt(OffsetDateTime.now());
         request.setConfirmedByParent(parent);
         rewardRequestRepository.save(request);
         return mapToResponse(request);

@@ -1,0 +1,102 @@
+@startuml class_get_game_type_by_id
+title Class Diagram - GET /api/admin/game-types/{id} (Get Game Type By ID)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class AdminController {
+        - adminService : IAdminService
+        + getGameType(id: UUID) : ResponseEntity<ResponseDto<AdminGameTypeResponse>>
+    }
+}
+
+package "service" {
+    interface IAdminService {
+        + getGameTypeById(id: UUID) : AdminGameTypeResponse
+    }
+
+    class AdminServiceImpl implements IAdminService {
+        - gameTypeRepository : GameTypeRepository
+        - s3PresignedUrlService : S3PresignedUrlService
+        + getGameTypeById(id: UUID) : AdminGameTypeResponse
+        - getActiveGameTypeOrThrow(id: UUID) : GameType
+        - mapGameType(gameType: GameType) : AdminGameTypeResponse
+    }
+
+    class S3PresignedUrlService {
+        + generatePresignedUrl(keyOrUrl: String) : String
+    }
+}
+
+package "dto.response" {
+    class ResponseDto<T> {
+        - status : int
+        - message : String
+        - data : T
+        + {static} success(data: T, message: String) : ResponseDto<T>
+    }
+
+    class AdminGameTypeResponse <<record>> {
+        + id : UUID
+        + typeCode : GameTypeCode
+        + name : String
+        + shortDescription : String
+        + fullDescription : String
+        + howToPlay : String
+        + thumbnailUrl : String
+        + thumbnailPresignedUrl : String
+        + iconUrl : String
+        + iconPresignedUrl : String
+        + features : Map<String, Object>
+        + supportsCoin : boolean
+        + maxLevels : int
+        + isActive : boolean
+        + displayOrder : int
+        + mappedWasteCategories : List<WasteCategory>
+    }
+}
+
+package "entity" {
+    abstract class BaseEntity {
+        - id : UUID
+        - createdAt : LocalDateTime
+        - updatedAt : LocalDateTime
+    }
+
+    class GameType extends BaseEntity {
+        - typeCode : GameTypeCode
+        - name : String
+        - shortDescription : String
+        - fullDescription : String
+        - howToPlay : String
+        - thumbnailUrl : String
+        - iconUrl : String
+        - features : Map<String, Object>
+        - supportsCoin : boolean
+        - maxLevels : int
+        - isActive : boolean
+        - isDelete : boolean
+        - displayOrder : int
+        - levelPresets : List<GameLevelPreset>
+    }
+}
+
+package "repository" {
+    interface GameTypeRepository extends JpaRepository {
+        + findByIdAndIsDeleteFalse(id: UUID) : Optional<GameType>
+    }
+}
+
+package "exception" {
+    class NotFoundException extends RuntimeException
+}
+
+AdminController --> IAdminService : uses
+AdminServiceImpl --> GameTypeRepository : uses
+AdminServiceImpl --> S3PresignedUrlService : uses
+AdminController ..> ResponseDto : returns
+AdminServiceImpl ..> AdminGameTypeResponse : creates
+AdminServiceImpl ..> GameType : reads
+AdminServiceImpl ..> NotFoundException : throws
+
+@enduml

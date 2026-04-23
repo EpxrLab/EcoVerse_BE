@@ -5,7 +5,8 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 
 @Getter
 @Setter
@@ -18,10 +19,10 @@ public class PartnershipRoundRequest {
     private String roundName;
 
     @NotNull
-    private LocalDateTime startTime;
+    private OffsetDateTime startTime;
 
     @NotNull
-    private LocalDateTime endTime;
+    private OffsetDateTime endTime;
 
     private Integer maxParticipants;
 

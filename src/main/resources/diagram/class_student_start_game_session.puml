@@ -1,0 +1,96 @@
+@startuml class_student_start_game_session
+title Class Diagram - POST /api/student/game/.../start (Start Game Session)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class StudentGameController {
+        - studentGameService : IStudentGameService
+        + startGameSession(campaignId: UUID, roundId: UUID,\n  roundGameConfigId: UUID, presetId: UUID,\n  levelNumber: Integer) : ResponseEntity<ResponseDto<StudentGameSessionStartResponse>>
+    }
+}
+
+package "service" {
+    interface IStudentGameService {
+        + startGameSession(campaignId: UUID, roundId: UUID,\n  roundGameConfigId: UUID, presetId: UUID,\n  levelNumber: Integer) : StudentGameSessionStartResponse
+    }
+
+    class StudentGameServiceImpl implements IStudentGameService {
+        - studentRepository : StudentRepository
+        - campaignParticipantRepository : CampaignParticipantRepository
+        - campaignRoundRepository : CampaignRoundRepository
+        - roundGameConfigRepository : RoundGameConfigRepository
+        - gameSessionRepository : GameSessionRepository
+        - wasteItemRepository : WasteItemRepository
+        - s3PresignedUrlService : S3PresignedUrlService
+        + startGameSession(...) : StudentGameSessionStartResponse
+        - getCurrentStudent() : Student
+        - getValidatedParticipant(campaignId: UUID, studentId: UUID) : CampaignParticipant
+        - getValidatedRound(campaignId: UUID, roundId: UUID) : CampaignRound
+        - resolvePreset(config: RoundGameConfig, presetId: UUID) : GameLevelPreset
+        - resolveLevelItem(preset: GameLevelPreset, levelNumber: int) : GameLevelPresetItem
+        - ensureLevelUnlocked(...) : void
+        - ensureDailyPlayQuota(...) : void
+        - ensurePartnershipRoundAccess(...) : void
+        - resolveLevelWasteItems(...) : List<GameLevelWasteItemResponse>
+        - autoCloseOpenSessionsForStudent(studentId: UUID) : void
+    }
+}
+
+package "dto.response" {
+    class StudentGameSessionStartResponse {
+        - sessionId : UUID
+        - campaignId : UUID
+        - roundId : UUID
+        - roundGameConfigId : UUID
+        - gameTypeId : UUID
+        - gameTypeName : String
+        - resolvedDifficulty : QuizDifficulty
+        - levelNumber : int
+        - itemCount : int
+        - timeLimitSeconds : int
+        - scorePerCorrect : int
+        - lives : Integer
+        - wasteCategories : Set<WasteCategory>
+        - sessionStart : LocalDateTime
+        - presetSnapshot : Map<String, Object>
+        - wasteItems : List<GameLevelWasteItemResponse>
+    }
+
+    class GameLevelWasteItemResponse {
+        - wasteItemId : UUID
+        - itemName : String
+        - wasteCategory : WasteCategory
+        - subCategoryId : UUID
+        - subCategoryCode : String
+        - imageUrl : String
+        - imagePresignedUrl : String
+    }
+}
+
+package "entity" {
+    class GameSession {
+        - id : UUID
+        - campaignParticipant : CampaignParticipant
+        - roundGameConfig : RoundGameConfig
+        - gameLevelPreset : GameLevelPreset
+        - currentLevel : int
+        - sessionStart : LocalDateTime
+        - presetSnapshot : Map<String, Object>
+        - isCompleted : boolean
+        - isPassed : boolean
+    }
+
+    class RoundGameConfig {
+        - gameType : GameType
+        - selectedPresets : List<GameLevelPreset>
+        - resolvedDifficulty : QuizDifficulty
+        - coinPerSession : Integer
+    }
+}
+
+StudentGameController --> IStudentGameService : uses
+GameSession --> RoundGameConfig : roundGameConfig
+GameSession --> CampaignParticipant : participant
+
+@enduml

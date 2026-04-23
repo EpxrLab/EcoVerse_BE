@@ -34,7 +34,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 
 @Service
 public class AuthenticationServiceImpl implements IAuthenticationService {
@@ -198,7 +199,7 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
             }
 
             if (e instanceof BadCredentialsException) {
-                throw new RuntimeException("Email hoặc mật khẩu sai!");
+                throw new RuntimeException("Thông tin đăng nhập không đúng! Vui lòng thử lại");
             }
 
             throw new RuntimeException("Xác thực thất bại!");
@@ -235,7 +236,7 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
         user.setEmail(email);
         user.setRole(role);
 
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         user.setCreatedAt(now);
         user.setUpdatedAt(now);
 
@@ -275,7 +276,7 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
             throw new NotFoundException("OTP không hợp lệ");
 
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        user.setUpdatedAt(LocalDateTime.now());
+        user.setUpdatedAt(OffsetDateTime.now());
 
         User newUser = userRepository.save(user);
 
@@ -304,7 +305,7 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
         }
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
-        user.setUpdatedAt(LocalDateTime.now());
+        user.setUpdatedAt(OffsetDateTime.now());
         userRepository.save(user);
 
         // sau khi doi mat khau thanh cong, tat co isFirstLogin

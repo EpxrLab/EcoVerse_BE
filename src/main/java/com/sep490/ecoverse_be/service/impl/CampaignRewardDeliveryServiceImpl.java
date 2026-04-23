@@ -20,7 +20,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -177,7 +178,7 @@ public class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliver
         }
 
         delivery.setStatus(PartnershipRewardStatus.SHIPPING);
-        delivery.setShippedAt(LocalDateTime.now());
+        delivery.setShippedAt(OffsetDateTime.now());
         if (request.getTrackingCode() != null && !request.getTrackingCode().isBlank()) {
             delivery.setShippingTrackingCode(request.getTrackingCode());
         }
@@ -245,7 +246,7 @@ public class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliver
         }
 
         delivery.setStatus(PartnershipRewardStatus.ARRIVED);
-        delivery.setArrivedAt(LocalDateTime.now());
+        delivery.setArrivedAt(OffsetDateTime.now());
         delivery.setArrivedConfirmedBy(currentUser);
         deliveryRepository.save(delivery);
 
@@ -307,7 +308,7 @@ public class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliver
         }
 
         delivery.setStatus(PartnershipRewardStatus.DELIVERED);
-        delivery.setDeliveredAt(LocalDateTime.now());
+        delivery.setDeliveredAt(OffsetDateTime.now());
         delivery.setDeliveredBy(currentUser);
         delivery.setDeliveryImageUrl(request.getDeliveryImageUrl());
         if (request.getNotes() != null && !request.getNotes().isBlank()) {
@@ -375,7 +376,7 @@ public class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliver
         }
 
         delivery.setStatus(PartnershipRewardStatus.CONFIRMED);
-        delivery.setConfirmedAt(LocalDateTime.now());
+        delivery.setConfirmedAt(OffsetDateTime.now());
         delivery.setConfirmedBy(parent);
         deliveryRepository.save(delivery);
 

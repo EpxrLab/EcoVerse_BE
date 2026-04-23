@@ -20,6 +20,8 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  jackson:
+    time-zone: UTC
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -80,3 +82,7 @@ gemini:
   api-key: ${GEMINI_API_KEY:}
   model: ${GEMINI_MODEL:gemini-flash-latest}
   embedding-model: ${GEMINI_EMBEDDING_MODEL:gemini-embedding-2-preview}
+
+# ── Tripo 3D ─────────────────────────────────────────────────────────────────
+tripo:
+  api-key: ${TRIPO_API_KEY:}

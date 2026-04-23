@@ -98,6 +98,44 @@ public class S3StorageServiceImpl implements IStorageService {
     }
 
     @Override
+    public StorageResponse uploadModelFromUrl(String sourceUrl, String fileName) {
+        File tempFile = null;
+        try {
+            tempFile = File.createTempFile("ecoverse_model_", "_" + fileName);
+            java.net.URL url = new java.net.URL(sourceUrl);
+            try (java.io.InputStream in = url.openStream()) {
+                java.nio.file.Files.copy(in, tempFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            String key = "ecoverse/models/" + fileName;
+
+            PutObjectRequest putRequest = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .contentType("model/gltf-binary") // Default for .glb
+                    .build();
+
+            s3TransferManager.uploadFile(
+                    UploadFileRequest.builder()
+                            .putObjectRequest(putRequest)
+                            .source(tempFile.toPath())
+                            .build()
+            ).completionFuture().join();
+
+            String s3Url = buildUrl(key);
+            return StorageResponse.builder().publicId(key).url(s3Url).build();
+        } catch (IOException e) {
+            throw new FuncErrorException("Failed to process 3D model file from URL: " + e.getMessage());
+        } catch (Exception e) {
+            throw new FuncErrorException("Failed to upload 3D model from URL: " + e.getMessage());
+        } finally {
+            if (tempFile != null && tempFile.exists()) {
+                tempFile.delete();
+            }
+        }
+    }
+
+    @Override
     public void deleteFile(String s3Key) {
         try {
             DeleteObjectRequest deleteRequest = DeleteObjectRequest.builder()

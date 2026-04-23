@@ -1,0 +1,79 @@
+@startuml seq_school_create_reward
+title Sequence Diagram - POST /api/school/rewards ( Create Reward)
+
+actor "Trường học" as user
+boundary "School Reward UI\n(Frontend)" as ui
+participant "RewardController" as ctrl
+participant "IRewardService\n(RewardServiceImpl)" as svc
+participant "SchoolRepository" as schoolRepo
+participant "RewardRepository" as rewardRepo
+participant "S3PresignedUrlService" as s3Svc
+database "Database" as db
+
+user -> ui : Open page Management Reward
+activate ui
+user -> ui : Click "Tạo quà mới"
+ui -> ui : Display form create reward\n(rewardName, rewardType, coinCost,\nimageUrl, stockQuantity, isUnlimited, ...)
+
+user -> ui : Fill details and Click "Lưu"
+ui -> ui : Validate form client side
+
+ui -> ctrl : POST /api/school/rewards\n@RequestBody CreateRewardRequest
+activate ctrl
+note over ctrl : @PreAuthorize("hasAuthority('PARTNERSHIP_SCHOOL')")
+
+ctrl -> svc : createReward(request)
+activate svc
+
+svc -> svc : getCurrentUser() → User
+
+svc -> schoolRepo : findByUserId(userId)
+activate schoolRepo
+schoolRepo --> svc : School
+deactivate schoolRepo
+
+svc -> rewardRepo : existsByRewardNameAndSchoolIdAndIsDeleteFalse(name, schoolId)
+activate rewardRepo
+rewardRepo --> svc : boolean
+deactivate rewardRepo
+
+alt tên reward already exists
+ svc --> ctrl : throw BadRequestException\n("Tên quà đã tồn tại trong trường này")
+ ctrl --> ui : 400 Bad Request
+ ui --> user : Display error
+end
+
+alt !isUnlimited && stockQuantity == null
+ svc --> ctrl : throw BadRequestException\n("Phải nhập số lượng tồn kho")
+ ctrl --> ui : 400 Bad Request
+ ui --> user : Display error
+end
+
+svc -> svc : new Reward()\nset school, createdBy, rewardName,\nrewardType, coinCost, imageUrl,\nisUnlimited, stockQuantity, isActive=true
+
+svc -> rewardRepo : save(reward)
+activate rewardRepo
+rewardRepo -> db : INSERT INTO rewards ...
+db --> rewardRepo : Reward
+rewardRepo --> svc : Reward
+deactivate rewardRepo
+
+svc -> s3Svc : generatePresignedUrl(imageUrl)
+activate s3Svc
+s3Svc --> svc : presignedUrl
+deactivate s3Svc
+
+svc -> svc : mapToResponse(reward)
+
+svc --> ctrl : RewardResponse
+deactivate svc
+
+ctrl --> ui : 201 Created\nResponseDto<RewardResponse>
+deactivate ctrl
+
+ui -> ui : Display notification "Tạo quà thành công"
+ui -> ui : Update List of reward
+ui --> user : Display reward new
+deactivate ui
+
+@enduml

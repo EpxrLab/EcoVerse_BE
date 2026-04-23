@@ -1,0 +1,81 @@
+@startuml class_update_subscription_plan
+title Class Diagram - PUT /api/subscription-plans/{id} (Cập nhật Gói đăng ký)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class SubscriptionPlanController {
+        - subscriptionPlanService : ISubscriptionPlanService
+        + updatePlan(id: UUID, request: UpdateSubscriptionPlanRequest) : ResponseEntity<ResponseDto<SubscriptionPlanResponse>>
+    }
+}
+
+package "service" {
+    interface ISubscriptionPlanService {
+        + updatePlan(planId: UUID, request: UpdateSubscriptionPlanRequest) : SubscriptionPlanResponse
+    }
+
+    class SubscriptionPlanServiceImpl implements ISubscriptionPlanService {
+        - subscriptionPlanRepository : SubscriptionPlanRepository
+        - subscriptionPlanMapper : SubscriptionPlanMapper
+        + updatePlan(planId: UUID, request: UpdateSubscriptionPlanRequest) : SubscriptionPlanResponse
+    }
+}
+
+package "dto.request" {
+    class UpdateSubscriptionPlanRequest <<record>> {
+        + planName : String
+        + description : String
+        + durationDays : Integer
+        + price : BigDecimal
+        + currency : String
+        + maxStudents : Integer
+        + maxCampaignsPerMonth : Integer
+        + maxRoundsPerCampaign : Integer
+        + maxSchoolsPerCampaign : Integer
+        + maxAiQuizGenerationsPerPeriod : Integer
+        + features : Map<String, Object>
+        + gracePeriodDays : Integer
+        + displayOrder : Integer
+    }
+}
+
+package "dto.response" {
+    class SubscriptionPlanResponse <<record>> {
+        + id : UUID
+        + planCode : String
+        + planName : String
+        + subscriberType : SubscriberType
+        + price : BigDecimal
+        + durationDays : int
+        + isActive : boolean
+    }
+}
+
+package "mapper" {
+    class SubscriptionPlanMapper {
+        + updateEntity(plan: SubscriptionPlan, request: UpdateSubscriptionPlanRequest) : void
+        + toResponse(plan: SubscriptionPlan) : SubscriptionPlanResponse
+    }
+}
+
+package "repository" {
+    interface SubscriptionPlanRepository extends JpaRepository {
+        + findById(id: UUID) : Optional<SubscriptionPlan>
+        + existsByPlanNameAndIdNot(planName: String, id: UUID) : boolean
+        + save(plan: SubscriptionPlan) : SubscriptionPlan
+    }
+}
+
+package "exception" {
+    class ResourceNotFoundException extends RuntimeException
+    class FuncErrorException extends RuntimeException
+}
+
+SubscriptionPlanController --> ISubscriptionPlanService : uses
+SubscriptionPlanServiceImpl --> SubscriptionPlanRepository : uses
+SubscriptionPlanServiceImpl --> SubscriptionPlanMapper : uses
+SubscriptionPlanServiceImpl ..> ResourceNotFoundException : throws
+SubscriptionPlanServiceImpl ..> FuncErrorException : throws
+
+@enduml

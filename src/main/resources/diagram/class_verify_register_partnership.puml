@@ -1,0 +1,125 @@
+@startuml class_verify_register_partnership
+title Class Diagram - POST /api/auth/verify-register/partnership (Đăng ký Đối tác)
+
+skinparam classAttributeIconSize 0
+
+package "controller" {
+    class AuthenticationController {
+        - authenticationService : IAuthenticationService
+        + verifyRegisterPartnership(request: VerifyRegisterPartnershipRequest) : ResponseEntity<ResponseDto<UserResponse>>
+    }
+}
+
+package "service" {
+    interface IAuthenticationService {
+        + verifyRegisterPartnership(request: VerifyRegisterPartnershipRequest) : UserResponse
+    }
+
+    class AuthenticationServiceImpl implements IAuthenticationService {
+        - userRepository : UserRepository
+        - partnershipRepository : PartnershipRepository
+        - otpService : IOtpService
+        - passwordEncoder : BCryptPasswordEncoder
+        - modelMapper : ModelMapper
+        + verifyRegisterPartnership(request: VerifyRegisterPartnershipRequest) : UserResponse
+        - buildUser(email: String, password: String, role: Role) : User
+    }
+
+    interface IOtpService {
+        + isEmailVerified(email: String) : boolean
+        + clearVerified(email: String) : void
+    }
+}
+
+package "dto.request" {
+    class VerifyRegisterPartnershipRequest {
+        - organizationName : String <<@NotBlank>>
+        - contactEmail : String <<@NotBlank @Email>>
+        - phoneNumber : String <<@NotBlank @Pattern>>
+        - province : String <<@NotBlank>>
+        - ward : String <<@NotBlank>>
+        - streetAddress : String <<@NotBlank>>
+        - contactPerson : String <<@NotBlank>>
+        - position : String <<@NotBlank>>
+        - taxCode : String <<@NotBlank>>
+        - linkWeb : String
+        - description : String
+        - partnershipType : PartnershipType <<@NotNull>>
+        - password : String <<@NotBlank @Size @Pattern>>
+        - logoUrl : String <<@NotBlank>>
+        - licenseUrl : String <<@NotBlank>>
+    }
+}
+
+package "dto.response" {
+    class ResponseDto<T> {
+        - status : int
+        - message : String
+        - data : T
+    }
+
+    class UserResponse {
+        - id : UUID
+        - email : String
+        - role : Role
+    }
+}
+
+package "entity" {
+    abstract class BaseEntity {
+        - id : UUID
+        - createdAt : LocalDateTime
+        - updatedAt : LocalDateTime
+    }
+
+    class User extends BaseEntity {
+        - email : String
+        - passwordHash : String
+        - role : Role
+    }
+
+    class Partnership extends BaseEntity {
+        - user : User
+        - organizationName : String
+        - contactEmail : String
+        - phoneNumber : String
+        - geographicScopeProvince : String
+        - geographicScopeWard : String
+        - registeredAddress : String
+        - contactPerson : String
+        - taxCode : String
+        - partnershipType : PartnershipType
+        - approvalStatus : ApprovalStatus
+        - logoUrl : String
+        - licenseUrl : String
+    }
+}
+
+package "repository" {
+    interface UserRepository extends JpaRepository {
+        + save(user: User) : User
+    }
+
+    interface PartnershipRepository extends JpaRepository {
+        + save(partnership: Partnership) : Partnership
+    }
+}
+
+package "enums" {
+    enum PartnershipType {
+        YOUTH_UNION
+        WARD_GOVERNMENT
+        COMMUNE_GOVERNMENT
+        PUBLIC_ORGANIZATION
+        NGO
+        OTHER
+    }
+}
+
+AuthenticationController --> IAuthenticationService : uses
+AuthenticationServiceImpl --> UserRepository : uses
+AuthenticationServiceImpl --> PartnershipRepository : uses
+AuthenticationServiceImpl --> IOtpService : uses
+Partnership --> User : user
+
+@enduml

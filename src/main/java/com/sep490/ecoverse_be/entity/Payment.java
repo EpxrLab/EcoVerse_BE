@@ -12,7 +12,8 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
 @Entity
@@ -77,16 +78,16 @@ public class Payment extends BaseEntity {
     private Map<String, Object> gatewayResponse;
 
     @Column(name = "paid_at")
-    private LocalDateTime paidAt;
+    private OffsetDateTime paidAt;
 
     @Column(name = "failed_at")
-    private LocalDateTime failedAt;
+    private OffsetDateTime failedAt;
 
     @Column(name = "failure_reason", columnDefinition = "text")
     private String failureReason;
 
     @Column(name = "refunded_at")
-    private LocalDateTime refundedAt;
+    private OffsetDateTime refundedAt;
 
     @Column(name = "refund_amount", precision = 12, scale = 2)
     private BigDecimal refundAmount;

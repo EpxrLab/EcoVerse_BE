@@ -8,7 +8,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Entity
@@ -40,10 +41,10 @@ public class CampaignRound extends BaseEntity {
     private RoundStatus status = RoundStatus.UPCOMING;
 
     @Column(name = "start_time", nullable = false)
-    private LocalDateTime startTime;
+    private OffsetDateTime startTime;
 
     @Column(name = "end_time", nullable = false)
-    private LocalDateTime endTime;
+    private OffsetDateTime endTime;
 
     @Column(name = "max_participants")
     private Integer maxParticipants;

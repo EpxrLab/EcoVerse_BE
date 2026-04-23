@@ -10,7 +10,8 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.UUID;
 
@@ -145,7 +146,7 @@ public class AiGenerationLog {
     private boolean isUsageCharged = false;
 
     @Column(name = "usage_charged_at")
-    private LocalDateTime usageChargedAt;
+    private OffsetDateTime usageChargedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
@@ -153,5 +154,5 @@ public class AiGenerationLog {
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 }

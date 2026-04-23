@@ -5,7 +5,8 @@ import com.sep490.ecoverse_be.enums.PaymentStatus;
 import com.sep490.ecoverse_be.enums.SubscriberType;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 public record PaymentResponse(
@@ -20,12 +21,12 @@ public record PaymentResponse(
         PaymentMethod paymentMethod,
         PaymentStatus status,
         String transactionRef,
-        LocalDateTime paidAt,
+        OffsetDateTime paidAt,
         String failureReason,
         String payerName,
         String payerEmail,
         String payerPhone,
         String checkoutUrl,
-        LocalDateTime createdAt
+        OffsetDateTime createdAt
 ) {
 }
