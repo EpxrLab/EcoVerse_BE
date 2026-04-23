@@ -83,10 +83,18 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
             school = schoolRepository.findByUserId(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("School profile not found."));
             activeSubscriptionOptional = subscriptionRepository.findBySchoolIdAndStatus(school.getId(), SubscriptionStatus.ACTIVE);
+            if (activeSubscriptionOptional.isEmpty()) {
+                activeSubscriptionOptional = subscriptionRepository.findBySchoolIdAndStatus(
+                        school.getId(), SubscriptionStatus.PENDING_RENEWAL);
+            }
         } else {
             partnership = partnershipRepository.findByUserId(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("Partnership profile not found."));
             activeSubscriptionOptional = subscriptionRepository.findByPartnershipIdAndStatus(partnership.getId(), SubscriptionStatus.ACTIVE);
+            if (activeSubscriptionOptional.isEmpty()) {
+                activeSubscriptionOptional = subscriptionRepository.findByPartnershipIdAndStatus(
+                        partnership.getId(), SubscriptionStatus.PENDING_RENEWAL);
+            }
         }
 
         Subscription activeSubscription = activeSubscriptionOptional.orElse(null);
@@ -139,8 +147,8 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
                     createFreePaymentRecord(subscription, subscriberType, school, partnership, user), null);
         }
 
-        // Paid plan: set PENDING_RENEWAL until payment confirmed
-        subscription.setStatus(SubscriptionStatus.PENDING_RENEWAL);
+        // Paid plan: set PENDING until payment confirmed via PayOS
+        subscription.setStatus(SubscriptionStatus.PENDING);
         subscription = subscriptionRepository.save(subscription);
 
         // Create PayOS payment
@@ -156,10 +164,10 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         Subscription oldSubscription = subscriptionRepository.findById(request.subscriptionId())
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription not found."));
 
-        // Only expired or pending_renewal subscriptions can be renewed
+        // Chỉ cho gia hạn khi subscription đã EXPIRED hoặc đang trong grace period PENDING_RENEWAL
         if (oldSubscription.getStatus() != SubscriptionStatus.EXPIRED
                 && oldSubscription.getStatus() != SubscriptionStatus.PENDING_RENEWAL) {
-            throw new FuncErrorException("Only expired subscriptions can be renewed.");
+            throw new FuncErrorException("Chỉ có thể gia hạn subscription đã hết hạn hoặc đang trong giai đoạn gia hạn.");
         }
 
         // Verify ownership
@@ -199,7 +207,8 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
                             oldSubscription.getSchool(), oldSubscription.getPartnership(), user), null);
         }
 
-        newSubscription.setStatus(SubscriptionStatus.PENDING_RENEWAL);
+        // Renewal cũng cần xác nhận thanh toán trước khi ACTIVE
+        newSubscription.setStatus(SubscriptionStatus.PENDING);
         newSubscription = subscriptionRepository.save(newSubscription);
 
         return paymentService.createPayment(newSubscription, user);
@@ -218,12 +227,18 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
             School school = schoolRepository.findByUserId(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("School profile not found."));
             subscription = subscriptionRepository.findBySchoolIdAndStatus(school.getId(), SubscriptionStatus.ACTIVE)
-                    .orElseThrow(() -> new ResourceNotFoundException("No active subscription found."));
+                    .orElseGet(() -> subscriptionRepository.findBySchoolIdAndStatus(
+                            school.getId(), SubscriptionStatus.PENDING_RENEWAL).orElse(null));
         } else {
             Partnership partnership = partnershipRepository.findByUserId(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("Partnership profile not found."));
             subscription = subscriptionRepository.findByPartnershipIdAndStatus(partnership.getId(), SubscriptionStatus.ACTIVE)
-                    .orElseThrow(() -> new ResourceNotFoundException("No active subscription found."));
+                    .orElseGet(() -> subscriptionRepository.findByPartnershipIdAndStatus(
+                            partnership.getId(), SubscriptionStatus.PENDING_RENEWAL).orElse(null));
+        }
+
+        if (subscription == null) {
+            throw new ResourceNotFoundException("No valid subscription found.");
         }
 
         return toSubscriptionResponse(subscription);
@@ -316,8 +331,8 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         Subscription subscription = subscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription not found."));
 
-        if (subscription.getStatus() != SubscriptionStatus.PENDING_RENEWAL) {
-            throw new FuncErrorException("Only pending renewal subscriptions can be activated.");
+        if (subscription.getStatus() != SubscriptionStatus.PENDING) {
+            throw new FuncErrorException("Chỉ có thể kích hoạt subscription đang chờ thanh toán (PENDING).");
         }
 
         verifyOwnership(subscription, userId);
@@ -342,8 +357,8 @@ public class SubscriptionServiceImpl implements ISubscriptionService {
         Subscription subscription = subscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription not found."));
 
-        if (subscription.getStatus() != SubscriptionStatus.PENDING_RENEWAL) {
-            throw new FuncErrorException("Only pending renewal subscriptions can be cancelled.");
+        if (subscription.getStatus() != SubscriptionStatus.PENDING) {
+            throw new FuncErrorException("Chỉ có thể hủy subscription đang chờ thanh toán (PENDING).");
         }
 
         verifyOwnership(subscription, userId);

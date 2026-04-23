@@ -170,12 +170,16 @@ public class CampaignServiceImpl implements ICampaignService {
 
     private Subscription getActiveSchoolSubscription(School school) {
         return subscriptionRepository.findBySchoolIdAndStatus(school.getId(), com.sep490.ecoverse_be.enums.SubscriptionStatus.ACTIVE)
-                .orElseThrow(() -> new BadRequestException("Trường chưa có gói subscription hoạt động"));
+                .or(() -> subscriptionRepository.findBySchoolIdAndStatus(
+                        school.getId(), com.sep490.ecoverse_be.enums.SubscriptionStatus.PENDING_RENEWAL))
+                .orElseThrow(() -> new BadRequestException("Trường chưa có gói subscription hợp lệ"));
     }
 
     private Subscription getActivePartnershipSubscription(Partnership partnership) {
         return subscriptionRepository.findByPartnershipIdAndStatus(partnership.getId(), com.sep490.ecoverse_be.enums.SubscriptionStatus.ACTIVE)
-                .orElseThrow(() -> new BadRequestException("Tổ chức chưa có gói subscription hoạt động"));
+                .or(() -> subscriptionRepository.findByPartnershipIdAndStatus(
+                        partnership.getId(), com.sep490.ecoverse_be.enums.SubscriptionStatus.PENDING_RENEWAL))
+                .orElseThrow(() -> new BadRequestException("Tổ chức chưa có gói subscription hợp lệ"));
     }
 
     private void checkCampaignPerMonthQuota(Subscription subscription, School school, Partnership partnership) {
@@ -469,10 +473,9 @@ public class CampaignServiceImpl implements ICampaignService {
                 })
                 .toList();
 
-        // Lấy tất cả học sinh đã được mời (không lọc isActive) để UI hiển thị đầy đủ
-        // trạng thái
+        // Chỉ lấy học sinh đang active (danh sách hiện tại sau replace)
         List<CampaignParticipantInfoResponse> participants = campaignParticipantRepository
-                .findByCampaignIdOrderByCreatedAtAsc(campaign.getId())
+                .findByCampaignIdAndIsActiveTrueOrderByCreatedAtAsc(campaign.getId())
                 .stream()
                 .map(p -> CampaignParticipantInfoResponse.builder()
                         .studentId(p.getStudent().getId())

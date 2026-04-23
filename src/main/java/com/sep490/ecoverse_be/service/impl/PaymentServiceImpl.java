@@ -181,9 +181,9 @@ public class PaymentServiceImpl implements IPaymentService {
                 payment.setFailureReason("PayOS code: " + code);
                 paymentRepository.save(payment);
 
-                // Cancel the pending subscription
+                // Hủy subscription PENDING liên quan khi thanh toán thất bại
                 Subscription subscription = payment.getSubscription();
-                if (subscription.getStatus() == SubscriptionStatus.PENDING_RENEWAL) {
+                if (subscription.getStatus() == SubscriptionStatus.PENDING) {
                     subscription.setStatus(SubscriptionStatus.CANCELLED);
                     subscription.setCancellationReason("Payment failed");
                     subscription.setCancelledAt(LocalDateTime.now());
@@ -237,14 +237,14 @@ public class PaymentServiceImpl implements IPaymentService {
         payment.setFailureReason("Người dùng hủy thanh toán");
         paymentRepository.save(payment);
 
-        // Hủy subscription PENDING_RENEWAL liên quan; KHÔNG hủy subscription gốc (renewedFrom)
+        // Hủy subscription PENDING liên quan; KHÔNG hủy subscription gốc (renewedFrom)
         Subscription subscription = payment.getSubscription();
-        if (subscription != null && subscription.getStatus() == SubscriptionStatus.PENDING_RENEWAL) {
+        if (subscription != null && subscription.getStatus() == SubscriptionStatus.PENDING) {
             subscription.setStatus(SubscriptionStatus.CANCELLED);
             subscription.setCancellationReason("Người dùng hủy thanh toán");
             subscription.setCancelledAt(LocalDateTime.now());
             subscriptionRepository.save(subscription);
-            log.info("Đã hủy subscription PENDING_RENEWAL {} do người dùng hủy thanh toán",
+            log.info("Đã hủy subscription PENDING {} do người dùng hủy thanh toán",
                     subscription.getSubscriptionCode());
         }
 

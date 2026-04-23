@@ -76,18 +76,19 @@ public class SubscriptionScheduler {
         log.info("Expiry check completed. {} warning(s) published.", expiringSubscriptions.size());
     }
 
-    // Chay moi ngay luc 0:05 SA: danh dau subscription het han va gui thong bao
+    // Chay moi ngay luc 0:05 SA: ACTIVE het han → PENDING_RENEWAL (vao grace period 7 ngay)
     @Scheduled(cron = "0 5 0 * * *")
     @Transactional
-    public void expireSubscriptions() {
-        log.info("Running subscription expiration job...");
+    public void enterRenewalWindow() {
+        log.info("Running subscription renewal-window job...");
 
         LocalDateTime now = LocalDateTime.now();
 
         List<Subscription> expiredSubscriptions = subscriptionRepository.findExpiredSubscriptions(now);
 
         for (Subscription subscription : expiredSubscriptions) {
-            subscription.setStatus(SubscriptionStatus.EXPIRED);
+            // ACTIVE → PENDING_RENEWAL: bat dau grace period, nguoi dung van co the gia han
+            subscription.setStatus(SubscriptionStatus.PENDING_RENEWAL);
             subscriptionRepository.save(subscription);
 
             User owner = getSubscriptionOwner(subscription);
@@ -95,9 +96,9 @@ public class SubscriptionScheduler {
                 eventPublisher.publishEvent(NotificationEvent.builder()
                         .recipientUserId(owner.getId())
                         .type(NotificationType.SUBSCRIPTION_EXPIRED)
-                        .title("Gói đăng ký đã hết hạn")
+                        .title("Gói đăng ký đã hết hạn – Vui lòng gia hạn")
                         .message("Gói đăng ký \"" + subscription.getPlan().getPlanName()
-                                + "\" đã hết hạn. Vui lòng gia hạn để tiếp tục sử dụng tính năng cao cấp.")
+                                + "\" đã hết hạn. Bạn có 7 ngày để gia hạn trước khi bị chuyển về gói miễn phí.")
                         .referenceType("subscription")
                         .referenceId(subscription.getId())
                         .metadata(Map.of(
@@ -108,39 +109,55 @@ public class SubscriptionScheduler {
                         .build());
             }
 
-            // Tự động gán gói miễn phí sau khi hết hạn
-            autoAssignFreePlan(subscription);
-
-            log.info("Subscription {} marked as expired", subscription.getSubscriptionCode());
+            log.info("Subscription {} entered renewal window (PENDING_RENEWAL)", subscription.getSubscriptionCode());
         }
 
-        log.info("Expiration job completed. {} subscription(s) expired.", expiredSubscriptions.size());
+        log.info("Renewal-window job completed. {} subscription(s) entered PENDING_RENEWAL.", expiredSubscriptions.size());
     }
 
-    // Chay moi ngay luc 1:00 SA: huy subscription PENDING qua 24 gio
+    // Chay moi ngay luc 0:10 SA: PENDING_RENEWAL qua 7 ngay grace period → EXPIRED (luu tru)
+    @Scheduled(cron = "0 10 0 * * *")
+    @Transactional
+    public void expireOverdueRenewalSubscriptions() {
+        log.info("Running overdue-renewal expiration job...");
+
+        // Grace period 7 ngay: neu qua 7 ngay ke tu endDate van chua gia han → EXPIRED
+        LocalDateTime gracePeriodCutoff = LocalDateTime.now().minusDays(7);
+
+        List<Subscription> overdueSubscriptions =
+                subscriptionRepository.findOverdueRenewalSubscriptions(gracePeriodCutoff);
+
+        for (Subscription subscription : overdueSubscriptions) {
+            subscription.setStatus(SubscriptionStatus.EXPIRED);
+            subscriptionRepository.save(subscription);
+            // Chi gan goi FREE khi da het grace period va chuyen sang EXPIRED
+            autoAssignFreePlan(subscription);
+            log.info("Subscription {} archived as EXPIRED (past grace period)", subscription.getSubscriptionCode());
+        }
+
+        log.info("Overdue-renewal job completed. {} subscription(s) archived.", overdueSubscriptions.size());
+    }
+
+    // Chay moi ngay luc 1:00 SA: huy subscription PENDING (cho thanh toan) qua 24 gio
     @Scheduled(cron = "0 0 1 * * *")
     @Transactional
     public void cancelStalePendingSubscriptions() {
-        log.info("Running stale pending subscription cleanup...");
+        log.info("Running stale PENDING subscription cleanup...");
 
         LocalDateTime cutoff = LocalDateTime.now().minusHours(24);
 
-        List<Subscription> staleSubscriptions = subscriptionRepository
-                .findByStatusAndEndDateBetween(SubscriptionStatus.PENDING_RENEWAL,
-                        LocalDateTime.of(2000, 1, 1, 0, 0), cutoff);
+        List<Subscription> staleSubscriptions =
+                subscriptionRepository.findStalePendingSubscriptions(cutoff);
 
-        int count = 0;
         for (Subscription subscription : staleSubscriptions) {
-            if (subscription.getCreatedAt() != null && subscription.getCreatedAt().isBefore(cutoff)) {
-                subscription.setStatus(SubscriptionStatus.CANCELLED);
-                subscription.setCancellationReason("Payment not received within 24 hours");
-                subscription.setCancelledAt(LocalDateTime.now());
-                subscriptionRepository.save(subscription);
-                count++;
-            }
+            subscription.setStatus(SubscriptionStatus.CANCELLED);
+            subscription.setCancellationReason("Payment not received within 24 hours");
+            subscription.setCancelledAt(LocalDateTime.now());
+            subscriptionRepository.save(subscription);
+            log.info("Stale PENDING subscription {} cancelled (no payment in 24h)", subscription.getSubscriptionCode());
         }
 
-        log.info("Stale pending cleanup completed. {} subscription(s) cancelled.", count);
+        log.info("Stale-pending cleanup completed. {} subscription(s) cancelled.", staleSubscriptions.size());
     }
 
     // Lay User chu so huu cua subscription (School hoac Partnership)
