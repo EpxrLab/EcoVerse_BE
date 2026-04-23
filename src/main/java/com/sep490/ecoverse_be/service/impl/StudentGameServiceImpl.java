@@ -25,7 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -103,7 +104,7 @@ public class StudentGameServiceImpl implements IStudentGameService {
         session.setRoundGameConfig(config);
         session.setGameLevelPreset(preset);
         session.setCurrentLevel(levelItem.getLevelNumber());
-        session.setSessionStart(LocalDateTime.now());
+        session.setSessionStart(OffsetDateTime.now());
         session.setPresetSnapshot(presetSnapshot);
         session.setCompleted(false);
         session.setPassed(false);
@@ -150,7 +151,7 @@ public class StudentGameServiceImpl implements IStudentGameService {
 
         validateSubmitRequest(request);
 
-        LocalDateTime endTime = LocalDateTime.now();
+        OffsetDateTime endTime = OffsetDateTime.now();
         int timeTakenSeconds = request.getTimeTakenSeconds() != null
                 ? request.getTimeTakenSeconds()
                 : (int) ChronoUnit.SECONDS.between(session.getSessionStart(), endTime);
@@ -254,7 +255,7 @@ public class StudentGameServiceImpl implements IStudentGameService {
         CampaignRound round = campaignRoundRepository.findByIdAndCampaignId(roundId, campaignId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy round trong campaign"));
 
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         if (round.getStatus() != RoundStatus.ACTIVE
                 || now.isBefore(round.getStartTime())
                 || now.isAfter(round.getEndTime())) {
@@ -434,9 +435,9 @@ public class StudentGameServiceImpl implements IStudentGameService {
     }
 
     private void ensureDailyPlayQuota(UUID participantId, UUID roundGameConfigId, UUID presetId, int levelNumber) {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
-        LocalDateTime endOfDay = startOfDay.plusDays(1);
+        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime startOfDay = now.truncatedTo(ChronoUnit.DAYS);
+        OffsetDateTime endOfDay = startOfDay.plusDays(1);
 
         long todayPlays = gameSessionRepository
                 .countByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndSessionStartBetween(
@@ -458,7 +459,7 @@ public class StudentGameServiceImpl implements IStudentGameService {
             return;
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         CampaignRound activeRound = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId())
                 .stream()
                 .filter(r -> r.getStatus() == RoundStatus.ACTIVE)
@@ -824,7 +825,7 @@ public class StudentGameServiceImpl implements IStudentGameService {
             return;
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         for (GameSession gs : openSessions) {
             int timeTaken = gs.getSessionStart() != null
                     ? (int) ChronoUnit.SECONDS.between(gs.getSessionStart(), now)

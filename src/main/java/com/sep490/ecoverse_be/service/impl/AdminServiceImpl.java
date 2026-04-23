@@ -76,7 +76,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -557,7 +558,7 @@ public class AdminServiceImpl implements IAdminService {
 
         school.setApprovalStatus(request.getStatus());
         school.setApprovedBy(getCurrentAdmin());
-        school.setApprovedAt(LocalDateTime.now());
+        school.setApprovedAt(OffsetDateTime.now());
 
         if (request.getStatus() == ApprovalStatus.APPROVED) {
 
@@ -604,7 +605,7 @@ public class AdminServiceImpl implements IAdminService {
 
         partnership.setApprovalStatus(request.getStatus());
         partnership.setApprovedBy(getCurrentAdmin());
-        partnership.setApprovedAt(LocalDateTime.now());
+        partnership.setApprovedAt(OffsetDateTime.now());
 
         if (request.getStatus() == ApprovalStatus.APPROVED) {
 
@@ -1108,7 +1109,7 @@ public class AdminServiceImpl implements IAdminService {
             return;
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
 
         Subscription subscription = new Subscription();
         subscription.setSubscriptionCode("SUB-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());

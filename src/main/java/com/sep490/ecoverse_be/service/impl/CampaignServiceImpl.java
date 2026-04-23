@@ -19,7 +19,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
@@ -182,7 +183,7 @@ public class CampaignServiceImpl implements ICampaignService {
         Integer maxCampaignsPerMonth = subscription.getPlan().getMaxCampaignsPerMonth();
         if (maxCampaignsPerMonth == null) return; // unlimited
 
-        LocalDateTime startOfMonth = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+        OffsetDateTime startOfMonth = OffsetDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
         long usedCount;
         if (school != null) {
             usedCount = campaignRepository.countNonDraftByCreatorSchoolIdInMonth(school.getId(), startOfMonth);
@@ -220,7 +221,7 @@ public class CampaignServiceImpl implements ICampaignService {
         }
     }
 
-    private void validateDateRange(LocalDateTime start, LocalDateTime end) {
+    private void validateDateRange(OffsetDateTime start, OffsetDateTime end) {
         if (start == null || end == null || !end.isAfter(start)) {
             throw new BadRequestException("Thời gian bắt đầu/kết thúc không hợp lệ");
         }
@@ -338,8 +339,8 @@ public class CampaignServiceImpl implements ICampaignService {
                                         ? List.of()
                                         : config.getSelectedPresets().stream()
                                                 .map(preset -> {
-                                                    LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
-                                                    LocalDateTime endOfDay = startOfDay.plusDays(1);
+                                                    OffsetDateTime startOfDay = OffsetDateTime.now().truncatedTo(java.time.temporal.ChronoUnit.DAYS);
+                                                    OffsetDateTime endOfDay = startOfDay.plusDays(1);
 
                                                     List<StudentPresetLevelConfigResponse> items = preset.getItems() == null
                                                             ? List.of()
@@ -703,7 +704,7 @@ public class CampaignServiceImpl implements ICampaignService {
                 participant.setCampaign(campaign);
                 participant.setStudent(student);
                 participant.setSchool(school);
-                participant.setEnrollmentDate(LocalDateTime.now());
+                participant.setEnrollmentDate(OffsetDateTime.now());
                 participant.setParentApprovalStatus(ParticipationStatus.PREPARED);
                 campaignParticipantRepository.save(participant);
             }
@@ -766,7 +767,7 @@ public class CampaignServiceImpl implements ICampaignService {
         }
 
         // Validate thời gian: tránh active trễ dẫn đến scheduler bỏ qua bước INVITING
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         if (campaign.getInvitationDate() == null || campaign.getInvitationDeadline() == null) {
             throw new BadRequestException("Vui lòng cấu hình ngày gửi lời mời và hạn mời trước khi kích hoạt");
         }
@@ -801,7 +802,7 @@ public class CampaignServiceImpl implements ICampaignService {
             selfParticipate.setCampaign(campaign);
             selfParticipate.setSchool(school);
             selfParticipate.setStatus(ParticipationStatus.APPROVED);
-            selfParticipate.setParticipationConfirmedAt(LocalDateTime.now());
+            selfParticipate.setParticipationConfirmedAt(OffsetDateTime.now());
             campaignSchoolParticipateRepository.save(selfParticipate);
         }
 
@@ -827,7 +828,7 @@ public class CampaignServiceImpl implements ICampaignService {
         if (campaign.getSchoolStatus() != SchoolCampaignStatus.INVITING) {
             throw new BadRequestException("Chỉ được gia hạn khi campaign đang INVITING");
         }
-        if (!request.getNewInviteEndAt().isAfter(LocalDateTime.now())) {
+        if (!request.getNewInviteEndAt().isAfter(OffsetDateTime.now())) {
             throw new BadRequestException("Thời gian gia hạn phải lớn hơn hiện tại");
         }
         campaign.setInvitationDeadline(request.getNewInviteEndAt());
@@ -848,9 +849,9 @@ public class CampaignServiceImpl implements ICampaignService {
                 participant.setCampaign(campaign);
                 participant.setSchool(school);
                 participant.setStudent(student);
-                participant.setEnrollmentDate(LocalDateTime.now());
+                participant.setEnrollmentDate(OffsetDateTime.now());
                 participant.setParentApprovalStatus(ParticipationStatus.PREPARED);
-                participant.setInvitationSentAt(LocalDateTime.now());
+                participant.setInvitationSentAt(OffsetDateTime.now());
                 campaignParticipantRepository.save(participant);
             }
         }
@@ -1014,7 +1015,7 @@ public class CampaignServiceImpl implements ICampaignService {
                     });
             participant.setActive(true);
             participant.setSchool(school);
-            participant.setEnrollmentDate(LocalDateTime.now());
+            participant.setEnrollmentDate(OffsetDateTime.now());
             participant.setParentApprovalStatus(ParticipationStatus.PREPARED);
             participant.setInvitationSentAt(null);
             campaignParticipantRepository.save(participant);
@@ -1261,7 +1262,7 @@ public class CampaignServiceImpl implements ICampaignService {
         }
 
         // Validate thời gian: tránh active trễ dẫn đến scheduler bỏ qua các bước JOINING/INVITING
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         if (campaign.getRegistrationDate() == null || campaign.getRegistrationDeadline() == null) {
             throw new BadRequestException("Vui lòng cấu hình ngày mở đăng ký và hạn đăng ký trước khi kích hoạt");
         }
@@ -1453,7 +1454,7 @@ public class CampaignServiceImpl implements ICampaignService {
             throw new BadRequestException("Lời mời chưa được gửi");
         }
         invitation.setStatus(ParticipationStatus.APPROVED);
-        invitation.setParticipationConfirmedAt(LocalDateTime.now());
+        invitation.setParticipationConfirmedAt(OffsetDateTime.now());
         campaignSchoolParticipateRepository.save(invitation);
     }
 
@@ -1569,7 +1570,7 @@ public class CampaignServiceImpl implements ICampaignService {
             participant.setCampaign(campaign);
             participant.setStudent(student);
             participant.setSchool(school);
-            participant.setEnrollmentDate(LocalDateTime.now());
+            participant.setEnrollmentDate(OffsetDateTime.now());
             participant.setParentApprovalStatus(ParticipationStatus.PREPARED);
             campaignParticipantRepository.save(participant);
         }
@@ -1815,8 +1816,8 @@ public class CampaignServiceImpl implements ICampaignService {
                             ? List.of()
                             : config.getSelectedPresets().stream()
                                     .map(preset -> {
-                                        LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
-                                        LocalDateTime endOfDay = startOfDay.plusDays(1);
+                                        OffsetDateTime startOfDay = OffsetDateTime.now().truncatedTo(java.time.temporal.ChronoUnit.DAYS);
+                                        OffsetDateTime endOfDay = startOfDay.plusDays(1);
                                         final UUID configId = config.getId();
                                         final UUID participantIdFinal = participant.getId();
 
@@ -1915,7 +1916,7 @@ public class CampaignServiceImpl implements ICampaignService {
                 .toList();
 
         List<CampaignRound> rounds = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId());
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         CampaignRound nextRound = rounds.stream()
                 .filter(r -> r.getStatus() != RoundStatus.CANCELLED)
                 .filter(r -> r.getStartTime() != null && r.getStartTime().isAfter(now))
@@ -1952,8 +1953,8 @@ public class CampaignServiceImpl implements ICampaignService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy round trong campaign"));
         ensurePartnershipRoundAccess(participant, round);
 
-        if (round.getStatus() != RoundStatus.ACTIVE || LocalDateTime.now().isBefore(round.getStartTime())
-                || LocalDateTime.now().isAfter(round.getEndTime())) {
+        if (round.getStatus() != RoundStatus.ACTIVE || OffsetDateTime.now().isBefore(round.getStartTime())
+                || OffsetDateTime.now().isAfter(round.getEndTime())) {
             throw new BadRequestException("Round hiện không ở trạng thái ACTIVE");
         }
 
@@ -2003,7 +2004,7 @@ public class CampaignServiceImpl implements ICampaignService {
     }
 
     private CampaignRound findCurrentRound(Campaign campaign) {
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         List<CampaignRound> rounds = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId());
 
         return rounds.stream()
@@ -2020,7 +2021,7 @@ public class CampaignServiceImpl implements ICampaignService {
             return;
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         CampaignRound activeRound = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId())
                 .stream()
                 .filter(r -> r.getStatus() == RoundStatus.ACTIVE)
@@ -2054,8 +2055,8 @@ public class CampaignServiceImpl implements ICampaignService {
         }
     }
 
-    private long secondsUntil(LocalDateTime target) {
-        long seconds = ChronoUnit.SECONDS.between(LocalDateTime.now(), target);
+    private long secondsUntil(OffsetDateTime target) {
+        long seconds = ChronoUnit.SECONDS.between(OffsetDateTime.now(), target);
         return Math.max(seconds, 0);
     }
 
@@ -2124,7 +2125,7 @@ public class CampaignServiceImpl implements ICampaignService {
     }
 
     private Optional<CampaignRound> resolvePartnershipDefaultRound(Campaign campaign) {
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         List<CampaignRound> rounds = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId());
 
         Optional<CampaignRound> current = rounds.stream()
@@ -2272,7 +2273,7 @@ public class CampaignServiceImpl implements ICampaignService {
 
         participant.setParentApprovalStatus(status);
         participant.setParentApprovedBy(parent);
-        participant.setParentApprovedAt(LocalDateTime.now());
+        participant.setParentApprovedAt(OffsetDateTime.now());
         if (status == ParticipationStatus.REJECTED) {
             participant.setRejectionReason(request.getReason());
         }

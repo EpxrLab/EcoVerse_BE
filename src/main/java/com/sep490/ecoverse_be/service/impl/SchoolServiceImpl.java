@@ -36,7 +36,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -198,7 +199,7 @@ public class SchoolServiceImpl implements ISchoolService {
         if (request.getDateOfBirth() != null) {
             student.setDateOfBirth(request.getDateOfBirth());
         }
-        student.setUpdatedAt(LocalDateTime.now());
+        student.setUpdatedAt(OffsetDateTime.now());
         Student updateStudent = studentRepository.save(student);
         return profileService.buildStudentProfileResponse(updateStudent);
     }

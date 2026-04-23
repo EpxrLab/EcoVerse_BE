@@ -29,7 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -106,7 +107,7 @@ public class NotificationServiceImpl implements INotificationService {
         // Chỉ cập nhật nếu đang là Unread
         if (NotificationStatus.UNREAD.equals(notification.getStatus())) {
             notification.setStatus(NotificationStatus.READ);
-            notification.setReadAt(LocalDateTime.now());
+            notification.setReadAt(OffsetDateTime.now());
             notification = notificationRepository.save(notification);
         }
         return toResponse(notification);

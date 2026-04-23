@@ -8,7 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,5 +28,5 @@ public interface UserRepository extends JpaRepository<User, UUID>,
     long countByRole(@Param("role") Role role);
 
     @Query("SELECT COUNT(u) FROM User u WHERE u.createdAt BETWEEN :from AND :to")
-    long countByCreatedAtBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+    long countByCreatedAtBetween(@Param("from") OffsetDateTime from, @Param("to") OffsetDateTime to);
 }

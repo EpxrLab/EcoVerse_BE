@@ -4,7 +4,8 @@ import com.sep490.ecoverse_be.enums.QuizDifficulty;
 import com.sep490.ecoverse_be.enums.WasteCategory;
 import lombok.Builder;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -25,7 +26,7 @@ public record StudentGameSessionStartResponse(
         int scorePerCorrect,
         Integer lives,
         Set<WasteCategory> wasteCategories,
-        LocalDateTime sessionStart,
+        OffsetDateTime sessionStart,
         Map<String, Object> presetSnapshot,
         List<GameLevelWasteItemResponse> wasteItems
 ) {

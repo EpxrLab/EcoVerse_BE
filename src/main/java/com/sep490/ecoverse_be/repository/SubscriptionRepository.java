@@ -8,7 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,11 +34,11 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
             AND s.endDate BETWEEN :from AND :to
             """)
     List<Subscription> findByStatusAndEndDateBetween(@Param("status") SubscriptionStatus status,
-                                                     @Param("from") LocalDateTime from,
-                                                     @Param("to") LocalDateTime to);
+                                                     @Param("from") OffsetDateTime from,
+                                                     @Param("to") OffsetDateTime to);
 
     @Query("SELECT s FROM Subscription s WHERE s.status = 'ACTIVE' AND s.endDate < :now")
-    List<Subscription> findExpiredSubscriptions(@Param("now") LocalDateTime now);
+    List<Subscription> findExpiredSubscriptions(@Param("now") OffsetDateTime now);
 
     // ── Report aggregate queries ───────────────────────────────────────────────
 

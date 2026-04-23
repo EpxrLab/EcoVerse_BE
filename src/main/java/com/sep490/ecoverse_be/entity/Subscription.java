@@ -8,7 +8,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 
 @Entity
 @Table(name = "subscriptions", indexes = {
@@ -52,10 +53,10 @@ public class Subscription extends BaseEntity {
     private SubscriptionStatus status = SubscriptionStatus.ACTIVE;
 
     @Column(name = "start_date", nullable = false)
-    private LocalDateTime startDate;
+    private OffsetDateTime startDate;
 
     @Column(name = "end_date", nullable = false)
-    private LocalDateTime endDate;
+    private OffsetDateTime endDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "renewed_from_id")
@@ -68,7 +69,7 @@ public class Subscription extends BaseEntity {
     private String cancellationReason;
 
     @Column(name = "cancelled_at")
-    private LocalDateTime cancelledAt;
+    private OffsetDateTime cancelledAt;
 
     @Column(columnDefinition = "text")
     private String notes;

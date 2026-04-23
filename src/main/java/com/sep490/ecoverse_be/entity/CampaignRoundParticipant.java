@@ -7,7 +7,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 
 @Entity
 @Table(name = "campaign_round_participants",
@@ -53,5 +54,5 @@ public class CampaignRoundParticipant extends BaseEntity {
     private Boolean isAdvanced = false;
 
     @Column(name = "completed_at")
-    private LocalDateTime completedAt;
+    private OffsetDateTime completedAt;
 }

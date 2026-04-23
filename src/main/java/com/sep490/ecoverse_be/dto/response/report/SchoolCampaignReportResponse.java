@@ -3,7 +3,8 @@ package com.sep490.ecoverse_be.dto.response.report;
 import com.sep490.ecoverse_be.enums.CampaignType;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Getter
@@ -18,8 +19,8 @@ public class SchoolCampaignReportResponse {
     private String campaignName;
     private CampaignType campaignType;
     private String status;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
+    private OffsetDateTime startDate;
+    private OffsetDateTime endDate;
 
     // Participation stats
     private int studentsEnrolled;

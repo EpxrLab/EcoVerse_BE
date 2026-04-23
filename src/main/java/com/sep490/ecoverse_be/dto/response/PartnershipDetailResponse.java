@@ -5,7 +5,8 @@ import com.sep490.ecoverse_be.enums.ApprovalStatus;
 import com.sep490.ecoverse_be.enums.PartnershipType;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Getter
@@ -34,9 +35,9 @@ public class PartnershipDetailResponse implements AdminUserDetail {
     private String licenseUrl;
     private String licensePresignedUrl;
     private ApprovalStatus approvalStatus;
-    private LocalDateTime approvedAt;
+    private OffsetDateTime approvedAt;
     private AccountStatus accountStatus;
     private Boolean isActive;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 }

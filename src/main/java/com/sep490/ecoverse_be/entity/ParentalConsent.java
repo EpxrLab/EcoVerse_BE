@@ -7,7 +7,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Entity
@@ -56,8 +57,8 @@ public class ParentalConsent {
 
     @CreationTimestamp
     @Column(name = "given_at", updatable = false)
-    private LocalDateTime givenAt;
+    private OffsetDateTime givenAt;
 
     @Column(name = "revoked_at")
-    private LocalDateTime revokedAt;
+    private OffsetDateTime revokedAt;
 }

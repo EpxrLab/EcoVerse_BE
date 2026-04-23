@@ -7,7 +7,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 
 @Entity
 @Table(name = "campaign_reward_deliveries", uniqueConstraints = {
@@ -58,26 +59,26 @@ public class CampaignRewardDelivery extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private PartnershipRewardStatus status = PartnershipRewardStatus.PREPARING;
 
-    private LocalDateTime preparingAt;
+    private OffsetDateTime preparingAt;
 
-    private LocalDateTime shippedAt;
+    private OffsetDateTime shippedAt;
 
     @Column(length = 100)
     private String shippingTrackingCode;
 
-    private LocalDateTime arrivedAt;
+    private OffsetDateTime arrivedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "arrived_confirmed_by")
     private User arrivedConfirmedBy;
 
-    private LocalDateTime deliveredAt;
+    private OffsetDateTime deliveredAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "delivered_by")
     private User deliveredBy;
 
-    private LocalDateTime confirmedAt;
+    private OffsetDateTime confirmedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "confirmed_by")

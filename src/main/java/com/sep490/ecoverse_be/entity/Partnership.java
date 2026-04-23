@@ -8,7 +8,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 
 @Entity
 @Table(name = "partnerships", indexes = {@Index(name = "idx_partnerships_user_id", columnList = "user_id"),
@@ -67,7 +68,7 @@ public class Partnership extends BaseEntity {
     @JoinColumn(name = "approved_by")
     private User approvedBy;
 
-    private LocalDateTime approvedAt;
+    private OffsetDateTime approvedAt;
 
     @Column(length = 500)
     private String logoUrl;
