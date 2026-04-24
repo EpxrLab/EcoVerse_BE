@@ -36,7 +36,7 @@ public class DataInitializer implements CommandLineRunner {
     private final WasteSubCategoryRepository wasteSubCategoryRepository;
     private final WasteItemRepository wasteItemRepository;
 
-    private static final String DEFAULT_PASSWORD = "SP26@sep490";
+    private static final String DEFAULT_PASSWORD = "Test@123";
     private static final String SCHOOL_FREE_PLAN_CODE = "SCHOOL_FREE";
     private static final String PARTNERSHIP_FREE_PLAN_CODE = "PARTNERSHIP_FREE";
 

@@ -103,12 +103,6 @@ public class PartnershipCampaignController {
         return ResponseEntity.ok(ResponseDto.success(campaignRewardService.getRewards(id), "Lấy danh sách quà thưởng thành công"));
     }
 
-    @GetMapping("/campaigns/{id}/leaderboard")
-    @Operation(summary = "Xem leaderboard của partnership campaign")
-    public ResponseEntity<ResponseDto<List<LeaderboardEntryResponse>>> getCampaignLeaderboard(@PathVariable UUID id) {
-        return ResponseEntity.ok(ResponseDto.success(campaignService.getCampaignLeaderboard(id), "Lấy leaderboard campaign thành công"));
-    }
-
     @GetMapping("/campaigns/{id}/rounds/{roundId}/leaderboard")
     @Operation(summary = "Xem leaderboard theo round của partnership campaign")
     public ResponseEntity<ResponseDto<List<LeaderboardEntryResponse>>> getRoundLeaderboard(@PathVariable UUID id,

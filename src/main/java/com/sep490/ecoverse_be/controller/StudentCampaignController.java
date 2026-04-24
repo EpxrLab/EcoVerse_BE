@@ -47,14 +47,8 @@ public class StudentCampaignController {
         return ResponseEntity.ok(ResponseDto.success(campaignService.getPlayConfig(campaignId, roundId), "Lấy play config thành công"));
     }
 
-    @GetMapping("/campaigns/{campaignId}/leaderboard")
-    @PreAuthorize("hasAnyAuthority('STUDENT', 'PARENT', 'PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP', 'ADMINISTRATOR')")
-    public ResponseEntity<ResponseDto<List<LeaderboardEntryResponse>>> getCampaignLeaderboard(@PathVariable UUID campaignId) {
-        return ResponseEntity.ok(ResponseDto.success(campaignService.getCampaignLeaderboard(campaignId), "Lấy leaderboard campaign thành công"));
-    }
-
     @GetMapping("/campaign-rounds/{roundId}/leaderboard")
-    @PreAuthorize("hasAnyAuthority('STUDENT', 'PARENT', 'PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP', 'ADMINISTRATOR')")
+    @PreAuthorize("hasAnyAuthority('STUDENT', 'PARENT', 'PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
     public ResponseEntity<ResponseDto<List<LeaderboardEntryResponse>>> getRoundLeaderboard(@PathVariable UUID roundId) {
         return ResponseEntity.ok(ResponseDto.success(campaignService.getCampaignRoundLeaderboard(roundId), "Lấy leaderboard round thành công"));
     }
