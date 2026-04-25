@@ -94,12 +94,26 @@ public class AiQuizServiceImpl implements IAiQuizService {
             school = resolveSchool(currentUser.getId());
             activeSubscription = subscriptionRepository
                     .findBySchoolIdAndStatus(school.getId(), SubscriptionStatus.ACTIVE)
-                    .orElseThrow(() -> new BadRequestException("Trường chưa có gói subscription hoạt động"));
+                    .orElse(null);
+            if (activeSubscription == null) {
+                activeSubscription = subscriptionRepository
+                        .findBySchoolIdAndStatus(school.getId(), SubscriptionStatus.PENDING_RENEWAL)
+                        .orElse(null);
+            }
         } else {
             partnership = resolvePartnership(currentUser.getId());
             activeSubscription = subscriptionRepository
                     .findByPartnershipIdAndStatus(partnership.getId(), SubscriptionStatus.ACTIVE)
-                    .orElseThrow(() -> new BadRequestException("Tổ chức chưa có gói subscription hoạt động"));
+                    .orElse(null);
+            if (activeSubscription == null) {
+                activeSubscription = subscriptionRepository
+                        .findByPartnershipIdAndStatus(partnership.getId(), SubscriptionStatus.PENDING_RENEWAL)
+                        .orElse(null);
+            }
+        }
+
+        if (activeSubscription == null) {
+            throw new BadRequestException("Tài khoản chưa có gói subscription hợp lệ.");
         }
 
         // 2. Check AI quota

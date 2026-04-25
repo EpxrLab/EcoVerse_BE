@@ -21,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @Service
@@ -171,12 +170,16 @@ public class CampaignServiceImpl implements ICampaignService {
 
     private Subscription getActiveSchoolSubscription(School school) {
         return subscriptionRepository.findBySchoolIdAndStatus(school.getId(), com.sep490.ecoverse_be.enums.SubscriptionStatus.ACTIVE)
-                .orElseThrow(() -> new BadRequestException("Trường chưa có gói subscription hoạt động"));
+                .or(() -> subscriptionRepository.findBySchoolIdAndStatus(
+                        school.getId(), com.sep490.ecoverse_be.enums.SubscriptionStatus.PENDING_RENEWAL))
+                .orElseThrow(() -> new BadRequestException("Trường chưa có gói subscription hợp lệ"));
     }
 
     private Subscription getActivePartnershipSubscription(Partnership partnership) {
         return subscriptionRepository.findByPartnershipIdAndStatus(partnership.getId(), com.sep490.ecoverse_be.enums.SubscriptionStatus.ACTIVE)
-                .orElseThrow(() -> new BadRequestException("Tổ chức chưa có gói subscription hoạt động"));
+                .or(() -> subscriptionRepository.findByPartnershipIdAndStatus(
+                        partnership.getId(), com.sep490.ecoverse_be.enums.SubscriptionStatus.PENDING_RENEWAL))
+                .orElseThrow(() -> new BadRequestException("Tổ chức chưa có gói subscription hợp lệ"));
     }
 
     private void checkCampaignPerMonthQuota(Subscription subscription, School school, Partnership partnership) {
@@ -470,10 +473,9 @@ public class CampaignServiceImpl implements ICampaignService {
                 })
                 .toList();
 
-        // Lấy tất cả học sinh đã được mời (không lọc isActive) để UI hiển thị đầy đủ
-        // trạng thái
+        // Chỉ lấy học sinh đang active (danh sách hiện tại sau replace)
         List<CampaignParticipantInfoResponse> participants = campaignParticipantRepository
-                .findByCampaignIdOrderByCreatedAtAsc(campaign.getId())
+                .findByCampaignIdAndIsActiveTrueOrderByCreatedAtAsc(campaign.getId())
                 .stream()
                 .map(p -> CampaignParticipantInfoResponse.builder()
                         .studentId(p.getStudent().getId())
@@ -1354,6 +1356,7 @@ public class CampaignServiceImpl implements ICampaignService {
                 .stream()
                 .map(r -> PartnershipInvitationRoundBriefResponse.builder()
                         .roundNumber(r.getRoundNumber())
+                        .roundId(r.getId())
                         .roundName(r.getRoundName())
                         .maxParticipants(r.getMaxParticipants())
                         .advanceCount(r.getAdvanceCount())
@@ -2065,17 +2068,19 @@ public class CampaignServiceImpl implements ICampaignService {
         Campaign campaign = campaignRepository.findById(campaignId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy campaign"));
 
+        // Leaderboard "toàn bộ chiến dịch": không gắn với 1 round đang ACTIVE (vòng sau có thể chưa có CRP -> rỗng).
+        // Với partnership, mặc định hiển thị vòng đầu (sơ loại) — nơi toàn bộ học sinh tham gia có bản ghi xếp hạng.
         if (campaign.getCampaignType() == CampaignType.PARTNERSHIP_EVENT
                 && shouldUseCurrentRoundLeaderboardForRole(getCurrentUser().getRole())) {
-            return resolvePartnershipDefaultRound(campaign)
-                    .map(round -> mapRoundLeaderboard(roundLeaderboardRepository
-                            .findByCampaignRoundIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(
-                                    round.getId())))
+            return campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId())
+                    .stream()
+                    .findFirst()
+                    .map(round -> mapRoundLeaderboard(getEffectiveRoundLeaderboardEntries(round)))
                     .orElse(List.of());
         }
 
         if (campaign.getCampaignType() == CampaignType.SCHOOL_INTERNAL) {
-            return schoolLeaderboardRepository
+            List<LeaderboardEntryResponse> fromSchoolTable = schoolLeaderboardRepository
                     .findByCampaignIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(campaignId)
                     .stream()
                     .map(e -> LeaderboardEntryResponse.builder()
@@ -2089,6 +2094,11 @@ public class CampaignServiceImpl implements ICampaignService {
                             .totalCoinsEarned(e.getTotalCoinsEarned())
                             .build())
                     .toList();
+            if (!fromSchoolTable.isEmpty()) {
+                return fromSchoolTable;
+            }
+            // Multi-round hoặc school_leaderboards chưa có dòng: gộp theo học sinh (lấy round có điểm tốt nhất).
+            return mapRoundLeaderboardWithCampaignRanks(mergeBestRoundLeaderboardPerStudent(campaignId));
         }
         return mapRoundLeaderboard(roundLeaderboardRepository
                 .findByCampaignIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(campaignId));
@@ -2096,10 +2106,33 @@ public class CampaignServiceImpl implements ICampaignService {
 
     @Override
     public List<LeaderboardEntryResponse> getCampaignRoundLeaderboard(UUID roundId) {
-        campaignRoundRepository.findById(roundId)
+        CampaignRound round = campaignRoundRepository.findById(roundId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy round"));
-        return mapRoundLeaderboard(roundLeaderboardRepository
-                .findByCampaignRoundIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(roundId));
+        return mapRoundLeaderboard(getEffectiveRoundLeaderboardEntries(round));
+    }
+
+    private List<RoundLeaderboard> getEffectiveRoundLeaderboardEntries(CampaignRound round) {
+        List<RoundLeaderboard> entries = roundLeaderboardRepository
+                .findByCampaignRoundIdOrderByCombinedAccuracyPercentageDescAvgTimeSecondsAsc(round.getId());
+
+        if (round.getCampaign().getCampaignType() != CampaignType.PARTNERSHIP_EVENT) {
+            return entries;
+        }
+
+        Integer roundNumber = round.getRoundNumber();
+        if (roundNumber == null || roundNumber <= 1) {
+            return entries;
+        }
+
+        Set<UUID> eligibleStudentIds = new HashSet<>(
+                campaignRoundParticipantRepository.findStudentIdsByCampaignRoundId(round.getId()));
+        if (eligibleStudentIds.isEmpty()) {
+            return List.of();
+        }
+
+        return entries.stream()
+                .filter(entry -> eligibleStudentIds.contains(entry.getStudent().getId()))
+                .toList();
     }
 
     private List<LeaderboardEntryResponse> mapRoundLeaderboard(List<RoundLeaderboard> entries) {
@@ -2117,30 +2150,56 @@ public class CampaignServiceImpl implements ICampaignService {
                 .toList();
     }
 
+    /**
+     * Gộp round_leaderboards theo học sinh: mỗi học sinh một dòng (round có combinedAccuracy tốt nhất, tie-break thời gian).
+     */
+    private List<RoundLeaderboard> mergeBestRoundLeaderboardPerStudent(UUID campaignId) {
+        List<RoundLeaderboard> all = roundLeaderboardRepository.findByCampaignId(campaignId);
+        if (all.isEmpty()) {
+            return List.of();
+        }
+        Comparator<RoundLeaderboard> better = Comparator
+                .comparing(RoundLeaderboard::getCombinedAccuracyPercentage, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(RoundLeaderboard::getAvgTimeSeconds, Comparator.nullsLast(Comparator.naturalOrder()));
+        Map<UUID, RoundLeaderboard> best = new HashMap<>();
+        for (RoundLeaderboard rl : all) {
+            UUID sid = rl.getStudent().getId();
+            RoundLeaderboard ex = best.get(sid);
+            if (ex == null || better.compare(rl, ex) < 0) {
+                best.put(sid, rl);
+            }
+        }
+        List<RoundLeaderboard> merged = new ArrayList<>(best.values());
+        merged.sort(better);
+        return merged;
+    }
+
+    private List<LeaderboardEntryResponse> mapRoundLeaderboardWithCampaignRanks(List<RoundLeaderboard> entries) {
+        if (entries.isEmpty()) {
+            return List.of();
+        }
+        List<LeaderboardEntryResponse> out = new ArrayList<>(entries.size());
+        for (int i = 0; i < entries.size(); i++) {
+            RoundLeaderboard e = entries.get(i);
+            out.add(LeaderboardEntryResponse.builder()
+                    .studentId(e.getStudent().getId())
+                    .studentName(e.getStudent().getFullName())
+                    .schoolId(e.getSchool().getId())
+                    .schoolName(e.getSchool().getSchoolName())
+                    .combinedAccuracyPercentage(e.getCombinedAccuracyPercentage())
+                    .avgTimeSeconds(e.getAvgTimeSeconds())
+                    .rank(i + 1)
+                    .totalCoinsEarned(e.getTotalCoinsEarned())
+                    .build());
+        }
+        return out;
+    }
+
     private boolean shouldUseCurrentRoundLeaderboardForRole(Role role) {
         return role == Role.STUDENT
                 || role == Role.PARENT
                 || role == Role.PARTNERSHIP_SCHOOL
                 || role == Role.THIRD_PARTY_PARTNERSHIP;
-    }
-
-    private Optional<CampaignRound> resolvePartnershipDefaultRound(Campaign campaign) {
-        OffsetDateTime now = OffsetDateTime.now();
-        List<CampaignRound> rounds = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId());
-
-        Optional<CampaignRound> current = rounds.stream()
-                .filter(r -> r.getStatus() == RoundStatus.ACTIVE)
-                .filter(r -> r.getStartTime() != null && r.getEndTime() != null)
-                .filter(r -> !now.isBefore(r.getStartTime()) && !now.isAfter(r.getEndTime()))
-                .findFirst();
-        if (current.isPresent()) {
-            return current;
-        }
-
-        return rounds.stream()
-                .filter(r -> r.getStatus() != RoundStatus.CANCELLED)
-                .filter(r -> r.getStartTime() != null && !r.getStartTime().isAfter(now))
-                .reduce((first, second) -> second);
     }
 
     @Override
