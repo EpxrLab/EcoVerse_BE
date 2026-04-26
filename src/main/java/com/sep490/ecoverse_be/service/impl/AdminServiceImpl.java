@@ -229,10 +229,12 @@ public class AdminServiceImpl implements IAdminService {
     public AdminGameTypeResponse updateGameType(UUID id, AdminGameTypeUpsertRequest request) {
         GameType gameType = getActiveGameTypeOrThrow(id);
 
-        if (!gameType.getTypeCode().equals(request.getTypeCode()) && gameTypeRepository.existsByTypeCodeAndIsDeleteFalse(request.getTypeCode())) {
+        if (!gameType.getTypeCode().equals(request.getTypeCode())
+                && gameTypeRepository.existsByTypeCodeAndIsDeleteFalse(request.getTypeCode())) {
             throw new BadRequestException("Game type code đã tồn tại");
         }
-        if (!gameType.getName().equalsIgnoreCase(request.getName()) && gameTypeRepository.existsByNameIgnoreCaseAndIsDeleteFalse(request.getName())) {
+        if (!gameType.getName().equalsIgnoreCase(request.getName())
+                && gameTypeRepository.existsByNameIgnoreCaseAndIsDeleteFalse(request.getName())) {
             throw new BadRequestException("Tên game type đã tồn tại");
         }
 
@@ -263,7 +265,7 @@ public class AdminServiceImpl implements IAdminService {
     @Transactional
     public void deleteGameType(UUID id) {
         GameType gameType = getActiveGameTypeOrThrow(id);
-        gameType.setActive(false);
+        gameType.setDelete(true);
         gameType.setUpdatedBy(getCurrentAdmin());
         gameTypeRepository.save(gameType);
     }
@@ -281,7 +283,8 @@ public class AdminServiceImpl implements IAdminService {
 
     @Override
     @Transactional
-    public AdminGameLevelPresetResponse createGameLevelPreset(UUID gameTypeId, AdminGameLevelPresetUpsertRequest request) {
+    public AdminGameLevelPresetResponse createGameLevelPreset(UUID gameTypeId,
+            AdminGameLevelPresetUpsertRequest request) {
         GameType gameType = getActiveGameTypeOrThrow(gameTypeId);
         if (gameLevelPresetRepository.existsByGameTypeIdAndDifficulty(gameTypeId, request.getDifficulty())) {
             throw new BadRequestException("Preset cho difficulty này đã tồn tại");
@@ -295,11 +298,13 @@ public class AdminServiceImpl implements IAdminService {
 
     @Override
     @Transactional
-    public AdminGameLevelPresetResponse updateGameLevelPreset(UUID gameTypeId, UUID presetId, AdminGameLevelPresetUpsertRequest request) {
+    public AdminGameLevelPresetResponse updateGameLevelPreset(UUID gameTypeId, UUID presetId,
+            AdminGameLevelPresetUpsertRequest request) {
         getActiveGameTypeOrThrow(gameTypeId);
         GameLevelPreset preset = getPresetOrThrow(gameTypeId, presetId);
 
-        if (gameLevelPresetRepository.existsByGameTypeIdAndDifficultyAndIdNot(gameTypeId, request.getDifficulty(), presetId)) {
+        if (gameLevelPresetRepository.existsByGameTypeIdAndDifficultyAndIdNot(gameTypeId, request.getDifficulty(),
+                presetId)) {
             throw new BadRequestException("Preset cho difficulty này đã tồn tại");
         }
 
@@ -333,7 +338,8 @@ public class AdminServiceImpl implements IAdminService {
     @Override
     @Transactional
     public AdminWasteSubCategoryResponse createWasteSubCategory(AdminWasteSubCategoryUpsertRequest request) {
-        if (wasteSubCategoryRepository.existsByCategoryAndSubCategoryCodeAndIsDeleteFalse(request.getCategory(), request.getSubCategoryCode())) {
+        if (wasteSubCategoryRepository.existsByCategoryAndSubCategoryCodeAndIsDeleteFalse(request.getCategory(),
+                request.getSubCategoryCode())) {
             throw new BadRequestException("Sub category code đã tồn tại trong category");
         }
         WasteSubCategory subCategory = new WasteSubCategory();
@@ -352,7 +358,8 @@ public class AdminServiceImpl implements IAdminService {
     @Transactional
     public AdminWasteSubCategoryResponse updateWasteSubCategory(UUID id, AdminWasteSubCategoryUpsertRequest request) {
         WasteSubCategory subCategory = getActiveWasteSubCategoryOrThrow(id);
-        if (wasteSubCategoryRepository.existsByCategoryAndSubCategoryCodeAndIdNotAndIsDeleteFalse(request.getCategory(), request.getSubCategoryCode(), id)) {
+        if (wasteSubCategoryRepository.existsByCategoryAndSubCategoryCodeAndIdNotAndIsDeleteFalse(request.getCategory(),
+                request.getSubCategoryCode(), id)) {
             throw new BadRequestException("Sub category code đã tồn tại trong category");
         }
         subCategory.setCategory(request.getCategory());
@@ -386,7 +393,8 @@ public class AdminServiceImpl implements IAdminService {
     @Transactional
     public AdminWasteItemResponse createWasteItem(AdminWasteItemUpsertRequest request) {
         WasteSubCategory subCategory = getActiveWasteSubCategoryOrThrow(request.getSubCategoryId());
-        if (wasteItemRepository.existsByItemNameIgnoreCaseAndSubCategoryIdAndIsDeleteFalse(request.getItemName(), request.getSubCategoryId())) {
+        if (wasteItemRepository.existsByItemNameIgnoreCaseAndSubCategoryIdAndIsDeleteFalse(request.getItemName(),
+                request.getSubCategoryId())) {
             throw new BadRequestException("Waste item đã tồn tại trong sub-category");
         }
         WasteItem wasteItem = new WasteItem();
@@ -400,12 +408,13 @@ public class AdminServiceImpl implements IAdminService {
         wasteItem.setRecyclingTips(request.getRecyclingTips());
         wasteItem.setActive(request.getIsActive() == null || request.getIsActive());
         wasteItem.setCreatedBy(getCurrentAdmin());
-        
+
         if (request.getImageUrl() != null && request.getImageUrl().toLowerCase().endsWith(".glb")) {
             wasteItem.setModel3dUrl(null);
             wasteItem.setTripoTaskId(null);
             wasteItem.setTripoStatus(null);
-        } else if (Boolean.TRUE.equals(request.getGenerate3dModel()) && request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
+        } else if (Boolean.TRUE.equals(request.getGenerate3dModel()) && request.getImageUrl() != null
+                && !request.getImageUrl().isBlank()) {
             try {
                 String presignedUrl = s3PresignedUrlService.generatePresignedUrl(request.getImageUrl());
                 String taskId = tripoApiService.submitImageTo3dTask(presignedUrl);
@@ -413,7 +422,8 @@ public class AdminServiceImpl implements IAdminService {
                 wasteItem.setTripoStatus("PENDING");
             } catch (Exception e) {
                 wasteItem.setTripoStatus("FAILED");
-                // Log naturally handled in TripoApiService, but fail gracefully for WasteItem setup
+                // Log naturally handled in TripoApiService, but fail gracefully for WasteItem
+                // setup
             }
         }
 
@@ -425,7 +435,8 @@ public class AdminServiceImpl implements IAdminService {
     public AdminWasteItemResponse updateWasteItem(UUID id, AdminWasteItemUpsertRequest request) {
         WasteItem wasteItem = getActiveWasteItemOrThrow(id);
         WasteSubCategory subCategory = getActiveWasteSubCategoryOrThrow(request.getSubCategoryId());
-        if (wasteItemRepository.existsByItemNameIgnoreCaseAndSubCategoryIdAndIdNotAndIsDeleteFalse(request.getItemName(), request.getSubCategoryId(), id)) {
+        if (wasteItemRepository.existsByItemNameIgnoreCaseAndSubCategoryIdAndIdNotAndIsDeleteFalse(
+                request.getItemName(), request.getSubCategoryId(), id)) {
             throw new BadRequestException("Waste item đã tồn tại trong sub-category");
         }
         wasteItem.setItemName(request.getItemName());
@@ -444,7 +455,8 @@ public class AdminServiceImpl implements IAdminService {
             wasteItem.setModel3dUrl(null);
             wasteItem.setTripoTaskId(null);
             wasteItem.setTripoStatus(null);
-        } else if (Boolean.TRUE.equals(request.getGenerate3dModel()) && request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
+        } else if (Boolean.TRUE.equals(request.getGenerate3dModel()) && request.getImageUrl() != null
+                && !request.getImageUrl().isBlank()) {
             try {
                 String presignedUrl = s3PresignedUrlService.generatePresignedUrl(request.getImageUrl());
                 String taskId = tripoApiService.submitImageTo3dTask(presignedUrl);
@@ -493,19 +505,20 @@ public class AdminServiceImpl implements IAdminService {
                 .totalCampaigns(campaignRepository.count())
                 .totalSchoolCampaigns(
                         campaignRepository.countByCampaignType(CampaignType.SCHOOL_INTERNAL)
-                                + campaignRepository.countByCampaignType(CampaignType.INTER_SCHOOL)
-                )
+                                + campaignRepository.countByCampaignType(CampaignType.INTER_SCHOOL))
                 .totalPartnershipCampaigns(campaignRepository.countByCampaignType(CampaignType.PARTNERSHIP_EVENT))
                 .totalParticipants(campaignParticipantRepository.countByIsActiveTrue())
                 .totalSchoolInvitations(campaignSchoolParticipateRepository.count())
-                .approvedSchoolInvitations(campaignSchoolParticipateRepository.countByStatus(ParticipationStatus.APPROVED))
+                .approvedSchoolInvitations(
+                        campaignSchoolParticipateRepository.countByStatus(ParticipationStatus.APPROVED))
                 .schoolCampaignStatusCounts(schoolStatus)
                 .partnershipCampaignStatusCounts(partnershipStatus)
                 .build();
     }
 
     @Override
-    public PageResponse<AdminUserListResponse> getAllUsers(Role role, UUID schoolId, String keyword, Pageable pageable) {
+    public PageResponse<AdminUserListResponse> getAllUsers(Role role, UUID schoolId, String keyword,
+            Pageable pageable) {
         Specification<User> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -518,8 +531,7 @@ public class AdminServiceImpl implements IAdminService {
                         Role.PARTNERSHIP_SCHOOL,
                         Role.THIRD_PARTY_PARTNERSHIP,
                         Role.STUDENT,
-                        Role.PARENT
-                ));
+                        Role.PARENT));
             }
 
             // Keyword search on email/username
@@ -541,8 +553,7 @@ public class AdminServiceImpl implements IAdminService {
     @Transactional
     public SchoolDetailResponse updateSchoolApproval(
             UUID id,
-            UpdateApprovalRequest request
-    ) {
+            UpdateApprovalRequest request) {
 
         School school = schoolRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học với id: " + id));
@@ -569,16 +580,14 @@ public class AdminServiceImpl implements IAdminService {
 
             emailService.sendApprovalEmail(
                     school.getContactEmail(),
-                    school.getSchoolName()
-            );
+                    school.getSchoolName());
 
         } else {
 
             emailService.sendRejectionEmail(
                     school.getContactEmail(),
                     school.getSchoolName(),
-                    request.getReason()
-            );
+                    request.getReason());
         }
 
         return mapToSchoolDetailResponse(school);
@@ -588,8 +597,7 @@ public class AdminServiceImpl implements IAdminService {
     @Transactional
     public PartnershipDetailResponse updatePartnershipApproval(
             UUID id,
-            UpdateApprovalRequest request
-    ) {
+            UpdateApprovalRequest request) {
 
         Partnership partnership = partnershipRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy đối tác với id: " + id));
@@ -616,16 +624,14 @@ public class AdminServiceImpl implements IAdminService {
 
             emailService.sendApprovalEmail(
                     partnership.getContactEmail(),
-                    partnership.getOrganizationName()
-            );
+                    partnership.getOrganizationName());
 
         } else {
 
             emailService.sendRejectionEmail(
                     partnership.getContactEmail(),
                     partnership.getOrganizationName(),
-                    request.getReason()
-            );
+                    request.getReason());
         }
 
         return mapToPartnershipDetailResponse(partnership);
@@ -637,16 +643,15 @@ public class AdminServiceImpl implements IAdminService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản"));
 
-        if(isActive){
+        if (isActive) {
             user.setStatus(AccountStatus.ACTIVE);
             user.setIsActive(true);
-        }else{
+        } else {
             user.setStatus(AccountStatus.SUSPENDED);
             user.setIsActive(false);
         }
         userRepository.save(user);
     }
-
 
     private SchoolDetailResponse mapToSchoolDetailResponse(School school) {
         User user = school.getUser();
@@ -935,12 +940,12 @@ public class AdminServiceImpl implements IAdminService {
         List<WasteCategory> categories = gameType.getLevelPresets() == null
                 ? List.of()
                 : gameType.getLevelPresets().stream()
-                .filter(p -> p.getItems() != null)
-                .flatMap(p -> p.getItems().stream())
-                .filter(item -> item.getWasteCategories() != null)
-                .flatMap(item -> item.getWasteCategories().stream())
-                .distinct()
-                .toList();
+                        .filter(p -> p.getItems() != null)
+                        .flatMap(p -> p.getItems().stream())
+                        .filter(item -> item.getWasteCategories() != null)
+                        .flatMap(item -> item.getWasteCategories().stream())
+                        .distinct()
+                        .toList();
 
         return AdminGameTypeResponse.builder()
                 .id(gameType.getId())
@@ -949,8 +954,10 @@ public class AdminServiceImpl implements IAdminService {
                 .shortDescription(gameType.getShortDescription())
                 .fullDescription(gameType.getFullDescription())
                 .howToPlay(gameType.getHowToPlay())
-                .thumbnailUrl(s3PresignedUrlService.generatePresignedUrl(gameType.getThumbnailUrl()))
-                .iconUrl(s3PresignedUrlService.generatePresignedUrl(gameType.getIconUrl()))
+                .thumbnailUrl(gameType.getThumbnailUrl())
+                .thumbnailPresignedUrl(s3PresignedUrlService.generatePresignedUrl(gameType.getThumbnailUrl()))
+                .iconUrl(gameType.getIconUrl())
+                .iconPresignedUrl(s3PresignedUrlService.generatePresignedUrl(gameType.getIconUrl()))
                 .features(gameType.getFeatures())
                 .supportsCoin(gameType.isSupportsCoin())
                 .maxLevels(gameType.getMaxLevels())
@@ -1006,8 +1013,8 @@ public class AdminServiceImpl implements IAdminService {
     }
 
     private void applyPresetItemRequest(GameLevelPresetItem item,
-                                        AdminGameLevelPresetItemUpsertRequest request,
-                                        GameLevelPreset preset) {
+            AdminGameLevelPresetItemUpsertRequest request,
+            GameLevelPreset preset) {
         item.setPreset(preset);
         item.setLevelNumber(request.getLevelNumber());
         item.setItemCount(request.getItemCount());
@@ -1024,18 +1031,18 @@ public class AdminServiceImpl implements IAdminService {
         List<AdminGameLevelPresetItemResponse> items = preset.getItems() == null
                 ? List.of()
                 : preset.getItems().stream()
-                .sorted((a, b) -> Integer.compare(a.getLevelNumber(), b.getLevelNumber()))
-                .map(item -> AdminGameLevelPresetItemResponse.builder()
-                        .id(item.getId())
-                        .levelNumber(item.getLevelNumber())
-                        .itemCount(item.getItemCount())
-                        .timeLimitSeconds(item.getTimeLimitSeconds())
-                        .scorePerCorrect(item.getScorePerCorrect())
-                        .lives(item.getLives())
-                        .wasteCategories(item.getWasteCategories())
-                        .configJson(item.getConfigJson())
-                        .build())
-                .toList();
+                        .sorted((a, b) -> Integer.compare(a.getLevelNumber(), b.getLevelNumber()))
+                        .map(item -> AdminGameLevelPresetItemResponse.builder()
+                                .id(item.getId())
+                                .levelNumber(item.getLevelNumber())
+                                .itemCount(item.getItemCount())
+                                .timeLimitSeconds(item.getTimeLimitSeconds())
+                                .scorePerCorrect(item.getScorePerCorrect())
+                                .lives(item.getLives())
+                                .wasteCategories(item.getWasteCategories())
+                                .configJson(item.getConfigJson())
+                                .build())
+                        .toList();
 
         return AdminGameLevelPresetResponse.builder()
                 .id(preset.getId())
@@ -1103,7 +1110,7 @@ public class AdminServiceImpl implements IAdminService {
     }
 
     private void assignFreeSubscription(String planCode, SubscriberType subscriberType,
-                                         School school, Partnership partnership, User user) {
+            School school, Partnership partnership, User user) {
         SubscriptionPlan plan = subscriptionPlanRepository.findByPlanCode(planCode).orElse(null);
         if (plan == null) {
             return;
