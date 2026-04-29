@@ -6,7 +6,6 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Getter
@@ -35,6 +34,8 @@ public class RewardRequestResponse {
 
     private String rejectedReason;
     private String cancelledReason;
+    private UUID cancelledById;
+    private String cancelledByName;
     private String notes;
 
     private String deliveryImageUrl;

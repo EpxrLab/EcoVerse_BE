@@ -23,7 +23,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -231,8 +230,11 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
         int correctCount = 0;
         List<QuizAttemptAnswer> attemptAnswers = new ArrayList<>();
         List<AnswerResultResponse> answerResults = new ArrayList<>();
+        List<QuizAttemptAnswerSubmit> submittedAnswers = request != null && request.getAnswers() != null
+                ? request.getAnswers()
+                : Collections.emptyList();
 
-        for (QuizAttemptAnswerSubmit submitted : request.getAnswers()) {
+        for (QuizAttemptAnswerSubmit submitted : submittedAnswers) {
             QuizQuestion question = questionMap.get(submitted.getQuestionId());
             if (question == null) {
                 continue;
