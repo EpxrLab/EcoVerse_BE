@@ -6,6 +6,7 @@ import com.sep490.ecoverse_be.dto.request.MarkDeliveredRequest;
 import com.sep490.ecoverse_be.dto.request.RejectRewardRequestDto;
 import com.sep490.ecoverse_be.dto.response.ResponseDto;
 import com.sep490.ecoverse_be.dto.response.RewardRequestResponse;
+import com.sep490.ecoverse_be.dto.response.RewardRequestTrackingResponse;
 import com.sep490.ecoverse_be.enums.RewardRequestStatus;
 import com.sep490.ecoverse_be.service.IRewardRequestService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -61,6 +62,22 @@ public class RewardRequestController {
     public ResponseEntity<ResponseDto<List<RewardRequestResponse>>> getMyRequests() {
         return ResponseEntity.ok(
                 ResponseDto.success(rewardRequestService.getMyRequests(), "Lấy danh sách yêu cầu thành công"));
+    }
+
+    @GetMapping("/api/rewards/requests/{requestId}/tracking")
+    @PreAuthorize("hasAnyAuthority('STUDENT', 'PARENT', 'PARTNERSHIP_SCHOOL')")
+    @Operation(
+            summary = "Theo dõi timeline trạng thái yêu cầu đổi quà",
+            description = """
+                    Trả về timeline cơ bản các mốc trạng thái của request:
+                    PENDING (tạo) -> APPROVED/REJECTED -> DELIVERED -> CONFIRMED hoặc CANCELLED.
+
+                    Bao gồm thông tin actor theo mốc (nếu có), đặc biệt có `cancelledBy`.
+                    """
+    )
+    public ResponseEntity<ResponseDto<RewardRequestTrackingResponse>> getRequestTracking(@PathVariable UUID requestId) {
+        return ResponseEntity.ok(
+                ResponseDto.success(rewardRequestService.getRequestTracking(requestId), "Lấy timeline tracking thành công"));
     }
 
     @PutMapping("/api/rewards/requests/{requestId}/cancel")
