@@ -59,6 +59,8 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
     @Autowired
     private SchoolLeaderboardRepository schoolLeaderboardRepository;
     @Autowired
+    private RoundGameConfigRepository roundGameConfigRepository;
+    @Autowired
     private S3PresignedUrlService s3PresignedUrlService;
 
     // Lay thong tin student dang dang nhap
@@ -516,57 +518,118 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
                 .toList();
     }
 
-    // Helper: cap nhat leaderboard sau khi student nop quiz
-    private void updateLeaderboardAfterQuizSubmit(CampaignParticipant participant, CampaignRound round) {
-        // Lay tat ca quiz required cua round
+    /**
+     * Kiem tra student da hoan thanh TOAN BO noi dung round chua:
+     * - Moi level trong moi preset phai co session isPassed=true
+     * - Moi quiz phai co attempt isPassed=true
+     */
+    private boolean isAllContentCompleted(UUID participantId, CampaignRound round) {
+        List<RoundGameConfig> gameConfigs = roundGameConfigRepository
+                .findByCampaignRoundIdOrderByDisplayOrderAsc(round.getId());
+        for (RoundGameConfig config : gameConfigs) {
+            List<GameLevelPreset> presets = config.getSelectedPresets();
+            if (presets == null || presets.isEmpty()) continue;
+            for (GameLevelPreset preset : presets) {
+                if (preset.getItems() == null || preset.getItems().isEmpty()) continue;
+                for (GameLevelPresetItem item : preset.getItems()) {
+                    boolean passed = gameSessionRepository
+                            .existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndIsCompletedTrueAndIsPassedTrue(
+                                    participantId, config.getId(), preset.getId(), item.getLevelNumber());
+                    if (!passed) return false;
+                }
+            }
+        }
         List<CampaignRoundQuiz> roundQuizzes = campaignRoundQuizRepository
                 .findByCampaignRoundIdOrderByDisplayOrderAsc(round.getId());
+        for (CampaignRoundQuiz rq : roundQuizzes) {
+            Optional<QuizAttempt> best = quizAttemptRepository
+                    .findTopByCampaignParticipantIdAndCampaignRoundIdAndQuizIdAndIsCompletedTrueOrderByScorePercentageDesc(
+                            participantId, round.getId(), rq.getQuiz().getId());
+            if (best.isEmpty() || !best.get().isPassed()) return false;
+        }
+        return true;
+    }
 
-        // Tinh diem trung binh quiz (dung diem cao nhat cua moi quiz)
+    // Helper: cap nhat leaderboard sau khi student nop quiz
+    private void updateLeaderboardAfterQuizSubmit(CampaignParticipant participant, CampaignRound round) {
+        // Chi cap nhat khi student da hoan thanh TOAN BO noi dung
+        if (!isAllContentCompleted(participant.getId(), round)) {
+            return;
+        }
+
+        // Game metrics: best attempt per level
+        List<BigDecimal> bestGameAccuracies = new ArrayList<>();
+        List<BigDecimal> bestGameTimes = new ArrayList<>();
+        List<RoundGameConfig> gameConfigs = roundGameConfigRepository
+                .findByCampaignRoundIdOrderByDisplayOrderAsc(round.getId());
+        for (RoundGameConfig config : gameConfigs) {
+            if (config.getSelectedPresets() == null) continue;
+            for (GameLevelPreset preset : config.getSelectedPresets()) {
+                if (preset.getItems() == null) continue;
+                for (GameLevelPresetItem item : preset.getItems()) {
+                    List<GameSession> sessions = gameSessionRepository
+                            .findBestByParticipantAndConfigAndPresetAndLevel(
+                                    participant.getId(), config.getId(), preset.getId(), item.getLevelNumber());
+                    if (!sessions.isEmpty()) {
+                        GameSession best = sessions.get(0);
+                        if (best.getAccuracyPercentage() != null) bestGameAccuracies.add(best.getAccuracyPercentage());
+                        if (best.getTimeTakenSeconds() != null) bestGameTimes.add(BigDecimal.valueOf(best.getTimeTakenSeconds()));
+                    }
+                }
+            }
+        }
+        int totalGameCoins = gameSessionRepository.findCompletedByParticipantAndRound(participant.getId(), round.getId())
+                .stream().map(GameSession::getCoinAwarded).filter(Objects::nonNull).mapToInt(Integer::intValue).sum();
+        BigDecimal gameAccuracy = bestGameAccuracies.isEmpty() ? null
+                : bestGameAccuracies.stream().reduce(BigDecimal.ZERO, BigDecimal::add)
+                        .divide(BigDecimal.valueOf(bestGameAccuracies.size()), 2, RoundingMode.HALF_UP);
+        BigDecimal avgGameTime = bestGameTimes.isEmpty() ? null
+                : bestGameTimes.stream().reduce(BigDecimal.ZERO, BigDecimal::add)
+                        .divide(BigDecimal.valueOf(bestGameTimes.size()), 2, RoundingMode.HALF_UP);
+
+        // Quiz metrics: best attempt per quiz
+        List<CampaignRoundQuiz> roundQuizzes = campaignRoundQuizRepository
+                .findByCampaignRoundIdOrderByDisplayOrderAsc(round.getId());
         List<BigDecimal> bestScores = new ArrayList<>();
         List<BigDecimal> bestTimes = new ArrayList<>();
-
         for (CampaignRoundQuiz rq : roundQuizzes) {
             quizAttemptRepository
                     .findTopByCampaignParticipantIdAndCampaignRoundIdAndQuizIdAndIsCompletedTrueOrderByScorePercentageDesc(
                             participant.getId(), round.getId(), rq.getQuiz().getId())
                     .ifPresent(best -> {
                         bestScores.add(best.getScorePercentage());
-                        if (best.getTimeTakenSeconds() != null) {
-                            bestTimes.add(BigDecimal.valueOf(best.getTimeTakenSeconds()));
-                        }
+                        if (best.getTimeTakenSeconds() != null) bestTimes.add(BigDecimal.valueOf(best.getTimeTakenSeconds()));
                     });
         }
-
-        if (bestScores.isEmpty()) {
-            return;
-        }
-
-        BigDecimal quizAccuracy = bestScores.stream()
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .divide(BigDecimal.valueOf(bestScores.size()), 2, RoundingMode.HALF_UP);
-
-        BigDecimal avgQuizTime = bestTimes.isEmpty() ? BigDecimal.ZERO
-                : bestTimes.stream()
-                        .reduce(BigDecimal.ZERO, BigDecimal::add)
+        BigDecimal quizAccuracy = bestScores.isEmpty() ? null
+                : bestScores.stream().reduce(BigDecimal.ZERO, BigDecimal::add)
+                        .divide(BigDecimal.valueOf(bestScores.size()), 2, RoundingMode.HALF_UP);
+        BigDecimal avgQuizTime = bestTimes.isEmpty() ? null
+                : bestTimes.stream().reduce(BigDecimal.ZERO, BigDecimal::add)
                         .divide(BigDecimal.valueOf(bestTimes.size()), 2, RoundingMode.HALF_UP);
-
         int quizzesCompleted = bestScores.size();
         int totalQuizCoins = quizAttemptRepository.findByCampaignParticipantIdAndCampaignRoundIdAndIsCompletedTrue(
                         participant.getId(), round.getId())
-                .stream()
-                .map(QuizAttempt::getCoinsEarned)
-                .filter(Objects::nonNull)
-                .mapToInt(Integer::intValue)
-                .sum();
-        int totalGameCoins = gameSessionRepository.findCompletedByParticipantAndRound(participant.getId(), round.getId())
-                .stream()
-                .map(GameSession::getCoinAwarded)
-                .filter(Objects::nonNull)
-                .mapToInt(Integer::intValue)
-                .sum();
+                .stream().map(QuizAttempt::getCoinsEarned).filter(Objects::nonNull).mapToInt(Integer::intValue).sum();
 
-        // Tim hoac tao RoundLeaderboard entry
+        // Tinh combinedAccuracy va avgTime
+        BigDecimal combinedAccuracy;
+        if (gameAccuracy != null && quizAccuracy != null) {
+            combinedAccuracy = gameAccuracy.add(quizAccuracy).divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP);
+        } else if (gameAccuracy != null) {
+            combinedAccuracy = gameAccuracy;
+        } else {
+            combinedAccuracy = quizAccuracy;
+        }
+        BigDecimal combinedTime;
+        if (avgGameTime != null && avgQuizTime != null) {
+            combinedTime = avgGameTime.add(avgQuizTime).divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP);
+        } else if (avgGameTime != null) {
+            combinedTime = avgGameTime;
+        } else {
+            combinedTime = avgQuizTime;
+        }
+
         RoundLeaderboard roundLb = roundLeaderboardRepository
                 .findByCampaignRoundIdAndStudentId(round.getId(), participant.getStudent().getId())
                 .orElseGet(() -> {
@@ -577,43 +640,19 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
                     newEntry.setSchool(participant.getSchool());
                     return newEntry;
                 });
-
+        roundLb.setGameAccuracyPercentage(gameAccuracy);
+        roundLb.setGamesCompleted(bestGameAccuracies.size());
         roundLb.setQuizAccuracyPercentage(quizAccuracy);
         roundLb.setQuizzesCompleted(quizzesCompleted);
-
-        // combinedAccuracy = trung binh cua game va quiz (neu chua co game thi chi tinh quiz)
-        BigDecimal gameAccuracy = roundLb.getGameAccuracyPercentage();
-        BigDecimal combinedAccuracy;
-        if (gameAccuracy != null) {
-            combinedAccuracy = gameAccuracy.add(quizAccuracy)
-                    .divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP);
-        } else {
-            combinedAccuracy = quizAccuracy;
-        }
         roundLb.setCombinedAccuracyPercentage(combinedAccuracy);
-
-        // avgTimeSeconds = trung binh game + quiz
-        BigDecimal gameAvgTime = roundLb.getAvgTimeSeconds();
-        BigDecimal combinedTime;
-        if (gameAvgTime != null && gameAvgTime.compareTo(BigDecimal.ZERO) > 0) {
-            combinedTime = gameAvgTime.add(avgQuizTime)
-                    .divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP);
-        } else {
-            combinedTime = avgQuizTime;
-        }
         roundLb.setAvgTimeSeconds(combinedTime);
-                if (round.getCampaign().getCampaignType() == CampaignType.SCHOOL_INTERNAL) {
-                        roundLb.setTotalCoinsEarned(totalQuizCoins + totalGameCoins);
-                }
-
-        roundLeaderboardRepository.save(roundLb);
-
-        // Re-rank tat ca entry trong round
-        reRankRound(round.getId());
-
-        // Neu la school campaign (1 round) thi cap nhat SchoolLeaderboard
         if (round.getCampaign().getCampaignType() == CampaignType.SCHOOL_INTERNAL) {
-                        updateSchoolLeaderboard(participant, round, quizAccuracy, avgQuizTime, quizzesCompleted, totalQuizCoins);
+            roundLb.setTotalCoinsEarned(totalQuizCoins + totalGameCoins);
+        }
+        roundLeaderboardRepository.save(roundLb);
+        reRankRound(round.getId());
+        if (round.getCampaign().getCampaignType() == CampaignType.SCHOOL_INTERNAL) {
+            updateSchoolLeaderboard(participant, round, quizAccuracy, avgQuizTime, quizzesCompleted, totalQuizCoins);
         }
     }
 
@@ -646,47 +685,69 @@ public class StudentQuizServiceImpl implements IStudentQuizService {
         roundLeaderboardRepository.saveAll(entries);
     }
 
-    // Cap nhat SchoolLeaderboard (danh cho school campaign - 1 round)
-        private void updateSchoolLeaderboard(CampaignParticipant participant, CampaignRound round,
-                                                                                 BigDecimal quizAccuracy, BigDecimal avgQuizTime, int quizzesCompleted,
-                                                                                 int totalQuizCoins) {
-                int totalGameCoins = gameSessionRepository
-                        .findCompletedByParticipantAndCampaign(participant.getId(), round.getCampaign().getId())
-                        .stream()
-                        .map(GameSession::getCoinAwarded)
-                        .filter(Objects::nonNull)
-                        .mapToInt(Integer::intValue)
-                        .sum();
+    // Cap nhat SchoolLeaderboard - chi cap nhat khi hoan thanh toan bo, dung best-per-level
+    private void updateSchoolLeaderboard(CampaignParticipant participant, CampaignRound round,
+                                         BigDecimal quizAccuracy, BigDecimal avgQuizTime,
+                                         int quizzesCompleted, int totalQuizCoins) {
+        if (!isAllContentCompleted(participant.getId(), round)) return;
+
+        // Game metrics: best per level
+        List<BigDecimal> bestGameAccuracies = new ArrayList<>();
+        List<BigDecimal> bestGameTimes = new ArrayList<>();
+        List<RoundGameConfig> gameConfigs = roundGameConfigRepository
+                .findByCampaignRoundIdOrderByDisplayOrderAsc(round.getId());
+        for (RoundGameConfig config : gameConfigs) {
+            if (config.getSelectedPresets() == null) continue;
+            for (GameLevelPreset preset : config.getSelectedPresets()) {
+                if (preset.getItems() == null) continue;
+                for (GameLevelPresetItem item : preset.getItems()) {
+                    List<GameSession> sessions = gameSessionRepository
+                            .findBestByParticipantAndConfigAndPresetAndLevel(
+                                    participant.getId(), config.getId(), preset.getId(), item.getLevelNumber());
+                    if (!sessions.isEmpty()) {
+                        GameSession best = sessions.get(0);
+                        if (best.getAccuracyPercentage() != null) bestGameAccuracies.add(best.getAccuracyPercentage());
+                        if (best.getTimeTakenSeconds() != null) bestGameTimes.add(BigDecimal.valueOf(best.getTimeTakenSeconds()));
+                    }
+                }
+            }
+        }
+        int totalGameCoins = gameSessionRepository
+                .findCompletedByParticipantAndCampaign(participant.getId(), round.getCampaign().getId())
+                .stream().map(GameSession::getCoinAwarded).filter(Objects::nonNull).mapToInt(Integer::intValue).sum();
+        BigDecimal gameAccuracy = bestGameAccuracies.isEmpty() ? null
+                : bestGameAccuracies.stream().reduce(BigDecimal.ZERO, BigDecimal::add)
+                        .divide(BigDecimal.valueOf(bestGameAccuracies.size()), 2, RoundingMode.HALF_UP);
+        BigDecimal gameAvgTime = bestGameTimes.isEmpty() ? null
+                : bestGameTimes.stream().reduce(BigDecimal.ZERO, BigDecimal::add)
+                        .divide(BigDecimal.valueOf(bestGameTimes.size()), 2, RoundingMode.HALF_UP);
+
+        BigDecimal combinedAccuracy;
+        if (gameAccuracy != null && quizAccuracy != null) {
+            combinedAccuracy = gameAccuracy.add(quizAccuracy).divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP);
+        } else if (gameAccuracy != null) { combinedAccuracy = gameAccuracy; }
+        else { combinedAccuracy = quizAccuracy; }
+        BigDecimal combinedTime;
+        if (gameAvgTime != null && avgQuizTime != null) {
+            combinedTime = gameAvgTime.add(avgQuizTime).divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP);
+        } else if (gameAvgTime != null) { combinedTime = gameAvgTime; }
+        else { combinedTime = avgQuizTime; }
 
         SchoolLeaderboard schoolLb = schoolLeaderboardRepository
                 .findByCampaignIdAndStudentId(round.getCampaign().getId(), participant.getStudent().getId())
                 .orElseGet(() -> {
-                    SchoolLeaderboard newEntry = new SchoolLeaderboard();
-                    newEntry.setCampaign(round.getCampaign());
-                    newEntry.setStudent(participant.getStudent());
-                    newEntry.setSchool(participant.getSchool());
-                    return newEntry;
+                    SchoolLeaderboard e = new SchoolLeaderboard();
+                    e.setCampaign(round.getCampaign()); e.setStudent(participant.getStudent()); e.setSchool(participant.getSchool());
+                    return e;
                 });
-
+        schoolLb.setGameAccuracyPercentage(gameAccuracy);
+        schoolLb.setGamesCompleted(bestGameAccuracies.size());
         schoolLb.setQuizAccuracyPercentage(quizAccuracy);
         schoolLb.setQuizzesCompleted(quizzesCompleted);
-
-        BigDecimal gameAccuracy = schoolLb.getGameAccuracyPercentage();
-        BigDecimal combinedAccuracy = gameAccuracy != null
-                ? gameAccuracy.add(quizAccuracy).divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP)
-                : quizAccuracy;
         schoolLb.setCombinedAccuracyPercentage(combinedAccuracy);
-
-        BigDecimal gameAvgTime = schoolLb.getAvgTimeSeconds();
-        BigDecimal combinedTime = (gameAvgTime != null && gameAvgTime.compareTo(BigDecimal.ZERO) > 0)
-                ? gameAvgTime.add(avgQuizTime).divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP)
-                : avgQuizTime;
         schoolLb.setAvgTimeSeconds(combinedTime);
         schoolLb.setTotalCoinsEarned(totalQuizCoins + totalGameCoins);
-
         schoolLeaderboardRepository.save(schoolLb);
-
-        // Re-rank tat ca student trong campaign
         reRankSchoolCampaign(round.getCampaign().getId());
     }
 
