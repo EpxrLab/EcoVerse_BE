@@ -1,6 +1,7 @@
 package com.sep490.ecoverse_be.service.impl;
 
 import com.sep490.ecoverse_be.entity.FileEntity;
+import com.sep490.ecoverse_be.enums.EmbeddingStatus;
 import com.sep490.ecoverse_be.exception.BadRequestException;
 import com.sep490.ecoverse_be.repository.FileRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,15 +26,17 @@ import java.util.stream.Collectors;
 /**
  * RAG (Retrieval Augmented Generation) service.
  *
- * Pipeline:
+ * Pipeline (với Qdrant integration):
+ * 1. Kiểm tra file đã embed vào Qdrant chưa (embeddingStatus = COMPLETED)
+ * 2. Nếu đã embed → query Qdrant bằng cosine similarity (KHÔNG cần embed lại)
+ * 3. Nếu chưa embed → fallback: download + extract + embed + cosine similarity (behavior cũ)
+ *
+ * Auto-embedding pipeline (chạy khi upload):
  * 1. Download files từ S3
  * 2. Extract text (PDF via PDFBox, DOCX via Apache POI, TXT trực tiếp)
  * 3. Chunk text thành đoạn nhỏ (500 chars, 100 overlap)
  * 4. Embed tất cả chunks bằng Gemini Embedding API
- * 5. Build query từ campaign + waste items context
- * 6. Embed query
- * 7. Cosine similarity → lấy top-K chunks phù hợp nhất
- * 8. Trả về relevant content cho prompt
+ * 5. Lưu vectors vào Qdrant
  */
 @Service
 @Slf4j
@@ -43,6 +46,7 @@ public class DocumentRagService {
     private final S3Client s3Client;
     private final FileRepository fileRepository;
     private final GeminiService geminiService;
+    private final QdrantVectorStoreService qdrantVectorStoreService;
 
     @Value("${aws.s3.bucket}")
     private String bucketName;
@@ -54,6 +58,9 @@ public class DocumentRagService {
 
     /**
      * Main entry: lấy nội dung liên quan từ danh sách file IDs.
+     * <p>
+     * Ưu tiên query Qdrant nếu files đã được embed.
+     * Fallback sang real-time embedding nếu chưa embed.
      *
      * @param fileIds   danh sách file IDs đã upload
      * @param query     query string (campaign name + waste items) để tìm đoạn liên quan
@@ -64,7 +71,103 @@ public class DocumentRagService {
             return "";
         }
 
-        // Tổng hợp text từ tất cả files
+        // Phân loại files: đã embed vs chưa embed
+        List<UUID> embeddedFileIds = new ArrayList<>();
+        List<UUID> unembeddedFileIds = new ArrayList<>();
+
+        for (UUID fileId : fileIds) {
+            FileEntity file = fileRepository.findById(fileId).orElse(null);
+            if (file == null) {
+                log.warn("File ID {} không tồn tại, bỏ qua", fileId);
+                continue;
+            }
+
+            if (file.getEmbeddingStatus() == EmbeddingStatus.COMPLETED) {
+                embeddedFileIds.add(fileId);
+            } else {
+                unembeddedFileIds.add(fileId);
+            }
+        }
+
+        StringBuilder result = new StringBuilder();
+
+        // 1. Query Qdrant cho các file đã embed (KHÔNG cần embed lại)
+        if (!embeddedFileIds.isEmpty()) {
+            String qdrantContent = queryQdrant(embeddedFileIds, query);
+            if (!qdrantContent.isBlank()) {
+                result.append(qdrantContent);
+            }
+        }
+
+        // 2. Fallback: xử lý real-time cho các file chưa embed
+        if (!unembeddedFileIds.isEmpty()) {
+            String fallbackContent = processUnembeddedFiles(unembeddedFileIds, query);
+            if (!fallbackContent.isBlank()) {
+                if (!result.isEmpty()) {
+                    result.append("\n\n");
+                }
+                result.append(fallbackContent);
+            }
+        }
+
+        return result.toString().trim();
+    }
+
+    // ── Qdrant Query (pre-embedded) ──────────────────────────────────────────
+
+    /**
+     * Query Qdrant để lấy relevant chunks cho các file đã embed sẵn.
+     * Chỉ cần embed query 1 lần, không cần embed lại toàn bộ document.
+     */
+    private String queryQdrant(List<UUID> fileIds, String query) {
+        log.info("Qdrant RAG: query {} embedded files", fileIds.size());
+
+        // Embed query
+        List<Double> queryEmbedding = geminiService.embedText(query);
+        if (queryEmbedding.isEmpty()) {
+            log.warn("Query embedding thất bại, fallback sang extract full text");
+            return extractFullTextFromFiles(fileIds);
+        }
+
+        // Search Qdrant
+        List<String> relevantChunks = qdrantVectorStoreService.searchSimilarChunks(
+                fileIds, queryEmbedding, TOP_K);
+
+        if (relevantChunks.isEmpty()) {
+            log.warn("Qdrant không trả về kết quả, fallback sang extract full text");
+            return extractFullTextFromFiles(fileIds);
+        }
+
+        String combined = String.join("\n\n", relevantChunks);
+        log.info("Qdrant RAG: trích xuất {} relevant chunks từ pre-embedded files", relevantChunks.size());
+
+        return combined;
+    }
+
+    /**
+     * Fallback: extract và trả full text (giới hạn SMALL_DOC_THRESHOLD * 2).
+     */
+    private String extractFullTextFromFiles(List<UUID> fileIds) {
+        StringBuilder allText = new StringBuilder();
+        for (UUID fileId : fileIds) {
+            String text = extractTextFromFile(fileId);
+            if (!text.isBlank()) {
+                allText.append(text).append("\n\n");
+            }
+        }
+        String full = allText.toString().trim();
+        if (full.length() > SMALL_DOC_THRESHOLD * 2) {
+            return full.substring(0, SMALL_DOC_THRESHOLD * 2);
+        }
+        return full;
+    }
+
+    // ── Fallback: real-time processing (behavior cũ) ─────────────────────────
+
+    /**
+     * Xử lý real-time cho files chưa embed: download → extract → chunk → embed → cosine.
+     */
+    private String processUnembeddedFiles(List<UUID> fileIds, String query) {
         StringBuilder allText = new StringBuilder();
         for (UUID fileId : fileIds) {
             String text = extractTextFromFile(fileId);
@@ -84,9 +187,22 @@ public class DocumentRagService {
             return fullText;
         }
 
-        // RAG pipeline: chunk → embed → retrieve
-        log.info("Document text lớn ({}), chạy RAG pipeline", fullText.length());
+        // RAG pipeline: chunk → embed → retrieve (behavior cũ)
+        log.info("Document text lớn ({}), chạy real-time RAG pipeline", fullText.length());
         return retrieveRelevantChunks(fullText, query);
+    }
+
+    // ── Public API for DocumentEmbeddingListener ─────────────────────────────
+
+    /**
+     * Extract text từ file (download từ S3 + parse).
+     * Public method cho DocumentEmbeddingListener sử dụng.
+     *
+     * @param fileId UUID của file
+     * @return extracted text, hoặc empty string nếu lỗi
+     */
+    public String extractTextFromFilePublic(UUID fileId) {
+        return extractTextFromFile(fileId);
     }
 
     // ── Step 1: Download + Extract text ──────────────────────────────────────
@@ -169,7 +285,7 @@ public class DocumentRagService {
      * Chia text thành các chunks nhỏ với overlap.
      * Cố gắng cắt ở ranh giới câu để giữ ngữ cảnh.
      */
-    List<String> chunkText(String text) {
+    public List<String> chunkText(String text) {
         List<String> chunks = new ArrayList<>();
         if (text == null || text.isBlank()) return chunks;
 
@@ -210,7 +326,7 @@ public class DocumentRagService {
         return chunks;
     }
 
-    // ── Step 3: Embed + Retrieve ─────────────────────────────────────────────
+    // ── Step 3: Embed + Retrieve (fallback, behavior cũ) ─────────────────────
 
     private String retrieveRelevantChunks(String fullText, String query) {
         List<String> chunks = chunkText(fullText);
@@ -221,7 +337,7 @@ public class DocumentRagService {
                     : fullText;
         }
 
-        log.info("RAG: {} chunks tạo từ document, embedding...", chunks.size());
+        log.info("RAG fallback: {} chunks tạo từ document, embedding...", chunks.size());
 
         // Embed tất cả chunks
         List<List<Double>> chunkEmbeddings = geminiService.batchEmbedTexts(chunks);
@@ -253,7 +369,7 @@ public class DocumentRagService {
             result.append(chunks.get(scored.get(i).index)).append("\n\n");
         }
 
-        log.info("RAG: trích xuất {} relevant chunks (top scores: {})",
+        log.info("RAG fallback: trích xuất {} relevant chunks (top scores: {})",
                 count, scored.stream().limit(3)
                         .map(s -> String.format("%.3f", s.score))
                         .collect(Collectors.joining(", ")));

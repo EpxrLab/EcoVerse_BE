@@ -22,6 +22,7 @@ public class FileMapper {
                 file.getFileSize(),
                 file.getUploadedBy() != null ? file.getUploadedBy().getEmail() : null,
                 file.getCategory(),
+                file.getEmbeddingStatus(),
                 file.getCreatedAt()
         );
     }
