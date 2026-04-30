@@ -2412,4 +2412,211 @@ public class CampaignServiceImpl implements ICampaignService {
                 })
                 .toList();
     }
+    @Override
+    public List<StudentGameSessionSummaryResponse> getStudentGameSessionHistory(UUID campaignId, UUID roundId,
+                                                                                UUID roundGameConfigId, UUID studentId, boolean isPartnership) {
+        Campaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy campaign"));
+
+        if (isPartnership) {
+            Partnership partnership = getCurrentPartnership();
+            if (campaign.getCreatorPartnership() == null || !campaign.getCreatorPartnership().getId().equals(partnership.getId())) {
+                throw new BadRequestException("Bạn không có quyền xem thông tin của campaign này");
+            }
+        } else {
+            School school = getCurrentSchool();
+            boolean isOwner = campaign.getCreatorSchool() != null && campaign.getCreatorSchool().getId().equals(school.getId());
+            boolean isParticipating = campaignSchoolParticipateRepository.findByCampaignId(campaignId)
+                    .stream().anyMatch(sp -> sp.getSchool().getId().equals(school.getId()));
+            if (!isOwner && !isParticipating) {
+                throw new BadRequestException("Bạn không có quyền xem thông tin của campaign này");
+            }
+        }
+
+        CampaignParticipant participant = campaignParticipantRepository
+                .findByCampaignIdAndStudentId(campaignId, studentId)
+                .orElseThrow(() -> new BadRequestException("Học sinh không tham gia campaign này"));
+
+        if (!isPartnership) {
+            School school = getCurrentSchool();
+            if (!participant.getSchool().getId().equals(school.getId())) {
+                throw new BadRequestException("Bạn chỉ có thể xem thông tin học sinh của trường mình");
+            }
+        }
+
+        campaignRoundRepository.findByIdAndCampaignId(roundId, campaignId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy round trong campaign"));
+
+        roundGameConfigRepository.findByIdAndCampaignRoundId(roundGameConfigId, roundId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy cấu hình game trong round"));
+
+        return gameSessionRepository.findByParticipantAndRound(participant.getId(), roundId)
+                .stream()
+                .filter(gs -> gs.getRoundGameConfig().getId().equals(roundGameConfigId))
+                .map(gs -> StudentGameSessionSummaryResponse.builder()
+                        .sessionId(gs.getId())
+                        .presetId(gs.getGameLevelPreset() != null ? gs.getGameLevelPreset().getId() : null)
+                        .currentLevel(gs.getCurrentLevel())
+                        .totalItems(gs.getTotalItems())
+                        .correctItems(gs.getCorrectItems())
+                        .incorrectItems(gs.getIncorrectItems())
+                        .accuracyPercentage(gs.getAccuracyPercentage())
+                        .timeTakenSeconds(gs.getTimeTakenSeconds())
+                        .isPassed(gs.isPassed())
+                        .coinAwarded(gs.getCoinAwarded())
+                        .sessionStart(gs.getSessionStart())
+                        .sessionEnd(gs.getSessionEnd())
+                        .build())
+                .toList();
+    }
+
+    @Override
+    public List<QuizAttemptSummaryResponse> getStudentQuizAttemptHistory(UUID campaignId, UUID roundId, UUID quizId,
+                                                                         UUID studentId, boolean isPartnership) {
+        Campaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy campaign"));
+
+        if (isPartnership) {
+            Partnership partnership = getCurrentPartnership();
+            if (campaign.getCreatorPartnership() == null || !campaign.getCreatorPartnership().getId().equals(partnership.getId())) {
+                throw new BadRequestException("Bạn không có quyền xem thông tin của campaign này");
+            }
+        } else {
+            School school = getCurrentSchool();
+            boolean isOwner = campaign.getCreatorSchool() != null && campaign.getCreatorSchool().getId().equals(school.getId());
+            boolean isParticipating = campaignSchoolParticipateRepository.findByCampaignId(campaignId)
+                    .stream().anyMatch(sp -> sp.getSchool().getId().equals(school.getId()));
+            if (!isOwner && !isParticipating) {
+                throw new BadRequestException("Bạn không có quyền xem thông tin của campaign này");
+            }
+        }
+
+        CampaignParticipant participant = campaignParticipantRepository
+                .findByCampaignIdAndStudentId(campaignId, studentId)
+                .orElseThrow(() -> new BadRequestException("Học sinh không tham gia campaign này"));
+
+        if (!isPartnership) {
+            School school = getCurrentSchool();
+            if (!participant.getSchool().getId().equals(school.getId())) {
+                throw new BadRequestException("Bạn chỉ có thể xem thông tin học sinh của trường mình");
+            }
+        }
+
+        campaignRoundRepository.findByIdAndCampaignId(roundId, campaignId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy round trong campaign"));
+
+        campaignRoundQuizRepository.findByCampaignRoundIdAndQuizId(roundId, quizId)
+                .orElseThrow(() -> new NotFoundException("Quiz không thuộc round này"));
+
+        List<QuizAttempt> attempts = quizAttemptRepository
+                .findByCampaignParticipantIdAndCampaignRoundIdAndQuizId(participant.getId(), roundId, quizId);
+
+        return attempts.stream()
+                .map(a -> QuizAttemptSummaryResponse.builder()
+                        .attemptId(a.getId())
+                        .attemptNumber(a.getAttemptNumber())
+                        .scorePercentage(a.getScorePercentage())
+                        .timeTakenSeconds(a.getTimeTakenSeconds() != null ? a.getTimeTakenSeconds() : 0)
+                        .isPassed(a.isPassed())
+                        .build())
+                .toList();
+    }
+    @Override
+    public StudentRoundHistoryResponse getStudentRoundHistory(UUID campaignId, UUID roundId, UUID studentId, boolean isPartnership) {
+        Campaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy campaign"));
+
+        if (isPartnership) {
+            Partnership partnership = getCurrentPartnership();
+            if (campaign.getCreatorPartnership() == null || !campaign.getCreatorPartnership().getId().equals(partnership.getId())) {
+                throw new BadRequestException("Bạn không có quyền xem thông tin của campaign này");
+            }
+        } else {
+            School school = getCurrentSchool();
+            boolean isOwner = campaign.getCreatorSchool() != null && campaign.getCreatorSchool().getId().equals(school.getId());
+            boolean isParticipating = campaignSchoolParticipateRepository.findByCampaignId(campaignId)
+                    .stream().anyMatch(sp -> sp.getSchool().getId().equals(school.getId()));
+            if (!isOwner && !isParticipating) {
+                throw new BadRequestException("Bạn không có quyền xem thông tin của campaign này");
+            }
+        }
+
+        CampaignParticipant participant = campaignParticipantRepository
+                .findByCampaignIdAndStudentId(campaignId, studentId)
+                .orElseThrow(() -> new BadRequestException("Học sinh không tham gia campaign này"));
+
+        if (!isPartnership) {
+            School school = getCurrentSchool();
+            if (!participant.getSchool().getId().equals(school.getId())) {
+                throw new BadRequestException("Bạn chỉ có thể xem thông tin học sinh của trường mình");
+            }
+        }
+
+        CampaignRound round = campaignRoundRepository.findByIdAndCampaignId(roundId, campaignId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy round trong campaign"));
+
+        // Get game histories grouped by roundGameConfig
+        List<GameSession> allGameSessions = gameSessionRepository.findByParticipantAndRound(participant.getId(), round.getId());
+        List<RoundGameConfig> gameConfigs = roundGameConfigRepository.findByCampaignRoundIdOrderByDisplayOrderAsc(round.getId());
+
+        List<GameHistoryGroupResponse> gameHistories = gameConfigs.stream()
+                .filter(config -> config.getSelectedPresets() != null && !config.getSelectedPresets().isEmpty())
+                .map(config -> {
+                    List<StudentGameSessionSummaryResponse> sessions = allGameSessions.stream()
+                            .filter(gs -> gs.getRoundGameConfig().getId().equals(config.getId()))
+                            .map(gs -> StudentGameSessionSummaryResponse.builder()
+                                    .sessionId(gs.getId())
+                                    .presetId(gs.getGameLevelPreset() != null ? gs.getGameLevelPreset().getId() : null)
+                                    .currentLevel(gs.getCurrentLevel())
+                                    .totalItems(gs.getTotalItems())
+                                    .correctItems(gs.getCorrectItems())
+                                    .incorrectItems(gs.getIncorrectItems())
+                                    .accuracyPercentage(gs.getAccuracyPercentage())
+                                    .timeTakenSeconds(gs.getTimeTakenSeconds())
+                                    .isPassed(gs.isPassed())
+                                    .coinAwarded(gs.getCoinAwarded())
+                                    .sessionStart(gs.getSessionStart())
+                                    .sessionEnd(gs.getSessionEnd())
+                                    .build())
+                            .toList();
+
+                    return GameHistoryGroupResponse.builder()
+                            .roundGameConfigId(config.getId())
+                            .gameTypeName(config.getGameType().getName())
+                            .sessions(sessions)
+                            .build();
+                })
+                .toList();
+
+        // Get quiz histories grouped by quiz
+        List<CampaignRoundQuiz> roundQuizzes = campaignRoundQuizRepository.findByCampaignRoundIdOrderByDisplayOrderAsc(round.getId());
+
+        List<QuizHistoryGroupResponse> quizHistories = roundQuizzes.stream()
+                .map(rq -> {
+                    List<QuizAttempt> attempts = quizAttemptRepository
+                            .findByCampaignParticipantIdAndCampaignRoundIdAndQuizId(participant.getId(), round.getId(), rq.getQuiz().getId());
+
+                    List<QuizAttemptSummaryResponse> attemptSummaries = attempts.stream()
+                            .map(a -> QuizAttemptSummaryResponse.builder()
+                                    .attemptId(a.getId())
+                                    .attemptNumber(a.getAttemptNumber())
+                                    .scorePercentage(a.getScorePercentage())
+                                    .timeTakenSeconds(a.getTimeTakenSeconds() != null ? a.getTimeTakenSeconds() : 0)
+                                    .isPassed(a.isPassed())
+                                    .build())
+                            .toList();
+
+                    return QuizHistoryGroupResponse.builder()
+                            .quizId(rq.getQuiz().getId())
+                            .quizTitle(rq.getQuiz().getTitle())
+                            .attempts(attemptSummaries)
+                            .build();
+                })
+                .toList();
+
+        return StudentRoundHistoryResponse.builder()
+                .gameHistories(gameHistories)
+                .quizHistories(quizHistories)
+                .build();
+    }
 }

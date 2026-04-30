@@ -57,5 +57,9 @@ public interface ICampaignService {
     void parentApproveJoin(UUID campaignId, ParentCampaignApprovalRequest request);
     void parentRejectJoin(UUID campaignId, ParentCampaignApprovalRequest request);
     List<CampaignProgressResponse> getParentStudentProgress(UUID studentId);
+
+    List<StudentGameSessionSummaryResponse> getStudentGameSessionHistory(UUID campaignId, UUID roundId, UUID roundGameConfigId, UUID studentId, boolean isPartnership);
+    List<QuizAttemptSummaryResponse> getStudentQuizAttemptHistory(UUID campaignId, UUID roundId, UUID quizId, UUID studentId, boolean isPartnership);
+    StudentRoundHistoryResponse getStudentRoundHistory(UUID campaignId, UUID roundId, UUID studentId, boolean isPartnership);
 }
 
