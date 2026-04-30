@@ -4,12 +4,13 @@ import com.sep490.ecoverse_be.enums.ParticipationStatus;
 import lombok.Builder;
 
 import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.UUID;
 
 @Builder
 public record ParentCampaignInvitationResponse(
         UUID campaignId,
+        List<ParentInvitationRoundResponse> rounds,
         String campaignName,
         UUID studentId,
         String studentName,

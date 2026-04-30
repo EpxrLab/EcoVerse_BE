@@ -50,6 +50,7 @@ public interface ICampaignService {
     List<LeaderboardEntryResponse> getCampaignRoundLeaderboard(UUID roundId);
 
     List<ParentCampaignInvitationResponse> getParentCampaignInvitations(ParticipationStatus status);
+    ParentCampaignInvitationDetailResponse getParentCampaignInvitationDetail(UUID campaignId);
 
     /** Lịch sử lời mời / tham gia campaign đã kết thúc (COMPLETED), dùng để tra cứu leaderboard & kết quả. */
     List<ParentCampaignInvitationHistoryResponse> getParentCampaignInvitationHistory(ParticipationStatus status);
