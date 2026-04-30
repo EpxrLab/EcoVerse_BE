@@ -551,28 +551,91 @@ public class StudentGameServiceImpl implements IStudentGameService {
         coinTransactionRepository.save(tx);
     }
 
+    /**
+     * Kiểm tra student đã hoàn thành TOÀN BỘ nội dung của round chưa:
+     * - Mọi level trong mọi preset của mọi RoundGameConfig phải có ít nhất 1 session isPassed=true
+     * - Mọi quiz trong round phải có ít nhất 1 attempt isPassed=true
+     */
+    private boolean isAllContentCompleted(UUID participantId, CampaignRound round) {
+        // 1. Kiểm tra game levels
+        List<RoundGameConfig> gameConfigs = roundGameConfigRepository
+                .findByCampaignRoundIdOrderByDisplayOrderAsc(round.getId());
+        for (RoundGameConfig config : gameConfigs) {
+            List<GameLevelPreset> presets = config.getSelectedPresets();
+            if (presets == null || presets.isEmpty()) continue;
+            for (GameLevelPreset preset : presets) {
+                if (preset.getItems() == null || preset.getItems().isEmpty()) continue;
+                for (GameLevelPresetItem item : preset.getItems()) {
+                    boolean passed = gameSessionRepository
+                            .existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndIsCompletedTrueAndIsPassedTrue(
+                                    participantId, config.getId(), preset.getId(), item.getLevelNumber());
+                    if (!passed) return false;
+                }
+            }
+        }
+
+        // 2. Kiểm tra quizzes
+        List<CampaignRoundQuiz> roundQuizzes = campaignRoundQuizRepository
+                .findByCampaignRoundIdOrderByDisplayOrderAsc(round.getId());
+        for (CampaignRoundQuiz rq : roundQuizzes) {
+            Optional<QuizAttempt> best = quizAttemptRepository
+                    .findTopByCampaignParticipantIdAndCampaignRoundIdAndQuizIdAndIsCompletedTrueOrderByScorePercentageDesc(
+                            participantId, round.getId(), rq.getQuiz().getId());
+            if (best.isEmpty() || !best.get().isPassed()) return false;
+        }
+        return true;
+    }
+
+    /**
+     * Tính game accuracy và avg time theo BEST attempt per level (không phải avg tất cả sessions).
+     * Trả về [bestGameAccuracy, bestAvgGameTime, gamesCompletedCount, totalGameCoins].
+     */
+    private record GameMetrics(BigDecimal accuracy, BigDecimal avgTime, int levelCount, int totalCoins) {}
+
+    private GameMetrics calcBestPerLevelGameMetrics(UUID participantId, CampaignRound round) {
+        List<RoundGameConfig> gameConfigs = roundGameConfigRepository
+                .findByCampaignRoundIdOrderByDisplayOrderAsc(round.getId());
+
+        List<BigDecimal> bestAccuracies = new ArrayList<>();
+        List<BigDecimal> bestTimes = new ArrayList<>();
+        int totalCoins = 0;
+
+        for (RoundGameConfig config : gameConfigs) {
+            List<GameLevelPreset> presets = config.getSelectedPresets();
+            if (presets == null) continue;
+            for (GameLevelPreset preset : presets) {
+                if (preset.getItems() == null) continue;
+                for (GameLevelPresetItem item : preset.getItems()) {
+                    List<GameSession> sessions = gameSessionRepository
+                            .findBestByParticipantAndConfigAndPresetAndLevel(
+                                    participantId, config.getId(), preset.getId(), item.getLevelNumber());
+                    if (!sessions.isEmpty()) {
+                        GameSession best = sessions.get(0);
+                        if (best.getAccuracyPercentage() != null) bestAccuracies.add(best.getAccuracyPercentage());
+                        if (best.getTimeTakenSeconds() != null) bestTimes.add(BigDecimal.valueOf(best.getTimeTakenSeconds()));
+                    }
+                }
+            }
+        }
+        // Tổng coin từ tất cả completed sessions (không giới hạn best)
+        totalCoins = gameSessionRepository.findCompletedByParticipantAndRound(participantId, round.getId())
+                .stream().map(GameSession::getCoinAwarded).filter(Objects::nonNull).mapToInt(Integer::intValue).sum();
+
+        return new GameMetrics(average(bestAccuracies), average(bestTimes), bestAccuracies.size(), totalCoins);
+    }
+
     private void updateLeaderboardAfterGameSubmit(CampaignParticipant participant, CampaignRound round) {
-        List<GameSession> completedSessions = gameSessionRepository
-                .findCompletedByParticipantAndRound(participant.getId(), round.getId());
+        // Chỉ cập nhật leaderboard khi student đã hoàn thành toàn bộ nội dung
+        if (!isAllContentCompleted(participant.getId(), round)) {
+            log.debug("[Leaderboard] Student {} chưa hoàn thành toàn bộ nội dung round {}, bỏ qua cập nhật leaderboard",
+                    participant.getStudent().getId(), round.getId());
+            return;
+        }
 
-        BigDecimal gameAccuracy = average(completedSessions.stream()
-                .map(GameSession::getAccuracyPercentage)
-                .filter(Objects::nonNull)
-                .toList());
+        // Tính game metrics theo best attempt per level
+        GameMetrics gameMetrics = calcBestPerLevelGameMetrics(participant.getId(), round);
 
-        BigDecimal avgGameTime = average(completedSessions.stream()
-                .map(GameSession::getTimeTakenSeconds)
-                .filter(Objects::nonNull)
-                .map(BigDecimal::valueOf)
-                .toList());
-
-        int gamesCompleted = completedSessions.size();
-        int totalGameCoins = completedSessions.stream()
-                .map(GameSession::getCoinAwarded)
-                .filter(Objects::nonNull)
-                .mapToInt(Integer::intValue)
-                .sum();
-
+        // Tính quiz metrics (best attempt per quiz — đã có sẵn)
         List<CampaignRoundQuiz> roundQuizzes = campaignRoundQuizRepository
                 .findByCampaignRoundIdOrderByDisplayOrderAsc(round.getId());
         List<BigDecimal> bestScores = new ArrayList<>();
@@ -583,23 +646,15 @@ public class StudentGameServiceImpl implements IStudentGameService {
                             participant.getId(), round.getId(), rq.getQuiz().getId())
                     .ifPresent(best -> {
                         bestScores.add(best.getScorePercentage());
-                        if (best.getTimeTakenSeconds() != null) {
-                            bestTimes.add(BigDecimal.valueOf(best.getTimeTakenSeconds()));
-                        }
+                        if (best.getTimeTakenSeconds() != null) bestTimes.add(BigDecimal.valueOf(best.getTimeTakenSeconds()));
                     });
         }
-
         BigDecimal quizAccuracy = average(bestScores);
         BigDecimal avgQuizTime = average(bestTimes);
         int quizzesCompleted = bestScores.size();
-
         int totalQuizCoins = quizAttemptRepository.findByCampaignParticipantIdAndCampaignRoundIdAndIsCompletedTrue(
                 participant.getId(), round.getId())
-                .stream()
-                .map(QuizAttempt::getCoinsEarned)
-                .filter(Objects::nonNull)
-                .mapToInt(Integer::intValue)
-                .sum();
+                .stream().map(QuizAttempt::getCoinsEarned).filter(Objects::nonNull).mapToInt(Integer::intValue).sum();
 
         RoundLeaderboard roundLb = roundLeaderboardRepository
                 .findByCampaignRoundIdAndStudentId(round.getId(), participant.getStudent().getId())
@@ -612,15 +667,15 @@ public class StudentGameServiceImpl implements IStudentGameService {
                     return newEntry;
                 });
 
-        roundLb.setGameAccuracyPercentage(gameAccuracy);
-        roundLb.setGamesCompleted(gamesCompleted);
+        roundLb.setGameAccuracyPercentage(gameMetrics.accuracy());
+        roundLb.setGamesCompleted(gameMetrics.levelCount());
         roundLb.setQuizAccuracyPercentage(quizAccuracy);
         roundLb.setQuizzesCompleted(quizzesCompleted);
-        roundLb.setCombinedAccuracyPercentage(combineMetric(gameAccuracy, quizAccuracy));
-        roundLb.setAvgTimeSeconds(combineMetric(avgGameTime, avgQuizTime));
+        roundLb.setCombinedAccuracyPercentage(combineMetric(gameMetrics.accuracy(), quizAccuracy));
+        roundLb.setAvgTimeSeconds(combineMetric(gameMetrics.avgTime(), avgQuizTime));
 
         if (round.getCampaign().getCampaignType() == CampaignType.SCHOOL_INTERNAL) {
-            roundLb.setTotalCoinsEarned(totalGameCoins + totalQuizCoins);
+            roundLb.setTotalCoinsEarned(gameMetrics.totalCoins() + totalQuizCoins);
         } else {
             roundLb.setTotalCoinsEarned(null);
         }
@@ -634,69 +689,44 @@ public class StudentGameServiceImpl implements IStudentGameService {
     }
 
     private void updateSchoolLeaderboard(CampaignParticipant participant, Campaign campaign) {
-        List<GameSession> completedSessions = gameSessionRepository
-                .findCompletedByParticipantAndCampaign(participant.getId(), campaign.getId());
-        BigDecimal gameAccuracy = average(completedSessions.stream()
-                .map(GameSession::getAccuracyPercentage)
-                .filter(Objects::nonNull)
-                .toList());
+        // School campaign chỉ có 1 round — lấy round đó để check isAllContentCompleted
+        List<CampaignRound> rounds = campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId());
+        if (rounds.isEmpty()) return;
+        CampaignRound round = rounds.get(0);
 
-        BigDecimal avgGameTime = average(completedSessions.stream()
-                .map(GameSession::getTimeTakenSeconds)
-                .filter(Objects::nonNull)
-                .map(BigDecimal::valueOf)
-                .toList());
+        if (!isAllContentCompleted(participant.getId(), round)) {
+            log.debug("[SchoolLeaderboard] Student {} chưa hoàn thành toàn bộ nội dung campaign {}, bỏ qua",
+                    participant.getStudent().getId(), campaign.getId());
+            return;
+        }
 
-        int gamesCompleted = completedSessions.size();
-        int totalGameCoins = completedSessions.stream()
-                .map(GameSession::getCoinAwarded)
-                .filter(Objects::nonNull)
-                .mapToInt(Integer::intValue)
-                .sum();
+        // Game metrics: best per level trên toàn campaign (school = 1 round)
+        GameMetrics gameMetrics = calcBestPerLevelGameMetrics(participant.getId(), round);
+        int totalGameCoins = gameMetrics.totalCoins();
 
+        // Quiz metrics: best per quiz
         List<QuizAttempt> completedAttempts = quizAttemptRepository
                 .findCompletedByParticipantAndCampaign(participant.getId(), campaign.getId());
         Map<UUID, QuizAttempt> bestByQuiz = new HashMap<>();
         for (QuizAttempt attempt : completedAttempts) {
             UUID quizId = attempt.getQuiz().getId();
             QuizAttempt existing = bestByQuiz.get(quizId);
-            if (existing == null) {
-                bestByQuiz.put(quizId, attempt);
-                continue;
-            }
+            if (existing == null) { bestByQuiz.put(quizId, attempt); continue; }
             int scoreCompare = attempt.getScorePercentage().compareTo(existing.getScorePercentage());
-            if (scoreCompare > 0) {
-                bestByQuiz.put(quizId, attempt);
-                continue;
-            }
+            if (scoreCompare > 0) { bestByQuiz.put(quizId, attempt); continue; }
             if (scoreCompare == 0) {
-                int currentTime = attempt.getTimeTakenSeconds() == null ? Integer.MAX_VALUE
-                        : attempt.getTimeTakenSeconds();
-                int existingTime = existing.getTimeTakenSeconds() == null ? Integer.MAX_VALUE
-                        : existing.getTimeTakenSeconds();
-                if (currentTime < existingTime) {
-                    bestByQuiz.put(quizId, attempt);
-                }
+                int cur = attempt.getTimeTakenSeconds() == null ? Integer.MAX_VALUE : attempt.getTimeTakenSeconds();
+                int ex = existing.getTimeTakenSeconds() == null ? Integer.MAX_VALUE : existing.getTimeTakenSeconds();
+                if (cur < ex) bestByQuiz.put(quizId, attempt);
             }
         }
-
         BigDecimal quizAccuracy = average(bestByQuiz.values().stream()
-                .map(QuizAttempt::getScorePercentage)
-                .filter(Objects::nonNull)
-                .toList());
-
+                .map(QuizAttempt::getScorePercentage).filter(Objects::nonNull).toList());
         BigDecimal avgQuizTime = average(bestByQuiz.values().stream()
-                .map(QuizAttempt::getTimeTakenSeconds)
-                .filter(Objects::nonNull)
-                .map(BigDecimal::valueOf)
-                .toList());
-
+                .map(QuizAttempt::getTimeTakenSeconds).filter(Objects::nonNull).map(BigDecimal::valueOf).toList());
         int quizzesCompleted = bestByQuiz.size();
         int totalQuizCoins = completedAttempts.stream()
-                .map(QuizAttempt::getCoinsEarned)
-                .filter(Objects::nonNull)
-                .mapToInt(Integer::intValue)
-                .sum();
+                .map(QuizAttempt::getCoinsEarned).filter(Objects::nonNull).mapToInt(Integer::intValue).sum();
 
         SchoolLeaderboard schoolLb = schoolLeaderboardRepository
                 .findByCampaignIdAndStudentId(campaign.getId(), participant.getStudent().getId())
@@ -708,12 +738,12 @@ public class StudentGameServiceImpl implements IStudentGameService {
                     return newEntry;
                 });
 
-        schoolLb.setGameAccuracyPercentage(gameAccuracy);
-        schoolLb.setGamesCompleted(gamesCompleted);
+        schoolLb.setGameAccuracyPercentage(gameMetrics.accuracy());
+        schoolLb.setGamesCompleted(gameMetrics.levelCount());
         schoolLb.setQuizAccuracyPercentage(quizAccuracy);
         schoolLb.setQuizzesCompleted(quizzesCompleted);
-        schoolLb.setCombinedAccuracyPercentage(combineMetric(gameAccuracy, quizAccuracy));
-        schoolLb.setAvgTimeSeconds(combineMetric(avgGameTime, avgQuizTime));
+        schoolLb.setCombinedAccuracyPercentage(combineMetric(gameMetrics.accuracy(), quizAccuracy));
+        schoolLb.setAvgTimeSeconds(combineMetric(gameMetrics.avgTime(), avgQuizTime));
         schoolLb.setTotalCoinsEarned(totalGameCoins + totalQuizCoins);
 
         schoolLeaderboardRepository.save(schoolLb);

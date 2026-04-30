@@ -186,6 +186,13 @@
             <version>3.0.1</version>
         </dependency>
 
+        <!-- Qdrant vector database client — stores document embeddings for AI Quiz RAG -->
+        <dependency>
+            <groupId>io.qdrant</groupId>
+            <artifactId>client</artifactId>
+            <version>1.17.0</version>
+        </dependency>
+
         <!-- Source: https://mvnrepository.com/artifact/com.sendgrid/sendgrid-java -->
         <dependency>
             <groupId>com.sendgrid</groupId>

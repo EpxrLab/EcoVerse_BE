@@ -7,7 +7,6 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -53,37 +52,37 @@ public interface GameSessionRepository extends JpaRepository<GameSession, UUID> 
     Optional<GameSession> findOpenSessionByParticipantAndConfig(@Param("participantId") UUID participantId,
                                                                 @Param("roundGameConfigId") UUID roundGameConfigId);
 
-        boolean existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndIsCompletedTrueAndIsPassedTrue(
-          UUID participantId,
-          UUID roundGameConfigId,
-          UUID gameLevelPresetId,
-          int currentLevel
-        );
+    boolean existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndIsCompletedTrueAndIsPassedTrue(
+            UUID participantId,
+            UUID roundGameConfigId,
+            UUID gameLevelPresetId,
+            int currentLevel
+    );
 
-        long countByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndSessionStartBetween(
-          UUID participantId,
-          UUID roundGameConfigId,
-          UUID gameLevelPresetId,
-          int currentLevel,
-          OffsetDateTime from,
-          OffsetDateTime to
-        );
+    long countByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndSessionStartBetween(
+            UUID participantId,
+            UUID roundGameConfigId,
+            UUID gameLevelPresetId,
+            int currentLevel,
+            OffsetDateTime from,
+            OffsetDateTime to
+    );
 
-        boolean existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndCoinAwardedIsNotNullAndCoinAwardedGreaterThan(
-          UUID participantId,
-          UUID roundGameConfigId,
-          UUID gameLevelPresetId,
-          int currentLevel,
-          Integer minCoin
-        );
+    boolean existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndCoinAwardedIsNotNullAndCoinAwardedGreaterThan(
+            UUID participantId,
+            UUID roundGameConfigId,
+            UUID gameLevelPresetId,
+            int currentLevel,
+            Integer minCoin
+    );
 
-            boolean existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndCoinAwardedGreaterThan(
-              UUID participantId,
-              UUID roundGameConfigId,
-              UUID gameLevelPresetId,
-              int currentLevel,
-              Integer minCoin
-            );
+    boolean existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndCoinAwardedGreaterThan(
+            UUID participantId,
+            UUID roundGameConfigId,
+            UUID gameLevelPresetId,
+            int currentLevel,
+            Integer minCoin
+    );
 
     @Query("""
             SELECT gs
@@ -93,6 +92,27 @@ public interface GameSessionRepository extends JpaRepository<GameSession, UUID> 
             ORDER BY gs.sessionStart ASC
             """)
     List<GameSession> findAllOpenSessionsByStudentId(@Param("studentId") UUID studentId);
+
+    /**
+     * Lấy danh sách session đã hoàn thành cho một level cụ thể của participant,
+     * sắp xếp theo accuracyPercentage DESC (tốt nhất trước), timeTakenSeconds ASC.
+     * Dùng để tính điểm leaderboard theo best attempt per level.
+     */
+    @Query("""
+            SELECT gs
+            FROM GameSession gs
+            WHERE gs.campaignParticipant.id = :participantId
+              AND gs.roundGameConfig.id = :configId
+              AND gs.gameLevelPreset.id = :presetId
+              AND gs.currentLevel = :level
+              AND gs.isCompleted = true
+            ORDER BY gs.accuracyPercentage DESC, gs.timeTakenSeconds ASC
+            """)
+    List<GameSession> findBestByParticipantAndConfigAndPresetAndLevel(
+            @Param("participantId") UUID participantId,
+            @Param("configId") UUID configId,
+            @Param("presetId") UUID presetId,
+            @Param("level") int level);
 
     // ── Report aggregate queries ───────────────────────────────────────────────
 
