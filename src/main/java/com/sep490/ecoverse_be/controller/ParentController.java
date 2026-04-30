@@ -4,6 +4,7 @@ import com.sep490.ecoverse_be.dto.response.ResponseDto;
 import com.sep490.ecoverse_be.dto.response.StudentAccountInfo;
 import com.sep490.ecoverse_be.dto.request.ParentCampaignApprovalRequest;
 import com.sep490.ecoverse_be.dto.response.CampaignProgressResponse;
+import com.sep490.ecoverse_be.dto.response.ParentCampaignInvitationDetailResponse;
 import com.sep490.ecoverse_be.dto.response.ParentCampaignInvitationHistoryResponse;
 import com.sep490.ecoverse_be.dto.response.ParentCampaignInvitationResponse;
 import com.sep490.ecoverse_be.enums.ParticipationStatus;
@@ -53,6 +54,14 @@ public class ParentController {
         return ResponseEntity.ok(ResponseDto.success(
                 campaignService.getParentCampaignInvitations(status),
                 "Danh sách lời mời campaign (inbox) thành công"));
+    }
+
+    @GetMapping("/campaign-invitations/{campaignId}/detail")
+    public ResponseEntity<ResponseDto<ParentCampaignInvitationDetailResponse>> getCampaignInvitationDetail(
+            @PathVariable UUID campaignId) {
+        return ResponseEntity.ok(ResponseDto.success(
+                campaignService.getParentCampaignInvitationDetail(campaignId),
+                "Lấy chi tiết lời mời campaign thành công"));
     }
 
     @GetMapping("/campaign-invitations/history")

@@ -2018,6 +2018,16 @@ public class CampaignServiceImpl implements ICampaignService {
                 .orElseThrow(() -> new NotFoundException("Hiện tại không có round nào đang diễn ra"));
     }
 
+    private List<ParentInvitationRoundResponse> mapParentInvitationRounds(Campaign campaign) {
+        return campaignRoundRepository.findByCampaignIdOrderByRoundNumberAsc(campaign.getId())
+                .stream()
+                .map(round -> ParentInvitationRoundResponse.builder()
+                        .roundId(round.getId())
+                        .roundName(round.getRoundName())
+                        .build())
+                .toList();
+    }
+
     private void ensurePartnershipRoundAccess(CampaignParticipant participant, CampaignRound requestedRound) {
         Campaign campaign = participant.getCampaign();
         if (campaign.getCampaignType() != CampaignType.PARTNERSHIP_EVENT) {
@@ -2250,6 +2260,7 @@ public class CampaignServiceImpl implements ICampaignService {
         return participants.stream()
                 .map(p -> ParentCampaignInvitationResponse.builder()
                         .campaignId(p.getCampaign().getId())
+                        .rounds(mapParentInvitationRounds(p.getCampaign()))
                         .campaignName(p.getCampaign().getCampaignName())
                         .studentId(p.getStudent().getId())
                         .studentName(p.getStudent().getFullName())
@@ -2258,6 +2269,57 @@ public class CampaignServiceImpl implements ICampaignService {
                         .invitationDeadline(p.getCampaign().getInvitationDeadline())
                         .build())
                 .toList();
+    }
+
+    @Override
+    public ParentCampaignInvitationDetailResponse getParentCampaignInvitationDetail(UUID campaignId) {
+        Parent parent = getCurrentParent();
+        List<UUID> studentIds = studentParentLinkRepository.findByParentId(parent.getId())
+                .stream()
+                .map(link -> link.getStudent().getId())
+                .toList();
+        if (studentIds.isEmpty()) {
+            throw new NotFoundException("Không tìm thấy lời mời tham gia campaign");
+        }
+
+        List<CampaignParticipant> participants = campaignParticipantRepository.findByStudentIdInAndIsActiveTrue(studentIds)
+                .stream()
+                .filter(p -> campaignId.equals(p.getCampaign().getId()))
+                .filter(p -> p.getInvitationSentAt() != null)
+                .toList();
+        if (participants.isEmpty()) {
+            throw new NotFoundException("Không tìm thấy lời mời tham gia campaign");
+        }
+
+        Campaign campaign = participants.get(0).getCampaign();
+        List<CampaignParticipantInfoResponse> invitedChildren = participants.stream()
+                .map(p -> CampaignParticipantInfoResponse.builder()
+                        .studentId(p.getStudent().getId())
+                        .studentCode(p.getStudent().getStudentCode())
+                        .fullName(p.getStudent().getFullName())
+                        .gradeLevel(p.getStudent().getGradeLevel())
+                        .className(p.getStudent().getClassName())
+                        .parentApprovalStatus(p.getParentApprovalStatus())
+                        .invitationSentAt(p.getInvitationSentAt())
+                        .rejectionReason(p.getRejectionReason())
+                        .build())
+                .toList();
+
+        return ParentCampaignInvitationDetailResponse.builder()
+                .campaignId(campaign.getId())
+                .campaignCode(campaign.getCampaignCode())
+                .campaignName(campaign.getCampaignName())
+                .campaignType(campaign.getCampaignType())
+                .status(statusOf(campaign))
+                .description(campaign.getDescription())
+                .startDate(campaign.getStartDate())
+                .endDate(campaign.getEndDate())
+                .invitationDeadline(campaign.getInvitationDeadline())
+                .bannerImageUrl(campaign.getBannerImageUrl())
+                .bannerImagePresignedUrl(s3PresignedUrlService.generatePresignedUrl(campaign.getBannerImageUrl()))
+                .rounds(mapParentInvitationRounds(campaign))
+                .invitedChildren(invitedChildren)
+                .build();
     }
 
     @Override
@@ -2285,6 +2347,7 @@ public class CampaignServiceImpl implements ICampaignService {
                         .reversed())
                 .map(p -> ParentCampaignInvitationHistoryResponse.builder()
                         .campaignId(p.getCampaign().getId())
+                        .rounds(mapParentInvitationRounds(p.getCampaign()))
                         .campaignName(p.getCampaign().getCampaignName())
                         .campaignStatus(statusOf(p.getCampaign()))
                         .studentId(p.getStudent().getId())
