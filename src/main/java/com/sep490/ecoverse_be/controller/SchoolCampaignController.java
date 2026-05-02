@@ -133,5 +133,40 @@ public class SchoolCampaignController {
                                                                                            @PathVariable UUID roundId) {
         return ResponseEntity.ok(ResponseDto.success(campaignService.getCampaignRoundLeaderboard(roundId), "Lấy leaderboard round thành công"));
     }
+
+    @GetMapping("/campaigns/{id}/rounds/{roundId}/configs/{roundGameConfigId}/students/{studentId}/game-history")
+    public ResponseEntity<ResponseDto<List<com.sep490.ecoverse_be.dto.response.StudentGameSessionSummaryResponse>>> getStudentGameHistory(
+            @PathVariable UUID id,
+            @PathVariable UUID roundId,
+            @PathVariable UUID roundGameConfigId,
+            @PathVariable UUID studentId) {
+        return ResponseEntity.ok(ResponseDto.success(
+                campaignService.getStudentGameSessionHistory(id, roundId, roundGameConfigId, studentId, false),
+                "Lấy lịch sử chơi game của học sinh thành công"
+        ));
+    }
+
+    @GetMapping("/campaigns/{id}/rounds/{roundId}/quizzes/{quizId}/students/{studentId}/quiz-history")
+    public ResponseEntity<ResponseDto<List<com.sep490.ecoverse_be.dto.response.QuizAttemptSummaryResponse>>> getStudentQuizHistory(
+            @PathVariable UUID id,
+            @PathVariable UUID roundId,
+            @PathVariable UUID quizId,
+            @PathVariable UUID studentId) {
+        return ResponseEntity.ok(ResponseDto.success(
+                campaignService.getStudentQuizAttemptHistory(id, roundId, quizId, studentId, false),
+                "Lấy lịch sử làm quiz của học sinh thành công"
+        ));
+    }
+
+    @GetMapping("/campaigns/{id}/rounds/{roundId}/students/{studentId}/history")
+    public ResponseEntity<ResponseDto<com.sep490.ecoverse_be.dto.response.StudentRoundHistoryResponse>> getStudentRoundHistory(
+            @PathVariable UUID id,
+            @PathVariable UUID roundId,
+            @PathVariable UUID studentId) {
+        return ResponseEntity.ok(ResponseDto.success(
+                campaignService.getStudentRoundHistory(id, roundId, studentId, false),
+                "Lấy lịch sử round của học sinh thành công"
+        ));
+    }
 }
 

@@ -109,5 +109,43 @@ public class PartnershipCampaignController {
                                                                                            @PathVariable UUID roundId) {
         return ResponseEntity.ok(ResponseDto.success(campaignService.getCampaignRoundLeaderboard(roundId), "Lấy leaderboard round thành công"));
     }
+
+    @GetMapping("/campaigns/{id}/rounds/{roundId}/configs/{roundGameConfigId}/students/{studentId}/game-history")
+    @Operation(summary = "Lấy lịch sử chơi game của một học sinh trong round")
+    public ResponseEntity<ResponseDto<List<com.sep490.ecoverse_be.dto.response.StudentGameSessionSummaryResponse>>> getStudentGameHistory(
+            @PathVariable UUID id,
+            @PathVariable UUID roundId,
+            @PathVariable UUID roundGameConfigId,
+            @PathVariable UUID studentId) {
+        return ResponseEntity.ok(ResponseDto.success(
+                campaignService.getStudentGameSessionHistory(id, roundId, roundGameConfigId, studentId, true),
+                "Lấy lịch sử chơi game của học sinh thành công"
+        ));
+    }
+
+    @GetMapping("/campaigns/{id}/rounds/{roundId}/quizzes/{quizId}/students/{studentId}/quiz-history")
+    @Operation(summary = "Lấy lịch sử làm quiz của một học sinh trong round")
+    public ResponseEntity<ResponseDto<List<com.sep490.ecoverse_be.dto.response.QuizAttemptSummaryResponse>>> getStudentQuizHistory(
+            @PathVariable UUID id,
+            @PathVariable UUID roundId,
+            @PathVariable UUID quizId,
+            @PathVariable UUID studentId) {
+        return ResponseEntity.ok(ResponseDto.success(
+                campaignService.getStudentQuizAttemptHistory(id, roundId, quizId, studentId, true),
+                "Lấy lịch sử làm quiz của học sinh thành công"
+        ));
+    }
+
+    @GetMapping("/campaigns/{id}/rounds/{roundId}/students/{studentId}/history")
+    @Operation(summary = "Lấy toàn bộ lịch sử chơi game và làm quiz của một học sinh trong round")
+    public ResponseEntity<ResponseDto<com.sep490.ecoverse_be.dto.response.StudentRoundHistoryResponse>> getStudentRoundHistory(
+            @PathVariable UUID id,
+            @PathVariable UUID roundId,
+            @PathVariable UUID studentId) {
+        return ResponseEntity.ok(ResponseDto.success(
+                campaignService.getStudentRoundHistory(id, roundId, studentId, true),
+                "Lấy lịch sử round của học sinh thành công"
+        ));
+    }
 }
 
