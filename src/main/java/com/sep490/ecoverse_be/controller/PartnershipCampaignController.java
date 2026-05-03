@@ -41,7 +41,10 @@ public class PartnershipCampaignController {
     }
 
     @PostMapping("/campaigns")
-    @Operation(summary = "Tạo partnership campaign", description = "Tạo campaign và mời trường ngay trong cùng request nếu truyền `schoolIds`.")
+    @Operation(summary = "Tạo partnership campaign",
+            description = "Tạo campaign; danh sách trường + quota max từng trường trong `invitedSchools` "
+                    + "(nếu có `totalStudentQuota` thì tổng `maxStudentsInvited` phải khớp). "
+                    + "Global chỉ có `minStudentsPerSchool`.")
     public ResponseEntity<ResponseDto<CampaignDetailResponse>> createCampaign(@Valid @RequestBody CreatePartnershipCampaignRequest request) {
         return ResponseEntity.status(201).body(ResponseDto.created(campaignService.createPartnershipCampaign(request), "Tạo campaign thành công"));
     }

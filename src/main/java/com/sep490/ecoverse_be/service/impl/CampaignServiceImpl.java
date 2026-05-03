@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class CampaignServiceImpl implements ICampaignService {
@@ -230,17 +231,82 @@ public class CampaignServiceImpl implements ICampaignService {
         }
     }
 
-    private void validateStudentPerSchoolRange(Integer minStudentsPerSchool, Integer maxStudentsPerSchool) {
+    private void validateMinStudentsGlobal(Integer minStudentsPerSchool) {
         if (minStudentsPerSchool != null && minStudentsPerSchool <= 0) {
             throw new BadRequestException("Số học sinh tối thiểu mỗi trường phải lớn hơn 0");
         }
-        if (maxStudentsPerSchool != null && maxStudentsPerSchool <= 0) {
-            throw new BadRequestException("Số học sinh tối đa mỗi trường phải lớn hơn 0");
+    }
+
+    /**
+     * Quota max theo từng trường ({@link CampaignSchoolParticipate#getMaxStudentsInvited()})
+     * fallback sang {@link Campaign#getMaxStudentsPerSchool()} (dữ liệu cũ).
+     */
+    private Integer resolveMaxStudentsQuota(CampaignSchoolParticipate invitation, Campaign campaign) {
+        if (invitation.getMaxStudentsInvited() != null) {
+            return invitation.getMaxStudentsInvited();
         }
-        if (minStudentsPerSchool != null
-                && maxStudentsPerSchool != null
-                && minStudentsPerSchool > maxStudentsPerSchool) {
-            throw new BadRequestException("Số học sinh tối thiểu mỗi trường không được lớn hơn số tối đa");
+        return campaign.getMaxStudentsPerSchool();
+    }
+
+    private void validatePartnershipInvitedSchools(CreatePartnershipCampaignRequest request) {
+        List<PartnershipCampaignSchoolRequest> invited = request.getInvitedSchools();
+        if (invited == null) {
+            return;
+        }
+        Set<UUID> seen = new HashSet<>();
+        int sum = 0;
+        for (PartnershipCampaignSchoolRequest row : invited) {
+            if (!seen.add(row.getSchoolId())) {
+                throw new BadRequestException("Danh sách trường không được trùng schoolId");
+            }
+            sum += row.getMaxStudentsInvited();
+        }
+        Integer total = request.getTotalStudentQuota();
+        if (total != null && sum != total) {
+            throw new BadRequestException(String.format(
+                    "Tổng số học sinh tối đa theo từng trường (%d) phải bằng đúng chỉ tiêu chiến dịch (%d).",
+                    sum, total));
+        }
+    }
+
+    /**
+     * Đồng bộ danh sách trường + quota max từng trường. {@code invitedSchools == null} → không đổi DB.
+     */
+    private void syncPartnershipInvitedSchools(Campaign campaign, CreatePartnershipCampaignRequest request) {
+        List<PartnershipCampaignSchoolRequest> invitedSchools = request.getInvitedSchools();
+        if (invitedSchools == null) {
+            return;
+        }
+        Set<UUID> incomingIds = invitedSchools.stream()
+                .map(PartnershipCampaignSchoolRequest::getSchoolId)
+                .collect(Collectors.toSet());
+        List<CampaignSchoolParticipate> existing = campaignSchoolParticipateRepository.findByCampaignId(campaign.getId());
+        for (CampaignSchoolParticipate row : existing) {
+            if (!incomingIds.contains(row.getSchool().getId())) {
+                campaignSchoolParticipateRepository.delete(row);
+            }
+        }
+        if (invitedSchools.isEmpty()) {
+            return;
+        }
+        List<School> schools = schoolRepository.findAllById(new ArrayList<>(incomingIds));
+        if (schools.size() != incomingIds.size()) {
+            throw new NotFoundException("Danh sách trường chứa id không tồn tại");
+        }
+        validateSchoolManagedStudentsForCampaign(campaign, schools);
+        Map<UUID, School> byId = schools.stream().collect(Collectors.toMap(School::getId, s -> s));
+        for (PartnershipCampaignSchoolRequest row : invitedSchools) {
+            School school = byId.get(row.getSchoolId());
+            CampaignSchoolParticipate invitation = campaignSchoolParticipateRepository
+                    .findByCampaignIdAndSchoolId(campaign.getId(), school.getId())
+                    .orElseGet(CampaignSchoolParticipate::new);
+            invitation.setCampaign(campaign);
+            invitation.setSchool(school);
+            invitation.setMaxStudentsInvited(row.getMaxStudentsInvited());
+            if (invitation.getId() == null) {
+                invitation.setStatus(ParticipationStatus.PREPARED);
+            }
+            campaignSchoolParticipateRepository.save(invitation);
         }
     }
 
@@ -530,6 +596,7 @@ public class CampaignServiceImpl implements ICampaignService {
                             .schoolId(sp.getSchool().getId())
                             .schoolName(sp.getSchool().getSchoolName())
                             .status(sp.getStatus())
+                            .maxStudentsInvited(sp.getMaxStudentsInvited())
                             .studentsEnrolled(sp.getStudentsEnrolled())
                             .invitationSentAt(sp.getInvitationSentAt())
                             .participationConfirmedAt(sp.getParticipationConfirmedAt())
@@ -1096,7 +1163,8 @@ public class CampaignServiceImpl implements ICampaignService {
     public CampaignDetailResponse createPartnershipCampaign(CreatePartnershipCampaignRequest request) {
         Partnership partnership = getCurrentPartnership();
         validateDateRange(request.getStartDate(), request.getEndDate());
-        validateStudentPerSchoolRange(request.getMinStudentsPerSchool(), request.getMaxStudentsPerSchool());
+        validateMinStudentsGlobal(request.getMinStudentsPerSchool());
+        validatePartnershipInvitedSchools(request);
         if (request.getRounds() == null || request.getRounds().isEmpty()) {
             throw new BadRequestException("Partnership campaign phải có ít nhất 1 round");
         }
@@ -1105,13 +1173,16 @@ public class CampaignServiceImpl implements ICampaignService {
         Subscription partnershipSub = getActivePartnershipSubscription(partnership);
         checkMaxRoundsPerCampaign(partnershipSub, request.getRounds().size());
 
-        // Check maxSchoolsPerCampaign quota (at creation time if schoolIds are provided)
-        if (request.getSchoolIds() != null && !request.getSchoolIds().isEmpty()) {
+        List<PartnershipCampaignSchoolRequest> invitedSchools = request.getInvitedSchools() != null
+                ? request.getInvitedSchools()
+                : List.of();
+        // Check maxSchoolsPerCampaign quota (at creation time if invitedSchools are provided)
+        if (!invitedSchools.isEmpty()) {
             Integer maxSchools = partnershipSub.getPlan().getMaxSchoolsPerCampaign();
-            if (maxSchools != null && request.getSchoolIds().size() > maxSchools) {
+            if (maxSchools != null && invitedSchools.size() > maxSchools) {
                 throw new BadRequestException(String.format(
                         "Số trường mời (%d) vượt quá giới hạn của gói subscription (%d trường/campaign).",
-                        request.getSchoolIds().size(), maxSchools));
+                        invitedSchools.size(), maxSchools));
             }
         }
 
@@ -1126,7 +1197,7 @@ public class CampaignServiceImpl implements ICampaignService {
         campaign.setRegistrationDeadline(request.getRegistrationDeadline());
         campaign.setInvitationDate(request.getInvitationDate());
         campaign.setInvitationDeadline(request.getInvitationDeadline());
-        campaign.setMaxStudentsPerSchool(request.getMaxStudentsPerSchool());
+        campaign.setMaxStudentsPerSchool(null);
         campaign.setMinStudentsPerSchool(request.getMinStudentsPerSchool());
         campaign.setTotalStudentQuota(request.getTotalStudentQuota());
         campaign.setTopRankingCount(request.getTopRankingCount() != null ? request.getTopRankingCount() : 10);
@@ -1153,18 +1224,7 @@ public class CampaignServiceImpl implements ICampaignService {
             campaignRoundRepository.save(round);
         }
 
-        if (request.getSchoolIds() != null && !request.getSchoolIds().isEmpty()) {
-            final Campaign savedCampaign = campaign;
-            List<School> schools = schoolRepository.findAllById(request.getSchoolIds());
-            validateSchoolManagedStudentsForCampaign(savedCampaign, schools);
-            for (School school : schools) {
-                CampaignSchoolParticipate invitation = new CampaignSchoolParticipate();
-                invitation.setCampaign(savedCampaign);
-                invitation.setSchool(school);
-                invitation.setStatus(ParticipationStatus.PREPARED);
-                campaignSchoolParticipateRepository.save(invitation);
-            }
-        }
+        syncPartnershipInvitedSchools(campaign, request);
 
         campaignRewardService.saveRewards(campaign, partnership, request.getRewards());
 
@@ -1195,7 +1255,8 @@ public class CampaignServiceImpl implements ICampaignService {
             throw new BadRequestException("Chỉ được sửa campaign ở trạng thái DRAFT");
         }
         validateDateRange(request.getStartDate(), request.getEndDate());
-        validateStudentPerSchoolRange(request.getMinStudentsPerSchool(), request.getMaxStudentsPerSchool());
+        validateMinStudentsGlobal(request.getMinStudentsPerSchool());
+        validatePartnershipInvitedSchools(request);
         campaign.setCampaignName(request.getCampaignName());
         campaign.setDescription(request.getDescription());
         campaign.setStartDate(request.getStartDate());
@@ -1204,7 +1265,7 @@ public class CampaignServiceImpl implements ICampaignService {
         campaign.setRegistrationDeadline(request.getRegistrationDeadline());
         campaign.setInvitationDate(request.getInvitationDate());
         campaign.setInvitationDeadline(request.getInvitationDeadline());
-        campaign.setMaxStudentsPerSchool(request.getMaxStudentsPerSchool());
+        campaign.setMaxStudentsPerSchool(null);
         campaign.setMinStudentsPerSchool(request.getMinStudentsPerSchool());
         campaign.setTotalStudentQuota(request.getTotalStudentQuota());
         campaign.setTopRankingCount(
@@ -1256,6 +1317,17 @@ public class CampaignServiceImpl implements ICampaignService {
 
         if (request.getRewards() != null) {
             campaignRewardService.saveRewards(campaign, campaign.getCreatorPartnership(), request.getRewards());
+        }
+
+        if (request.getInvitedSchools() != null) {
+            Subscription partnershipSub = getActivePartnershipSubscription(getCurrentPartnership());
+            Integer maxSchools = partnershipSub.getPlan().getMaxSchoolsPerCampaign();
+            if (maxSchools != null && request.getInvitedSchools().size() > maxSchools) {
+                throw new BadRequestException(String.format(
+                        "Số trường mời (%d) vượt quá giới hạn của gói subscription (%d trường/campaign).",
+                        request.getInvitedSchools().size(), maxSchools));
+            }
+            syncPartnershipInvitedSchools(campaign, request);
         }
 
         return mapCampaignDetail(campaign);
@@ -1432,7 +1504,7 @@ public class CampaignServiceImpl implements ICampaignService {
                             .startDate(c.getStartDate())
                             .endDate(c.getEndDate())
                             .registrationDeadline(c.getRegistrationDeadline())
-                            .maxStudentsPerSchool(c.getMaxStudentsPerSchool())
+                            .maxStudentsPerSchool(resolveMaxStudentsQuota(i, c))
                             .minStudentsPerSchool(c.getMinStudentsPerSchool())
                             .build();
                 })
@@ -1470,7 +1542,7 @@ public class CampaignServiceImpl implements ICampaignService {
                 .invitationDeadline(c.getInvitationDeadline())
                 .startDate(c.getStartDate())
                 .endDate(c.getEndDate())
-                .maxStudentsPerSchool(c.getMaxStudentsPerSchool())
+                .maxStudentsPerSchool(resolveMaxStudentsQuota(i, c))
                 .minStudentsPerSchool(c.getMinStudentsPerSchool())
                 .totalStudentQuota(c.getTotalStudentQuota())
                 .totalRounds(c.getTotalRounds())
@@ -1554,7 +1626,7 @@ public class CampaignServiceImpl implements ICampaignService {
                         .build())
                 .toList();
 
-        Integer max = campaign.getMaxStudentsPerSchool();
+        Integer max = resolveMaxStudentsQuota(invitation, campaign);
         int selectedCount = selected.size();
         Integer remainingSlots = max == null ? null : Math.max(max - selectedCount, 0);
 
@@ -1577,7 +1649,7 @@ public class CampaignServiceImpl implements ICampaignService {
         Campaign campaign = invitation.getCampaign();
 
         List<UUID> requestedStudentIds = request.getStudentIds().stream().distinct().toList();
-        Integer maxStudentsPerSchool = campaign.getMaxStudentsPerSchool();
+        Integer maxStudentsPerSchool = resolveMaxStudentsQuota(invitation, campaign);
         if (maxStudentsPerSchool != null && requestedStudentIds.size() > maxStudentsPerSchool) {
             throw new BadRequestException(
                     "Số học sinh chọn vượt quá giới hạn mỗi trường: " + maxStudentsPerSchool);
