@@ -9,7 +9,6 @@ import lombok.Setter;
 
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.UUID;
 
 @Getter
 @Setter
@@ -34,8 +33,6 @@ public class CreatePartnershipCampaignRequest {
 
     private OffsetDateTime invitationDeadline;
 
-    private Integer maxStudentsPerSchool;
-
     private Integer minStudentsPerSchool;
 
     private Integer totalStudentQuota;
@@ -44,7 +41,12 @@ public class CreatePartnershipCampaignRequest {
 
     private String bannerImageUrl;
 
-    private List<UUID> schoolIds;
+    /**
+     * Danh sách trường tham gia kèm quota tối đa từng trường.
+     * Nếu có {@link #totalStudentQuota}, tổng {@code maxStudentsInvited} phải bằng đúng giá trị đó.
+     */
+    @Valid
+    private List<PartnershipCampaignSchoolRequest> invitedSchools;
 
     @Valid
     private List<CampaignRewardRequest> rewards;

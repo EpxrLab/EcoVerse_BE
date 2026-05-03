@@ -44,6 +44,9 @@ public class CampaignSchoolParticipate {
     @Column(nullable = false)
     private int studentsEnrolled = 0;
 
+    /** Số học sinh tối đa được mời cho trường này (partnership campaign). */
+    private Integer maxStudentsInvited;
+
     private OffsetDateTime invitationSentAt;
 
     private OffsetDateTime participationConfirmedAt;
