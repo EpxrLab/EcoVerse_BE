@@ -2381,7 +2381,6 @@ public class CampaignServiceImpl implements ICampaignService {
 
         return participants.stream()
                 .filter(p -> p.getInvitationSentAt() != null)
-                .filter(p -> "COMPLETED".equals(statusOf(p.getCampaign())))
                 .sorted(Comparator.comparing(
                                 (CampaignParticipant p) -> p.getCampaign().getEndDate(),
                                 Comparator.nullsLast(Comparator.naturalOrder()))
