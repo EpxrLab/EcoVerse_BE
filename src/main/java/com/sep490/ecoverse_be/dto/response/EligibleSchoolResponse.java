@@ -9,5 +9,6 @@ public record EligibleSchoolResponse(
         UUID schoolId,
         String schoolName,
         String ward,
-        String province
+        String province,
+        long managedStudentCount
 ) {}

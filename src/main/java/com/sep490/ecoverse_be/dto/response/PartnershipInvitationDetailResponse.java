@@ -4,7 +4,6 @@ import com.sep490.ecoverse_be.enums.ParticipationStatus;
 import lombok.Builder;
 
 import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,6 +32,7 @@ public record PartnershipInvitationDetailResponse(
         OffsetDateTime endDate,
 
         Integer maxStudentsPerSchool,
+        Integer minStudentsPerSchool,
         Integer totalStudentQuota,
         Integer totalRounds,
         Integer studentsEnrolled,

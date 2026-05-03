@@ -52,7 +52,7 @@ public interface ICampaignService {
     List<ParentCampaignInvitationResponse> getParentCampaignInvitations(ParticipationStatus status);
     ParentCampaignInvitationDetailResponse getParentCampaignInvitationDetail(UUID campaignId);
 
-    /** Lịch sử lời mời / tham gia campaign đã kết thúc (COMPLETED), dùng để tra cứu leaderboard & kết quả. */
+    /** Lịch sử lời mời / tham gia campaign (mọi trạng thái campaign), có thể lọc theo parentApprovalStatus. */
     List<ParentCampaignInvitationHistoryResponse> getParentCampaignInvitationHistory(ParticipationStatus status);
 
     void parentApproveJoin(UUID campaignId, ParentCampaignApprovalRequest request);

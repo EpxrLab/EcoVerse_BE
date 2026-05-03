@@ -229,7 +229,7 @@ public class ImportFileStudentController {
                     """
     )
     public ResponseEntity<ResponseDto<StudentProfileResponse>> updateStudentProfileBySchool(
-            @RequestParam UUID studentId,
+            @PathVariable UUID studentId,
             @Valid @RequestBody StudentInformationRequest request) {
         StudentProfileResponse response = schoolService.updateStudentInformation(studentId, request);
         return ResponseEntity.ok(ResponseDto.success(response, "Cập nhật hồ sơ học sinh thành công"));

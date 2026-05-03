@@ -66,7 +66,7 @@ public class ParentController {
 
     @GetMapping("/campaign-invitations/history")
     public ResponseEntity<ResponseDto<List<ParentCampaignInvitationHistoryResponse>>> getCampaignInvitationHistory(
-            @Parameter(description = "Lịch sử: chỉ campaign đã COMPLETED. Lọc theo parentApprovalStatus (tùy chọn). "
+            @Parameter(description = "Lịch sử lời mời (mọi trạng thái campaign). Lọc theo parentApprovalStatus (tùy chọn). "
                     + "Giá trị: PREPARED | INVITED | APPROVED | REJECTED | CANCELLED")
             @RequestParam(required = false) ParticipationStatus status) {
         return ResponseEntity.ok(ResponseDto.success(
