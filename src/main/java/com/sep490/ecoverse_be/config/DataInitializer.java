@@ -6,6 +6,7 @@ import com.sep490.ecoverse_be.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -35,6 +36,7 @@ public class DataInitializer implements CommandLineRunner {
     private final GameTypeRepository gameTypeRepository;
     private final WasteSubCategoryRepository wasteSubCategoryRepository;
     private final WasteItemRepository wasteItemRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     private static final String DEFAULT_PASSWORD = "Test@123";
     private static final String SCHOOL_FREE_PLAN_CODE = "SCHOOL_FREE";
@@ -42,6 +44,13 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        try {
+            jdbcTemplate.execute("ALTER TABLE game_types DROP CONSTRAINT IF EXISTS game_types_type_code_check");
+            log.info("Dropped game_types_type_code_check constraint successfully.");
+        } catch (Exception e) {
+            log.warn("Could not drop constraint game_types_type_code_check: {}", e.getMessage());
+        }
+
         initFreeSubscriptionPlans();
         initAdminAccount();
         initSchoolAccount();

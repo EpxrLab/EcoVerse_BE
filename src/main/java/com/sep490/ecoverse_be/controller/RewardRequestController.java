@@ -7,12 +7,17 @@ import com.sep490.ecoverse_be.dto.request.RejectRewardRequestDto;
 import com.sep490.ecoverse_be.dto.response.ResponseDto;
 import com.sep490.ecoverse_be.dto.response.RewardRequestResponse;
 import com.sep490.ecoverse_be.dto.response.RewardRequestTrackingResponse;
+import com.sep490.ecoverse_be.dto.response.RewardStatusLogResponse;
 import com.sep490.ecoverse_be.enums.RewardRequestStatus;
 import com.sep490.ecoverse_be.service.IRewardRequestService;
+import com.sep490.ecoverse_be.service.RewardStatusLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +31,9 @@ public class RewardRequestController {
 
     @Autowired
     private IRewardRequestService rewardRequestService;
+
+    @Autowired
+    private RewardStatusLogService rewardStatusLogService;
 
     @PostMapping("/api/rewards/requests")
     @PreAuthorize("hasAnyAuthority('STUDENT', 'PARENT')")
@@ -179,5 +187,44 @@ public class RewardRequestController {
         String imageUrl = body != null ? body.getImageUrl() : null;
         return ResponseEntity.ok(
                 ResponseDto.success(rewardRequestService.markDelivered(requestId, imageUrl), "Xác nhận giao quà thành công"));
+    }
+
+    // ======================== STATUS LOG endpoints ========================
+
+    @GetMapping("/api/rewards/requests/{requestId}/status-logs")
+    @PreAuthorize("hasAnyAuthority('STUDENT', 'PARENT', 'PARTNERSHIP_SCHOOL')")
+    @Operation(
+            summary = "Xem log chuyển trạng thái của yêu cầu đổi quà",
+            description = """
+                    Trả về danh sách log chuyển trạng thái (từ trạng thái nào → sang trạng thái nào,
+                    ai thực hiện, thời gian, lý do) của một yêu cầu đổi quà cụ thể.
+                    """
+    )
+    public ResponseEntity<ResponseDto<List<RewardStatusLogResponse>>> getRequestStatusLogs(
+            @PathVariable UUID requestId) {
+        return ResponseEntity.ok(
+                ResponseDto.success(rewardStatusLogService.getLogsByReference(requestId),
+                        "Lấy status logs thành công"));
+    }
+
+    @GetMapping("/api/school/rewards/status-logs")
+    @PreAuthorize("hasAuthority('PARTNERSHIP_SCHOOL')")
+    @Operation(
+            summary = "Trường xem tất cả log chuyển trạng thái đổi quà của trường mình",
+            description = """
+                    Trả về tất cả status log thuộc topic SCHOOL_REWARD của trường đang đăng nhập,
+                    bao gồm tất cả các yêu cầu đổi quà của trường. Có phân trang.
+
+                    **Query params:** `page` (default 0), `size` (default 20)
+                    """
+    )
+    public ResponseEntity<ResponseDto<Page<RewardStatusLogResponse>>> getSchoolStatusLogs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(
+                ResponseDto.success(rewardStatusLogService.getAllLogsBySchool(
+                        rewardRequestService.getCurrentSchoolId(), pageable),
+                        "Lấy tất cả status logs của trường thành công"));
     }
 }

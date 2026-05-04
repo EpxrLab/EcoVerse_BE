@@ -8,6 +8,7 @@ import com.sep490.ecoverse_be.dto.response.RewardRequestTrackingItemResponse;
 import com.sep490.ecoverse_be.dto.response.RewardRequestTrackingResponse;
 import com.sep490.ecoverse_be.entity.*;
 import com.sep490.ecoverse_be.enums.NotificationType;
+import com.sep490.ecoverse_be.enums.RewardLogTopic;
 import com.sep490.ecoverse_be.enums.RewardRequestStatus;
 import com.sep490.ecoverse_be.enums.Role;
 import com.sep490.ecoverse_be.enums.TransactionType;
@@ -17,6 +18,7 @@ import com.sep490.ecoverse_be.exception.NotFoundException;
 import com.sep490.ecoverse_be.model.UserPrincipal;
 import com.sep490.ecoverse_be.repository.*;
 import com.sep490.ecoverse_be.service.IRewardRequestService;
+import com.sep490.ecoverse_be.service.RewardStatusLogService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
@@ -61,6 +63,9 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
 
     @Autowired
     private ApplicationEventPublisher eventPublisher;
+
+    @Autowired
+    private RewardStatusLogService rewardStatusLogService;
 
     private User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -333,6 +338,13 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
         saved.setUpdatedAt(OffsetDateTime.now());
         saved = rewardRequestRepository.save(saved);
 
+        // Log trang thai: null -> PENDING
+        rewardStatusLogService.logTransition(
+                RewardLogTopic.SCHOOL_REWARD, saved.getId(),
+                null, RewardRequestStatus.PENDING.name(),
+                currentUser, getDisplayName(currentUser), currentUser.getRole().name(),
+                null, "Tạo yêu cầu đổi quà: " + reward.getRewardName() + " (x" + dto.getQuantity() + ")");
+
         deductCoins(student, totalCost, saved.getId(),
                 "Đổi quà: " + reward.getRewardName() + " (x" + dto.getQuantity() + ") - " + saved.getRequestCode(), currentUser);
 
@@ -419,6 +431,13 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
         request.setUpdatedAt(OffsetDateTime.now());
         rewardRequestRepository.save(request);
 
+        // Log trang thai: PENDING -> CANCELLED
+        rewardStatusLogService.logTransition(
+                RewardLogTopic.SCHOOL_REWARD, request.getId(),
+                RewardRequestStatus.PENDING.name(), RewardRequestStatus.CANCELLED.name(),
+                currentUser, getDisplayName(currentUser), currentUser.getRole().name(),
+                dto.getReason(), null);
+
         refundCoins(request.getStudent(), request.getTotalCoins(), request.getId(),
                 "Hoàn coin hủy đổi quà: " + request.getReward().getRewardName() + " - " + request.getRequestCode(), currentUser);
 
@@ -475,6 +494,14 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
 
         request.setApprovedBy(currentUser);
         rewardRequestRepository.save(request);
+
+        // Log trang thai: PENDING -> APPROVED hoac REJECTED
+        String toStatus = dto.isApproved() ? RewardRequestStatus.APPROVED.name() : RewardRequestStatus.REJECTED.name();
+        rewardStatusLogService.logTransition(
+                RewardLogTopic.SCHOOL_REWARD, request.getId(),
+                RewardRequestStatus.PENDING.name(), toStatus,
+                currentUser, getDisplayName(currentUser), currentUser.getRole().name(),
+                dto.isApproved() ? null : dto.getReason(), null);
 
         User studentUser = request.getStudent().getUser();
         // Lay parent cua hoc sinh (neu co) de gui them thong bao
@@ -559,6 +586,13 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
         request.setUpdatedAt(OffsetDateTime.now());
         rewardRequestRepository.save(request);
 
+        // Log trang thai: APPROVED -> DELIVERED
+        rewardStatusLogService.logTransition(
+                RewardLogTopic.SCHOOL_REWARD, request.getId(),
+                RewardRequestStatus.APPROVED.name(), RewardRequestStatus.DELIVERED.name(),
+                currentUser, getDisplayName(currentUser), currentUser.getRole().name(),
+                null, null);
+
         // Thong bao phu huynh: qua san sang giao, phu huynh can xac nhan
         List<StudentParentLink> parentLinks = studentParentLinkRepository.findByStudentId(request.getStudent().getId());
         for (StudentParentLink link : parentLinks) {
@@ -601,6 +635,21 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
         request.setUpdatedAt(OffsetDateTime.now());
         request.setConfirmedByParent(parent);
         rewardRequestRepository.save(request);
+
+        // Log trang thai: DELIVERED -> CONFIRMED
+        rewardStatusLogService.logTransition(
+                RewardLogTopic.SCHOOL_REWARD, request.getId(),
+                RewardRequestStatus.DELIVERED.name(), RewardRequestStatus.CONFIRMED.name(),
+                currentUser, parent.getFullName(), currentUser.getRole().name(),
+                null, null);
         return mapToResponse(request);
+    }
+
+    @Override
+    public UUID getCurrentSchoolId() {
+        User currentUser = getCurrentUser();
+        School school = schoolRepository.findByUserId(currentUser.getId())
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
+        return school.getId();
     }
 }
