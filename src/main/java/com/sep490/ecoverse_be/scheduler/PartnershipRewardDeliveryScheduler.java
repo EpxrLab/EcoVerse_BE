@@ -4,9 +4,11 @@ import com.sep490.ecoverse_be.entity.CampaignRewardDelivery;
 import com.sep490.ecoverse_be.entity.StudentParentLink;
 import com.sep490.ecoverse_be.enums.NotificationType;
 import com.sep490.ecoverse_be.enums.PartnershipRewardStatus;
+import com.sep490.ecoverse_be.enums.RewardLogTopic;
 import com.sep490.ecoverse_be.event.NotificationEvent;
 import com.sep490.ecoverse_be.repository.CampaignRewardDeliveryRepository;
 import com.sep490.ecoverse_be.repository.StudentParentLinkRepository;
+import com.sep490.ecoverse_be.service.RewardStatusLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -15,7 +17,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Component
@@ -26,6 +27,7 @@ public class PartnershipRewardDeliveryScheduler {
     private final CampaignRewardDeliveryRepository deliveryRepository;
     private final StudentParentLinkRepository studentParentLinkRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final RewardStatusLogService rewardStatusLogService;
 
     // Chay moi ngay luc 2:30 SA (lech 30 phut so voi RewardRequestScheduler)
     // Tu dong confirm cac delivery DELIVERED qua 7 ngay ma phu huynh chua xac nhan
@@ -48,8 +50,15 @@ public class PartnershipRewardDeliveryScheduler {
         for (CampaignRewardDelivery delivery : expiredDeliveries) {
             delivery.setStatus(PartnershipRewardStatus.CONFIRMED);
             delivery.setConfirmedAt(OffsetDateTime.now());
-            // confirmedBy = null: hệ thống tự động confirm
+            // confirmedBy = null: hệ thống tự động confirm
             deliveryRepository.save(delivery);
+
+            // Log trang thai: DELIVERED -> CONFIRMED (SYSTEM auto-confirm)
+            rewardStatusLogService.logTransition(
+                    RewardLogTopic.PARTNERSHIP_REWARD, delivery.getId(),
+                    PartnershipRewardStatus.DELIVERED.name(), PartnershipRewardStatus.CONFIRMED.name(),
+                    null, "SYSTEM", "SYSTEM",
+                    "Tự động xác nhận do phụ huynh không xác nhận trong 7 ngày", null);
 
             String studentName = delivery.getStudent().getFullName();
             String rewardName = delivery.getCampaignReward().getRewardName();
@@ -63,10 +72,10 @@ public class PartnershipRewardDeliveryScheduler {
                     .source(this)
                     .recipientUserId(delivery.getStudent().getUser().getId())
                     .type(NotificationType.PARTNERSHIP_REWARD_CONFIRMED)
-                    .title("Quà đã được tự động xác nhận")
-                    .message("Do không xác nhận trong 7 ngày, phần thưởng \""
-                            + rewardName + "\" từ chiến dịch \"" + campaignName
-                            + "\" đã được hệ thống tự động xác nhận.")
+                    .title("Quà đã được tự động xác nhận")
+                    .message("Do không xác nhận trong 7 ngày, phần thưởng \""
+                            + rewardName + "\" từ chiến dịch \"" + campaignName
+                            + "\" đã được hệ thống tự động xác nhận.")
                     .referenceType("campaign_reward_delivery")
                     .referenceId(delivery.getId())
                     .sendEmail(false)
@@ -80,11 +89,11 @@ public class PartnershipRewardDeliveryScheduler {
                         .source(this)
                         .recipientUserId(link.getParent().getUser().getId())
                         .type(NotificationType.PARTNERSHIP_REWARD_CONFIRMED)
-                        .title("Quà của con bạn hệ thống đã tự động xác nhận")
-                        .message("Do không xác nhận trong 7 ngày, phần thưởng \""
-                                + rewardName + "\" của " + studentName
-                                + " từ chiến dịch \"" + campaignName
-                                + "\" đã được hệ thống tự động xác nhận.")
+                        .title("Quà của con bạn hệ thống đã tự động xác nhận")
+                        .message("Do không xác nhận trong 7 ngày, phần thưởng \""
+                                + rewardName + "\" của " + studentName
+                                + " từ chiến dịch \"" + campaignName
+                                + "\" đã được hệ thống tự động xác nhận.")
                         .referenceType("campaign_reward_delivery")
                         .referenceId(delivery.getId())
                         .sendEmail(false)
@@ -96,11 +105,11 @@ public class PartnershipRewardDeliveryScheduler {
                     .source(this)
                     .recipientUserId(delivery.getSchool().getUser().getId())
                     .type(NotificationType.PARTNERSHIP_REWARD_CONFIRMED)
-                    .title("Quà đã được tự động xác nhận")
-                    .message("Do phụ huynh không xác nhận trong 7 ngày, phần thưởng \""
-                            + rewardName + "\" của học sinh " + studentName
-                            + " từ chiến dịch \"" + campaignName
-                            + "\" đã được hệ thống tự động xác nhận.")
+                    .title("Quà đã được tự động xác nhận")
+                    .message("Do phụ huynh không xác nhận trong 7 ngày, phần thưởng \""
+                            + rewardName + "\" của học sinh " + studentName
+                            + " từ chiến dịch \"" + campaignName
+                            + "\" đã được hệ thống tự động xác nhận.")
                     .referenceType("campaign_reward_delivery")
                     .referenceId(delivery.getId())
                     .sendEmail(false)
@@ -112,11 +121,11 @@ public class PartnershipRewardDeliveryScheduler {
                         .source(this)
                         .recipientUserId(delivery.getCampaign().getCreatorPartnership().getUser().getId())
                         .type(NotificationType.PARTNERSHIP_REWARD_CONFIRMED)
-                        .title("Quà đã được tự động xác nhận")
-                        .message("Do phụ huynh không xác nhận trong 7 ngày, phần thưởng \""
-                                + rewardName + "\" của học sinh " + studentName
-                                + " từ chiến dịch \"" + campaignName
-                                + "\" đã được hệ thống tự động xác nhận.")
+                        .title("Quà đã được tự động xác nhận")
+                        .message("Do phụ huynh không xác nhận trong 7 ngày, phần thưởng \""
+                                + rewardName + "\" của học sinh " + studentName
+                                + " từ chiến dịch \"" + campaignName
+                                + "\" đã được hệ thống tự động xác nhận.")
                         .referenceType("campaign_reward_delivery")
                         .referenceId(delivery.getId())
                         .sendEmail(false)

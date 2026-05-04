@@ -6,6 +6,7 @@ import com.sep490.ecoverse_be.dto.response.CampaignRewardDeliveryResponse;
 import com.sep490.ecoverse_be.entity.*;
 import com.sep490.ecoverse_be.enums.NotificationType;
 import com.sep490.ecoverse_be.enums.PartnershipRewardStatus;
+import com.sep490.ecoverse_be.enums.RewardLogTopic;
 import com.sep490.ecoverse_be.enums.Role;
 import com.sep490.ecoverse_be.event.NotificationEvent;
 import com.sep490.ecoverse_be.exception.BadRequestException;
@@ -13,6 +14,7 @@ import com.sep490.ecoverse_be.exception.NotFoundException;
 import com.sep490.ecoverse_be.model.UserPrincipal;
 import com.sep490.ecoverse_be.repository.*;
 import com.sep490.ecoverse_be.service.ICampaignRewardDeliveryService;
+import com.sep490.ecoverse_be.service.RewardStatusLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
@@ -21,7 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -38,6 +39,7 @@ public class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliver
     private final StudentParentLinkRepository studentParentLinkRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final S3PresignedUrlService s3PresignedUrlService;
+    private final RewardStatusLogService rewardStatusLogService;
 
     private User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -102,7 +104,7 @@ public class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliver
     public List<CampaignRewardDeliveryResponse> getDeliveriesByCampaign(UUID campaignId, PartnershipRewardStatus status) {
         User currentUser = getCurrentUser();
         Partnership partnership = partnershipRepository.findByUserId(currentUser.getId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin partnership"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin partnership"));
 
         List<CampaignRewardDelivery> deliveries = status != null
                 ? deliveryRepository.findByCampaignIdAndStatusOrderByLeaderboardRankAsc(campaignId, status)
@@ -122,7 +124,7 @@ public class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliver
     public List<CampaignRewardDeliveryResponse> getDeliveriesBySchool(UUID campaignId, PartnershipRewardStatus status) {
         User currentUser = getCurrentUser();
         School school = schoolRepository.findByUserId(currentUser.getId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin trường"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin trường"));
 
         List<CampaignRewardDelivery> deliveries = status != null
                 ? deliveryRepository.findBySchoolIdAndCampaignIdAndStatusOrderByLeaderboardRankAsc(school.getId(), campaignId, status)
@@ -140,11 +142,11 @@ public class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliver
         List<CampaignRewardDelivery> deliveries;
         if (currentUser.getRole() == Role.STUDENT) {
             Student student = studentRepository.findByUserId(currentUser.getId())
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy học sinh"));
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy học sinh"));
             deliveries = deliveryRepository.findByStudentIdOrderByCreatedAtDesc(student.getId());
         } else {
             Parent parent = parentRepository.findByUserId(currentUser.getId())
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy phụ huynh"));
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy phụ huynh"));
             deliveries = studentParentLinkRepository.findByParentId(parent.getId()).stream()
                     .flatMap(link -> deliveryRepository
                             .findByStudentIdOrderByCreatedAtDesc(link.getStudent().getId()).stream())
@@ -161,20 +163,20 @@ public class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliver
     public CampaignRewardDeliveryResponse shipReward(UUID deliveryId, ShipRewardDeliveryRequest request) {
         User currentUser = getCurrentUser();
         Partnership partnership = partnershipRepository.findByUserId(currentUser.getId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin partnership"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin partnership"));
 
         CampaignRewardDelivery delivery = deliveryRepository.findById(deliveryId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy delivery record"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy delivery record"));
 
         // Kiem tra delivery thuoc ve campaign cua partnership nay
         Partnership campaignPartnership = delivery.getCampaign().getCreatorPartnership();
         if (campaignPartnership == null || !campaignPartnership.getId().equals(partnership.getId())) {
-            throw new BadRequestException("Bạn không có quyền thao tác trên delivery này");
+            throw new BadRequestException("Bạn không có quyền thao tác trên delivery này");
         }
 
         if (delivery.getStatus() != PartnershipRewardStatus.PREPARING) {
             throw new BadRequestException(
-                    "Chỉ có thể ship khi status là PREPARING. Status hiện tại: " + delivery.getStatus());
+                    "Chỉ có thể ship khi status là PREPARING. Status hiện tại: " + delivery.getStatus());
         }
 
         delivery.setStatus(PartnershipRewardStatus.SHIPPING);
@@ -187,11 +189,18 @@ public class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliver
         }
         deliveryRepository.save(delivery);
 
+        // Log trang thai: PREPARING -> SHIPPING
+        rewardStatusLogService.logTransition(
+                RewardLogTopic.PARTNERSHIP_REWARD, delivery.getId(),
+                PartnershipRewardStatus.PREPARING.name(), PartnershipRewardStatus.SHIPPING.name(),
+                currentUser, partnership.getOrganizationName(), currentUser.getRole().name(),
+                null, request.getTrackingCode());
+
         String studentName = delivery.getStudent().getFullName();
         String rewardName = delivery.getCampaignReward().getRewardName();
         String campaignName = delivery.getCampaign().getCampaignName();
         String trackingInfo = request.getTrackingCode() != null && !request.getTrackingCode().isBlank()
-                ? " Mã vận đơn: " + request.getTrackingCode() : "";
+                ? " Mã vận đơn: " + request.getTrackingCode() : "";
 
         // Thong bao hoc sinh
         publishEvent(
@@ -231,24 +240,31 @@ public class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliver
     public CampaignRewardDeliveryResponse confirmArrived(UUID deliveryId) {
         User currentUser = getCurrentUser();
         School school = schoolRepository.findByUserId(currentUser.getId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin trường"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin trường"));
 
         CampaignRewardDelivery delivery = deliveryRepository.findById(deliveryId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy delivery record"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy delivery record"));
 
         if (!delivery.getSchool().getId().equals(school.getId())) {
-            throw new BadRequestException("Bạn không có quyền thao tác trên delivery này");
+            throw new BadRequestException("Bạn không có quyền thao tác trên delivery này");
         }
 
         if (delivery.getStatus() != PartnershipRewardStatus.SHIPPING) {
             throw new BadRequestException(
-                    "Chỉ có thể xác nhận khi status là SHIPPING. Status hiện tại: " + delivery.getStatus());
+                    "Chỉ có thể xác nhận khi status là SHIPPING. Status hiện tại: " + delivery.getStatus());
         }
 
         delivery.setStatus(PartnershipRewardStatus.ARRIVED);
         delivery.setArrivedAt(OffsetDateTime.now());
         delivery.setArrivedConfirmedBy(currentUser);
         deliveryRepository.save(delivery);
+
+        // Log trang thai: SHIPPING -> ARRIVED
+        rewardStatusLogService.logTransition(
+                RewardLogTopic.PARTNERSHIP_REWARD, delivery.getId(),
+                PartnershipRewardStatus.SHIPPING.name(), PartnershipRewardStatus.ARRIVED.name(),
+                currentUser, school.getSchoolName(), currentUser.getRole().name(),
+                null, null);
 
         String studentName = delivery.getStudent().getFullName();
         String rewardName = delivery.getCampaignReward().getRewardName();
@@ -293,18 +309,18 @@ public class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliver
     public CampaignRewardDeliveryResponse markDelivered(UUID deliveryId, DeliverRewardDeliveryRequest request) {
         User currentUser = getCurrentUser();
         School school = schoolRepository.findByUserId(currentUser.getId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin school"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin school"));
 
         CampaignRewardDelivery delivery = deliveryRepository.findById(deliveryId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy delivery record"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy delivery record"));
 
         if (!delivery.getSchool().getId().equals(school.getId())) {
-            throw new BadRequestException("Bạn không có quyền thao tác trên delivery này");
+            throw new BadRequestException("Bạn không có quyền thao tác trên delivery này");
         }
 
         if (delivery.getStatus() != PartnershipRewardStatus.ARRIVED) {
             throw new BadRequestException(
-                    "Chỉ có thể giao quà khi status là ARRIVED. Status hiện tại: " + delivery.getStatus());
+                    "Chỉ có thể giao quà khi status là ARRIVED. Status hiện tại: " + delivery.getStatus());
         }
 
         delivery.setStatus(PartnershipRewardStatus.DELIVERED);
@@ -315,6 +331,13 @@ public class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliver
             delivery.setNotes(request.getNotes());
         }
         deliveryRepository.save(delivery);
+
+        // Log trang thai: ARRIVED -> DELIVERED
+        rewardStatusLogService.logTransition(
+                RewardLogTopic.PARTNERSHIP_REWARD, delivery.getId(),
+                PartnershipRewardStatus.ARRIVED.name(), PartnershipRewardStatus.DELIVERED.name(),
+                currentUser, school.getSchoolName(), currentUser.getRole().name(),
+                null, request.getNotes());
 
         String studentName = delivery.getStudent().getFullName();
         String rewardName = delivery.getCampaignReward().getRewardName();
@@ -358,27 +381,34 @@ public class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliver
     public CampaignRewardDeliveryResponse confirmReceived(UUID deliveryId) {
         User currentUser = getCurrentUser();
         Parent parent = parentRepository.findByUserId(currentUser.getId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin phụ huynh"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin phụ huynh"));
 
         CampaignRewardDelivery delivery = deliveryRepository.findById(deliveryId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy delivery record"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy delivery record"));
 
         // Kiem tra phu huynh co lien ket voi hoc sinh trong delivery
         boolean isLinked = studentParentLinkRepository
                 .existsByStudentIdAndParentId(delivery.getStudent().getId(), parent.getId());
         if (!isLinked) {
-            throw new BadRequestException("Bạn không có quyền xác nhận học sinh này");
+            throw new BadRequestException("Bạn không có quyền xác nhận học sinh này");
         }
 
         if (delivery.getStatus() != PartnershipRewardStatus.DELIVERED) {
             throw new BadRequestException(
-                    "Chỉ có thể xác nhận khi status là DELIVERED. Status hiện tại: " + delivery.getStatus());
+                    "Chỉ có thể xác nhận khi status là DELIVERED. Status hiện tại: " + delivery.getStatus());
         }
 
         delivery.setStatus(PartnershipRewardStatus.CONFIRMED);
         delivery.setConfirmedAt(OffsetDateTime.now());
         delivery.setConfirmedBy(parent);
         deliveryRepository.save(delivery);
+
+        // Log trang thai: DELIVERED -> CONFIRMED
+        rewardStatusLogService.logTransition(
+                RewardLogTopic.PARTNERSHIP_REWARD, delivery.getId(),
+                PartnershipRewardStatus.DELIVERED.name(), PartnershipRewardStatus.CONFIRMED.name(),
+                currentUser, parent.getUser().getEmail(), currentUser.getRole().name(),
+                null, null);
 
         String studentName = delivery.getStudent().getFullName();
         String rewardName = delivery.getCampaignReward().getRewardName();
@@ -449,5 +479,13 @@ public class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliver
         if (partnership != null) {
             publishEvent(partnership.getUser().getId(), type, title, message, deliveryId);
         }
+    }
+
+    @Override
+    public UUID getCurrentPartnershipId() {
+        User currentUser = getCurrentUser();
+        Partnership partnership = partnershipRepository.findByUserId(currentUser.getId())
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy thông tin partnership"));
+        return partnership.getId();
     }
 }

@@ -3,10 +3,12 @@ package com.sep490.ecoverse_be.scheduler;
 import com.sep490.ecoverse_be.entity.RewardRequest;
 import com.sep490.ecoverse_be.entity.StudentParentLink;
 import com.sep490.ecoverse_be.enums.NotificationType;
+import com.sep490.ecoverse_be.enums.RewardLogTopic;
 import com.sep490.ecoverse_be.enums.RewardRequestStatus;
 import com.sep490.ecoverse_be.event.NotificationEvent;
 import com.sep490.ecoverse_be.repository.RewardRequestRepository;
 import com.sep490.ecoverse_be.repository.StudentParentLinkRepository;
+import com.sep490.ecoverse_be.service.RewardStatusLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -26,6 +28,7 @@ public class RewardRequestScheduler {
     private final RewardRequestRepository rewardRequestRepository;
     private final StudentParentLinkRepository studentParentLinkRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final RewardStatusLogService rewardStatusLogService;
 
     // Chay moi ngay luc 2:00 SA
     // Tu dong confirm cac yeu cau DELIVERED qua 7 ngay ma phu huynh chua xac nhan
@@ -48,6 +51,13 @@ public class RewardRequestScheduler {
             request.setConfirmedAt(OffsetDateTime.now());
             // confirmedByParent = null → he thong tu dong confirm
             rewardRequestRepository.save(request);
+
+            // Log trang thai: DELIVERED -> CONFIRMED (SYSTEM auto-confirm)
+            rewardStatusLogService.logTransition(
+                    RewardLogTopic.SCHOOL_REWARD, request.getId(),
+                    RewardRequestStatus.DELIVERED.name(), RewardRequestStatus.CONFIRMED.name(),
+                    null, "SYSTEM", "SYSTEM",
+                    "Tự động xác nhận do phụ huynh không xác nhận trong 7 ngày", null);
 
             log.info("[RewardRequestScheduler] Auto-confirmed: requestCode={}, student={}, reward={}",
                     request.getRequestCode(),

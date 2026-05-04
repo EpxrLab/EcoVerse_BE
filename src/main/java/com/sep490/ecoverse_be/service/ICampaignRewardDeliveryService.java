@@ -30,4 +30,6 @@ public interface ICampaignRewardDeliveryService {
 
     // Parent: chuyen DELIVERED -> CONFIRMED
     CampaignRewardDeliveryResponse confirmReceived(UUID deliveryId);
+
+    UUID getCurrentPartnershipId();
 }

@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -40,4 +39,8 @@ public interface CampaignRewardDeliveryRepository extends JpaRepository<Campaign
     List<CampaignRewardDelivery> findByCampaignIdAndPartnershipId(
             @Param("campaignId") UUID campaignId,
             @Param("partnershipId") UUID partnershipId);
+
+    // Lay tat ca deliveries thuoc campaigns cua 1 partnership (cho status log)
+    @Query("SELECT d FROM CampaignRewardDelivery d WHERE d.campaign.creatorPartnership.id = :partnershipId")
+    List<CampaignRewardDelivery> findByPartnershipId(@Param("partnershipId") UUID partnershipId);
 }

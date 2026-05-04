@@ -27,4 +27,6 @@ public interface IRewardRequestService {
     RewardRequestResponse confirmReceived(UUID requestId);
 
     RewardRequestTrackingResponse getRequestTracking(UUID requestId);
+
+    UUID getCurrentSchoolId();
 }
