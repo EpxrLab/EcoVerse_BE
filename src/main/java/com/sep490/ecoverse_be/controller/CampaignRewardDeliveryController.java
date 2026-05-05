@@ -4,12 +4,18 @@ import com.sep490.ecoverse_be.dto.request.DeliverRewardDeliveryRequest;
 import com.sep490.ecoverse_be.dto.request.ShipRewardDeliveryRequest;
 import com.sep490.ecoverse_be.dto.response.CampaignRewardDeliveryResponse;
 import com.sep490.ecoverse_be.dto.response.ResponseDto;
+import com.sep490.ecoverse_be.dto.response.RewardStatusLogResponse;
 import com.sep490.ecoverse_be.enums.PartnershipRewardStatus;
 import com.sep490.ecoverse_be.service.ICampaignRewardDeliveryService;
+import com.sep490.ecoverse_be.service.RewardStatusLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +29,9 @@ import java.util.UUID;
 public class CampaignRewardDeliveryController {
 
     private final ICampaignRewardDeliveryService deliveryService;
+
+    @Autowired
+    private RewardStatusLogService rewardStatusLogService;
 
     // ======================== PARTNERSHIP endpoints ========================
 
@@ -166,5 +175,44 @@ public class CampaignRewardDeliveryController {
         return ResponseEntity.ok(ResponseDto.success(
                 deliveryService.confirmReceived(id),
                 "Xac nhan nhan qua thanh cong"));
+    }
+
+    // ======================== STATUS LOG endpoints ========================
+
+    @GetMapping("/api/rewards/deliveries/{deliveryId}/status-logs")
+    @PreAuthorize("hasAnyAuthority('STUDENT', 'PARENT', 'PARTNERSHIP_SCHOOL', 'THIRD_PARTY_PARTNERSHIP')")
+    @Operation(
+            summary = "Xem log chuyen trang thai cua mot delivery cu the",
+            description = """
+                    Tra ve danh sach log chuyen trang thai (tu trang thai nao -> sang trang thai nao,
+                    ai thuc hien, thoi gian, ly do) cua mot campaign reward delivery cu the.
+                    """
+    )
+    public ResponseEntity<ResponseDto<List<RewardStatusLogResponse>>> getDeliveryStatusLogs(
+            @PathVariable UUID deliveryId) {
+        return ResponseEntity.ok(
+                ResponseDto.success(rewardStatusLogService.getLogsByReference(deliveryId),
+                        "Lay status logs thanh cong"));
+    }
+
+    @GetMapping("/api/partnership/rewards/status-logs")
+    @PreAuthorize("hasAuthority('THIRD_PARTY_PARTNERSHIP')")
+    @Operation(
+            summary = "Partnership xem tat ca log chuyen trang thai giao qua cua minh",
+            description = """
+                    Tra ve tat ca status log thuoc topic PARTNERSHIP_REWARD cua partnership dang dang nhap,
+                    bao gom tat ca cac delivery thuoc campaigns cua partnership. Co phan trang.
+
+                    **Query params:** `page` (default 0), `size` (default 20)
+                    """
+    )
+    public ResponseEntity<ResponseDto<Page<RewardStatusLogResponse>>> getPartnershipStatusLogs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(
+                ResponseDto.success(rewardStatusLogService.getAllLogsByPartnership(
+                        deliveryService.getCurrentPartnershipId(), pageable),
+                        "Lay tat ca status logs cua partnership thanh cong"));
     }
 }
