@@ -21,7 +21,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -77,6 +76,9 @@ public class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliver
                 .studentCode(student.getStudentCode())
                 .schoolId(school.getId())
                 .schoolName(school.getSchoolName())
+                .schoolAddress(school.getAddress())
+                .schoolWard(school.getWard())
+                .schoolProvince(school.getProvince())
                 .leaderboardRank(d.getLeaderboardRank())
                 .totalScore(d.getRoundLeaderboard() != null
                         ? d.getRoundLeaderboard().getCombinedAccuracyPercentage() : null)
