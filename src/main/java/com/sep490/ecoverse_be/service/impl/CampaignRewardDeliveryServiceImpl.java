@@ -79,6 +79,9 @@ public class CampaignRewardDeliveryServiceImpl implements ICampaignRewardDeliver
                 .studentCode(student.getStudentCode())
                 .schoolId(school.getId())
                 .schoolName(school.getSchoolName())
+                .schoolAddress(school.getAddress())
+                .schoolWard(school.getWard())
+                .schoolProvince(school.getProvince())
                 .leaderboardRank(d.getLeaderboardRank())
                 .totalScore(d.getRoundLeaderboard() != null
                         ? d.getRoundLeaderboard().getCombinedAccuracyPercentage() : null)
