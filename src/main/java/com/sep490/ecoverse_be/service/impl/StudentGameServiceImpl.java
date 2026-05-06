@@ -204,8 +204,13 @@ public class StudentGameServiceImpl implements IStudentGameService {
     public List<StudentGameSessionSummaryResponse> getGameSessionHistory(UUID campaignId, UUID roundId,
             UUID roundGameConfigId) {
         Student student = getCurrentStudent();
-        CampaignParticipant participant = getValidatedParticipant(campaignId, student.getId());
-        getValidatedRound(campaignId, roundId);
+        CampaignParticipant participant = campaignParticipantRepository
+                .findByCampaignIdAndStudentIdAndIsActiveTrue(campaignId, student.getId())
+                .orElseThrow(() -> new BadRequestException("Bạn không tham gia campaign này"));
+
+        campaignRoundRepository.findByIdAndCampaignId(roundId, campaignId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy round trong campaign"));
+
         roundGameConfigRepository.findByIdAndCampaignRoundId(roundGameConfigId, roundId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy cấu hình game trong round"));
 
