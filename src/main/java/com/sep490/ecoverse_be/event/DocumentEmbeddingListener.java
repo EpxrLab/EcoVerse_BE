@@ -8,10 +8,11 @@ import com.sep490.ecoverse_be.service.impl.GeminiService;
 import com.sep490.ecoverse_be.service.impl.QdrantVectorStoreService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.List;
 import java.util.UUID;
@@ -39,7 +40,7 @@ public class DocumentEmbeddingListener {
     private final QdrantVectorStoreService qdrantVectorStoreService;
 
     @Async
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional
     public void onDocumentUploaded(DocumentUploadedEvent event) {
         UUID fileId = event.getFileId();
