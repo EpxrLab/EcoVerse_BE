@@ -508,16 +508,17 @@ public class StudentGameServiceImpl implements IStudentGameService {
             return null;
         }
 
-        // boolean alreadyRewarded = gameSessionRepository
-        // .existsByCampaignParticipantIdAndRoundGameConfigIdAndCurrentLevelAndCoinAwardedIsNotNullAndCoinAwardedGreaterThan(
-        // session.getCampaignParticipant().getId(),
-        // session.getRoundGameConfig().getId(),
-        // session.getCurrentLevel(),
-        // 0
-        // );
-        // if (alreadyRewarded) {
-        // return null;
-        // }
+        boolean alreadyRewarded = gameSessionRepository
+                .existsByCampaignParticipantIdAndRoundGameConfigIdAndGameLevelPresetIdAndCurrentLevelAndCoinAwardedGreaterThan(
+                        session.getCampaignParticipant().getId(),
+                        session.getRoundGameConfig().getId(),
+                        session.getGameLevelPreset() != null ? session.getGameLevelPreset().getId() : null,
+                        session.getCurrentLevel(),
+                        0
+                );
+        if (alreadyRewarded) {
+            return null;
+        }
 
         RoundGameConfig config = session.getRoundGameConfig();
         if (config.getCoinPerSession() != null) {
