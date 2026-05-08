@@ -4,7 +4,6 @@ import com.sep490.ecoverse_be.enums.CampaignType;
 import lombok.Builder;
 
 import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,6 +22,7 @@ public record CampaignDetailResponse(
         OffsetDateTime invitationDate,
         OffsetDateTime invitationDeadline,
         Integer maxStudentsPerSchool,
+        Integer minStudentsPerSchool,
         Integer totalStudentQuota,
         Integer topRankingCount,
         Integer totalRounds,

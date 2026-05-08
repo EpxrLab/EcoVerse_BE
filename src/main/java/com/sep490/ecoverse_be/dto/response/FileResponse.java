@@ -1,5 +1,6 @@
 package com.sep490.ecoverse_be.dto.response;
 
+import com.sep490.ecoverse_be.enums.EmbeddingStatus;
 import com.sep490.ecoverse_be.enums.FileCategory;
 
 import java.time.OffsetDateTime;
@@ -15,6 +16,7 @@ public record FileResponse(
         Long fileSize,
         String uploadedByEmail,
         FileCategory category,
+        EmbeddingStatus embeddingStatus,
         OffsetDateTime createdAt
 ) {
 }

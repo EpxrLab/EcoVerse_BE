@@ -4,8 +4,11 @@ import com.sep490.ecoverse_be.dto.request.CancelRewardRequestDto;
 import com.sep490.ecoverse_be.dto.request.CreateRewardRequestDto;
 import com.sep490.ecoverse_be.dto.request.RejectRewardRequestDto;
 import com.sep490.ecoverse_be.dto.response.RewardRequestResponse;
+import com.sep490.ecoverse_be.dto.response.RewardRequestTrackingItemResponse;
+import com.sep490.ecoverse_be.dto.response.RewardRequestTrackingResponse;
 import com.sep490.ecoverse_be.entity.*;
 import com.sep490.ecoverse_be.enums.NotificationType;
+import com.sep490.ecoverse_be.enums.RewardLogTopic;
 import com.sep490.ecoverse_be.enums.RewardRequestStatus;
 import com.sep490.ecoverse_be.enums.Role;
 import com.sep490.ecoverse_be.enums.TransactionType;
@@ -15,6 +18,7 @@ import com.sep490.ecoverse_be.exception.NotFoundException;
 import com.sep490.ecoverse_be.model.UserPrincipal;
 import com.sep490.ecoverse_be.repository.*;
 import com.sep490.ecoverse_be.service.IRewardRequestService;
+import com.sep490.ecoverse_be.service.RewardStatusLogService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
@@ -24,7 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -59,6 +64,9 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
     @Autowired
     private ApplicationEventPublisher eventPublisher;
 
+    @Autowired
+    private RewardStatusLogService rewardStatusLogService;
+
     private User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return ((UserPrincipal) auth.getPrincipal()).getUser();
@@ -66,6 +74,28 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
 
     private String generateRequestCode() {
         return "RR-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+    }
+
+    private String getDisplayName(User user) {
+        if (user == null) return null;
+        if (user.getUsername() != null && !user.getUsername().isBlank()) return user.getUsername();
+        return user.getEmail();
+    }
+
+    private void addTimelineIfPresent(List<RewardRequestTrackingItemResponse> timeline,
+                                      RewardRequestStatus status,
+                                      OffsetDateTime actionAt,
+                                      UUID actorId,
+                                      String actorName,
+                                      String reason) {
+        if (actionAt == null) return;
+        timeline.add(RewardRequestTrackingItemResponse.builder()
+                .status(status)
+                .actionAt(actionAt)
+                .actorId(actorId)
+                .actorName(actorName)
+                .reason(reason)
+                .build());
     }
 
     private RewardRequestResponse mapToResponse(RewardRequest r) {
@@ -85,6 +115,8 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
                 .status(r.getStatus())
                 .rejectedReason(r.getRejectedReason())
                 .cancelledReason(r.getCancelledReason())
+                .cancelledById(r.getCancelledBy() != null ? r.getCancelledBy().getId() : null)
+                .cancelledByName(r.getCancelledBy() != null ? getDisplayName(r.getCancelledBy()) : null)
                 .notes(r.getNotes())
                 .deliveryImageUrl(r.getDeliveryImageUrl())
                 .deliveryImagePresignedUrl(r.getDeliveryImageUrl() != null
@@ -97,6 +129,98 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
                 .cancelledAt(r.getCancelledAt())
                 .createdAt(r.getCreatedAt())
                 .updatedAt(r.getUpdatedAt())
+                .build();
+    }
+
+    @Override
+    public RewardRequestTrackingResponse getRequestTracking(UUID requestId) {
+        User currentUser = getCurrentUser();
+        RewardRequest request;
+
+        if (currentUser.getRole() == Role.STUDENT) {
+            Student student = studentRepository.findByUserId(currentUser.getId())
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy học sinh"));
+            request = rewardRequestRepository.findByIdAndStudentId(requestId, student.getId())
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu đổi quà"));
+        } else if (currentUser.getRole() == Role.PARENT) {
+            Parent parent = parentRepository.findByUserId(currentUser.getId())
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy phụ huynh"));
+            request = studentParentLinkRepository.findByParentId(parent.getId()).stream()
+                    .flatMap(link -> rewardRequestRepository
+                            .findByIdAndStudentId(requestId, link.getStudent().getId()).stream())
+                    .findFirst()
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu đổi quà"));
+        } else if (currentUser.getRole() == Role.PARTNERSHIP_SCHOOL) {
+            School school = schoolRepository.findByUserId(currentUser.getId())
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
+            request = rewardRequestRepository.findByIdAndSchoolId(requestId, school.getId())
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu đổi quà"));
+        } else {
+            throw new BadRequestException("Role hiện tại không được phép xem timeline yêu cầu đổi quà");
+        }
+
+        List<RewardRequestTrackingItemResponse> timeline = new ArrayList<>();
+
+        UUID createdActorId = request.getRequestedByParent() != null
+                ? request.getRequestedByParent().getUser().getId()
+                : request.getStudent().getUser().getId();
+        String createdActorName = request.getRequestedByParent() != null
+                ? request.getRequestedByParent().getFullName()
+                : request.getStudent().getFullName();
+
+        addTimelineIfPresent(timeline, RewardRequestStatus.PENDING, request.getCreatedAt(), createdActorId, createdActorName, null);
+        addTimelineIfPresent(
+                timeline,
+                RewardRequestStatus.APPROVED,
+                request.getApprovedAt(),
+                request.getApprovedBy() != null ? request.getApprovedBy().getId() : null,
+                request.getApprovedBy() != null ? getDisplayName(request.getApprovedBy()) : null,
+                null
+        );
+        addTimelineIfPresent(
+                timeline,
+                RewardRequestStatus.REJECTED,
+                request.getRejectedAt(),
+                request.getApprovedBy() != null ? request.getApprovedBy().getId() : null,
+                request.getApprovedBy() != null ? getDisplayName(request.getApprovedBy()) : null,
+                request.getRejectedReason()
+        );
+        addTimelineIfPresent(
+                timeline,
+                RewardRequestStatus.DELIVERED,
+                request.getDeliveredAt(),
+                request.getSchool() != null ? request.getSchool().getUser().getId() : null,
+                request.getSchool() != null ? request.getSchool().getSchoolName() : null,
+                null
+        );
+        addTimelineIfPresent(
+                timeline,
+                RewardRequestStatus.CONFIRMED,
+                request.getConfirmedAt(),
+                request.getConfirmedByParent() != null ? request.getConfirmedByParent().getUser().getId() : null,
+                request.getConfirmedByParent() != null ? request.getConfirmedByParent().getFullName() : "SYSTEM",
+                null
+        );
+        addTimelineIfPresent(
+                timeline,
+                RewardRequestStatus.CANCELLED,
+                request.getCancelledAt(),
+                request.getCancelledBy() != null ? request.getCancelledBy().getId() : null,
+                request.getCancelledBy() != null ? getDisplayName(request.getCancelledBy()) : null,
+                request.getCancelledReason()
+        );
+
+        timeline.sort(Comparator.comparing(RewardRequestTrackingItemResponse::getActionAt));
+
+        return RewardRequestTrackingResponse.builder()
+                .requestId(request.getId())
+                .requestCode(request.getRequestCode())
+                .studentId(request.getStudent().getId())
+                .studentName(request.getStudent().getFullName())
+                .rewardId(request.getReward().getId())
+                .rewardName(request.getReward().getRewardName())
+                .currentStatus(request.getStatus())
+                .timeline(timeline)
                 .build();
     }
 
@@ -214,6 +338,13 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
         saved.setUpdatedAt(OffsetDateTime.now());
         saved = rewardRequestRepository.save(saved);
 
+        // Log trang thai: null -> PENDING
+        rewardStatusLogService.logTransition(
+                RewardLogTopic.SCHOOL_REWARD, saved.getId(),
+                null, RewardRequestStatus.PENDING.name(),
+                currentUser, getDisplayName(currentUser), currentUser.getRole().name(),
+                null, "Tạo yêu cầu đổi quà: " + reward.getRewardName() + " (x" + dto.getQuantity() + ")");
+
         deductCoins(student, totalCost, saved.getId(),
                 "Đổi quà: " + reward.getRewardName() + " (x" + dto.getQuantity() + ") - " + saved.getRequestCode(), currentUser);
 
@@ -296,8 +427,16 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
         request.setStatus(RewardRequestStatus.CANCELLED);
         request.setCancelledAt(OffsetDateTime.now());
         request.setCancelledReason(dto.getReason());
+        request.setCancelledBy(currentUser);
         request.setUpdatedAt(OffsetDateTime.now());
         rewardRequestRepository.save(request);
+
+        // Log trang thai: PENDING -> CANCELLED
+        rewardStatusLogService.logTransition(
+                RewardLogTopic.SCHOOL_REWARD, request.getId(),
+                RewardRequestStatus.PENDING.name(), RewardRequestStatus.CANCELLED.name(),
+                currentUser, getDisplayName(currentUser), currentUser.getRole().name(),
+                dto.getReason(), null);
 
         refundCoins(request.getStudent(), request.getTotalCoins(), request.getId(),
                 "Hoàn coin hủy đổi quà: " + request.getReward().getRewardName() + " - " + request.getRequestCode(), currentUser);
@@ -355,6 +494,14 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
 
         request.setApprovedBy(currentUser);
         rewardRequestRepository.save(request);
+
+        // Log trang thai: PENDING -> APPROVED hoac REJECTED
+        String toStatus = dto.isApproved() ? RewardRequestStatus.APPROVED.name() : RewardRequestStatus.REJECTED.name();
+        rewardStatusLogService.logTransition(
+                RewardLogTopic.SCHOOL_REWARD, request.getId(),
+                RewardRequestStatus.PENDING.name(), toStatus,
+                currentUser, getDisplayName(currentUser), currentUser.getRole().name(),
+                dto.isApproved() ? null : dto.getReason(), null);
 
         User studentUser = request.getStudent().getUser();
         // Lay parent cua hoc sinh (neu co) de gui them thong bao
@@ -439,6 +586,13 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
         request.setUpdatedAt(OffsetDateTime.now());
         rewardRequestRepository.save(request);
 
+        // Log trang thai: APPROVED -> DELIVERED
+        rewardStatusLogService.logTransition(
+                RewardLogTopic.SCHOOL_REWARD, request.getId(),
+                RewardRequestStatus.APPROVED.name(), RewardRequestStatus.DELIVERED.name(),
+                currentUser, getDisplayName(currentUser), currentUser.getRole().name(),
+                null, null);
+
         // Thong bao phu huynh: qua san sang giao, phu huynh can xac nhan
         List<StudentParentLink> parentLinks = studentParentLinkRepository.findByStudentId(request.getStudent().getId());
         for (StudentParentLink link : parentLinks) {
@@ -481,6 +635,21 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
         request.setUpdatedAt(OffsetDateTime.now());
         request.setConfirmedByParent(parent);
         rewardRequestRepository.save(request);
+
+        // Log trang thai: DELIVERED -> CONFIRMED
+        rewardStatusLogService.logTransition(
+                RewardLogTopic.SCHOOL_REWARD, request.getId(),
+                RewardRequestStatus.DELIVERED.name(), RewardRequestStatus.CONFIRMED.name(),
+                currentUser, parent.getFullName(), currentUser.getRole().name(),
+                null, null);
         return mapToResponse(request);
+    }
+
+    @Override
+    public UUID getCurrentSchoolId() {
+        User currentUser = getCurrentUser();
+        School school = schoolRepository.findByUserId(currentUser.getId())
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy trường học"));
+        return school.getId();
     }
 }

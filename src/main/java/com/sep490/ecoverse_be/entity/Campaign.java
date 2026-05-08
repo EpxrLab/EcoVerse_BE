@@ -12,7 +12,6 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
 @Entity
@@ -74,6 +73,8 @@ public class Campaign extends BaseEntity {
     private PartnershipCampaignStatus partnershipStatus = PartnershipCampaignStatus.DRAFT;
 
     private Integer maxStudentsPerSchool;
+
+    private Integer minStudentsPerSchool;
 
     private Integer totalStudentQuota;
 

@@ -17,4 +17,7 @@ public class StudentInformationRequest {
     private LocalDate dateOfBirth;
     private String gender;
     private String address;
+    private String parentFullName;
+    private String parentEmail;
+    private String parentPhoneNumber;
 }

@@ -7,7 +7,6 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Getter
@@ -36,6 +35,9 @@ public class CampaignRewardDeliveryResponse {
     // School info
     private UUID schoolId;
     private String schoolName;
+    private String schoolAddress;
+    private String schoolWard;
+    private String schoolProvince;
 
     // Ranking & score
     private Integer leaderboardRank;

@@ -9,7 +9,6 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
 
 @Entity
 @Table(name = "reward_requests", indexes = {
@@ -76,6 +75,10 @@ public class RewardRequest extends BaseEntity {
 
     @Column(columnDefinition = "text")
     private String cancelledReason;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cancelled_by")
+    private User cancelledBy;
 
     @Column(columnDefinition = "text")
     private String notes;

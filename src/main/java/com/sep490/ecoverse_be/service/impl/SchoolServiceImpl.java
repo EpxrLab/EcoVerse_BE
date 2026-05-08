@@ -37,7 +37,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -199,6 +198,24 @@ public class SchoolServiceImpl implements ISchoolService {
         if (request.getDateOfBirth() != null) {
             student.setDateOfBirth(request.getDateOfBirth());
         }
+
+        if (request.getParentFullName() != null || request.getParentEmail() != null || request.getParentPhoneNumber() != null) {
+            studentParentLinkRepository.findFirstByStudentId(studentId).ifPresent(link -> {
+                Parent parent = link.getParent();
+                if (request.getParentFullName() != null) {
+                    parent.setFullName(request.getParentFullName());
+                }
+                if (request.getParentPhoneNumber() != null) {
+                    parent.setPhoneNumber(request.getParentPhoneNumber());
+                }
+                if (request.getParentEmail() != null) {
+                    parent.getUser().setEmail(request.getParentEmail());
+                    userRepository.save(parent.getUser());
+                }
+                parentRepository.save(parent);
+            });
+        }
+
         student.setUpdatedAt(OffsetDateTime.now());
         Student updateStudent = studentRepository.save(student);
         return profileService.buildStudentProfileResponse(updateStudent);

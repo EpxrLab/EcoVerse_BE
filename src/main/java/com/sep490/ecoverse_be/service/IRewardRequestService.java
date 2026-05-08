@@ -4,6 +4,7 @@ import com.sep490.ecoverse_be.dto.request.CancelRewardRequestDto;
 import com.sep490.ecoverse_be.dto.request.CreateRewardRequestDto;
 import com.sep490.ecoverse_be.dto.request.RejectRewardRequestDto;
 import com.sep490.ecoverse_be.dto.response.RewardRequestResponse;
+import com.sep490.ecoverse_be.dto.response.RewardRequestTrackingResponse;
 import com.sep490.ecoverse_be.enums.RewardRequestStatus;
 
 import java.util.List;
@@ -24,4 +25,8 @@ public interface IRewardRequestService {
     RewardRequestResponse markDelivered(UUID requestId, String imageUrl);
 
     RewardRequestResponse confirmReceived(UUID requestId);
+
+    RewardRequestTrackingResponse getRequestTracking(UUID requestId);
+
+    UUID getCurrentSchoolId();
 }

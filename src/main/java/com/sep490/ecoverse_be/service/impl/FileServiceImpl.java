@@ -5,7 +5,9 @@ import com.sep490.ecoverse_be.dto.response.PageResponse;
 import com.sep490.ecoverse_be.dto.response.StorageResponse;
 import com.sep490.ecoverse_be.entity.FileEntity;
 import com.sep490.ecoverse_be.entity.User;
+import com.sep490.ecoverse_be.enums.EmbeddingStatus;
 import com.sep490.ecoverse_be.enums.FileCategory;
+import com.sep490.ecoverse_be.event.DocumentUploadedEvent;
 import com.sep490.ecoverse_be.exception.FuncErrorException;
 import com.sep490.ecoverse_be.exception.ResourceNotFoundException;
 import com.sep490.ecoverse_be.mapper.FileMapper;
@@ -15,6 +17,7 @@ import com.sep490.ecoverse_be.service.IFileService;
 import com.sep490.ecoverse_be.service.IStorageService;
 import com.sep490.ecoverse_be.util.FileUpLoadUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -32,6 +35,8 @@ public class FileServiceImpl implements IFileService {
     private final IStorageService storageService;
     private final FileMapper fileMapper;
     private final S3PresignedUrlService s3PresignedUrlService;
+    private final ApplicationEventPublisher eventPublisher;
+    private final QdrantVectorStoreService qdrantVectorStoreService;
 
     @Override
     @Transactional
@@ -73,7 +78,11 @@ public class FileServiceImpl implements IFileService {
         String fileName = FileUpLoadUtil.getFileName(file.getOriginalFilename());
         StorageResponse response = storageService.uploadDocumentFile(file, fileName);
         enrichPresignedUrl(response);
-        saveFileEntity(file, response, userId, FileCategory.DOCUMENT);
+        FileEntity savedFile = saveFileEntity(file, response, userId, FileCategory.DOCUMENT);
+
+        // Publish event để auto-embed document vào Qdrant (async)
+        eventPublisher.publishEvent(new DocumentUploadedEvent(this, savedFile.getId()));
+
         return response;
     }
 
@@ -82,7 +91,7 @@ public class FileServiceImpl implements IFileService {
         response.setPresignedUrl(presignedUrl);
     }
 
-    private void saveFileEntity(MultipartFile file, StorageResponse response,
+    private FileEntity saveFileEntity(MultipartFile file, StorageResponse response,
                                 UUID userId, FileCategory category) {
         User user = null;
         if (userId != null) {
@@ -98,7 +107,13 @@ public class FileServiceImpl implements IFileService {
         fileEntity.setFileSize(file.getSize());
         fileEntity.setUploadedBy(user);
         fileEntity.setCategory(category);
-        fileRepository.save(fileEntity);
+
+        // Đánh dấu PENDING embedding cho document files
+        if (category == FileCategory.DOCUMENT) {
+            fileEntity.setEmbeddingStatus(EmbeddingStatus.PENDING);
+        }
+
+        return fileRepository.save(fileEntity);
     }
 
     @Override
@@ -174,7 +189,14 @@ public class FileServiceImpl implements IFileService {
             }
         }
 
+        // Xóa vectors trong Qdrant nếu file là DOCUMENT đã được embed
+        if (file.getCategory() == FileCategory.DOCUMENT
+                && file.getEmbeddingStatus() == EmbeddingStatus.COMPLETED) {
+            qdrantVectorStoreService.deleteByFileId(fileId);
+        }
+
         storageService.deleteFile(file.getPublicId());
         fileRepository.delete(file);
     }
 }
+

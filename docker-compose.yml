@@ -13,6 +13,8 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+      QDRANT_HOST: qdrant
+      QDRANT_GRPC_PORT: 6334
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       AWS_ACCESS_KEY: ${AWS_ACCESS_KEY}
       AWS_SECRET_KEY: ${AWS_SECRET_KEY}
@@ -33,6 +35,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      qdrant:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -75,9 +79,27 @@ services:
     networks:
       - ecoverse-network
 
+  qdrant:
+    image: qdrant/qdrant:v1.13.6
+    container_name: ecoverse-qdrant
+    ports:
+      - "6333:6333"   # REST API
+      - "6334:6334"   # gRPC API
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - ecoverse-network
+
 volumes:
   postgres_data:
   redis_data:
+  qdrant_data:
 
 networks:
   ecoverse-network:
