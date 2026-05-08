@@ -545,6 +545,8 @@ public class CampaignServiceImpl implements ICampaignService {
                                         .isPassed(isPassed)
                                         .maxAttempts(rq.getMaxAttempts())
                                         .isRequired(rq.isRequired())
+                                        .coinsOnPass(campaign.getCampaignType() != CampaignType.PARTNERSHIP_EVENT
+                                                ? rq.getQuiz().getCoinsOnPass() : null)
                                         .build();
                             })
                             .toList();
@@ -2027,6 +2029,8 @@ public class CampaignServiceImpl implements ICampaignService {
                             .isPassed(isPassed)
                             .maxAttempts(rq.getMaxAttempts())
                             .isRequired(rq.isRequired())
+                            .coinsOnPass(campaign.getCampaignType() != CampaignType.PARTNERSHIP_EVENT
+                                    ? rq.getQuiz().getCoinsOnPass() : null)
                             .build();
                 })
                 .toList();
