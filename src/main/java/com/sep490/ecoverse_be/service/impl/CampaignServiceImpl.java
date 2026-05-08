@@ -2635,6 +2635,9 @@ public class CampaignServiceImpl implements ICampaignService {
                 .map(gs -> StudentGameSessionSummaryResponse.builder()
                         .sessionId(gs.getId())
                         .presetId(gs.getGameLevelPreset() != null ? gs.getGameLevelPreset().getId() : null)
+                        .presetName(gs.getGameLevelPreset() != null
+                                ? gs.getGameLevelPreset().getGameType().getName() + " - " + gs.getGameLevelPreset().getDifficulty()
+                                : null)
                         .currentLevel(gs.getCurrentLevel())
                         .totalItems(gs.getTotalItems())
                         .correctItems(gs.getCorrectItems())
@@ -2746,6 +2749,9 @@ public class CampaignServiceImpl implements ICampaignService {
                             .map(gs -> StudentGameSessionSummaryResponse.builder()
                                     .sessionId(gs.getId())
                                     .presetId(gs.getGameLevelPreset() != null ? gs.getGameLevelPreset().getId() : null)
+                                    .presetName(gs.getGameLevelPreset() != null
+                                            ? gs.getGameLevelPreset().getGameType().getName() + " - " + gs.getGameLevelPreset().getDifficulty()
+                                            : null)
                                     .currentLevel(gs.getCurrentLevel())
                                     .totalItems(gs.getTotalItems())
                                     .correctItems(gs.getCorrectItems())

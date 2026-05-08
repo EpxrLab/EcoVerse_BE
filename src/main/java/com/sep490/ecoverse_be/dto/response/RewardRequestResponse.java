@@ -22,6 +22,9 @@ public class RewardRequestResponse {
     private String studentName;
     private String studentCode;
 
+    private UUID schoolId;
+    private String schoolName;
+
     private UUID rewardId;
     private String rewardName;
     private RewardType rewardType;
