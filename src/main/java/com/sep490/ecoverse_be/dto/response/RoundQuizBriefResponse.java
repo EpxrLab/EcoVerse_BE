@@ -14,6 +14,7 @@ public record RoundQuizBriefResponse(
         int attemptsUsed,
         boolean isPassed,
         int maxAttempts,
-        boolean isRequired
+        boolean isRequired,
+        Integer coinsOnPass
 ) {
 }
