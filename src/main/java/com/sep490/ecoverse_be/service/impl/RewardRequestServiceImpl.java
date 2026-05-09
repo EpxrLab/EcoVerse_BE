@@ -105,6 +105,8 @@ public class RewardRequestServiceImpl implements IRewardRequestService {
                 .studentId(r.getStudent().getId())
                 .studentName(r.getStudent().getFullName())
                 .studentCode(r.getStudent().getStudentCode())
+                .schoolId(r.getSchool() != null ? r.getSchool().getId() : null)
+                .schoolName(r.getSchool() != null ? r.getSchool().getSchoolName() : null)
                 .rewardId(r.getReward().getId())
                 .rewardName(r.getReward().getRewardName())
                 .rewardType(r.getReward().getRewardType())

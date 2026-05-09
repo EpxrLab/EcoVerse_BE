@@ -11,6 +11,7 @@ import java.util.UUID;
 public record StudentGameSessionSummaryResponse(
         UUID sessionId,
         UUID presetId,
+        String presetName,
         int currentLevel,
         Integer totalItems,
         Integer correctItems,

@@ -40,3 +40,5 @@ notification-ws-test.html
 # Claude Code temp files
 nul
 tmpclaude-*
+
+/scripts
