@@ -493,12 +493,12 @@ public class AdminServiceImpl implements IAdminService {
     public AdminCampaignAnalyticsResponse getCampaignAnalytics() {
         Map<String, Long> schoolStatus = new LinkedHashMap<>();
         for (SchoolCampaignStatus status : SchoolCampaignStatus.values()) {
-            schoolStatus.put(status.name(), campaignRepository.countBySchoolStatus(status));
+            schoolStatus.put(status.name(), campaignRepository.countSchoolCampaignByStatus(status));
         }
 
         Map<String, Long> partnershipStatus = new LinkedHashMap<>();
         for (PartnershipCampaignStatus status : PartnershipCampaignStatus.values()) {
-            partnershipStatus.put(status.name(), campaignRepository.countByPartnershipStatus(status));
+            partnershipStatus.put(status.name(), campaignRepository.countPartnershipCampaignByStatus(status));
         }
 
         return AdminCampaignAnalyticsResponse.builder()

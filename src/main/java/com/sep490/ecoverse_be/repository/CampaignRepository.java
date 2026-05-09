@@ -25,6 +25,12 @@ public interface CampaignRepository extends JpaRepository<Campaign, UUID> {
 
     long countByPartnershipStatus(PartnershipCampaignStatus status);
 
+    @Query("SELECT COUNT(c) FROM Campaign c WHERE c.campaignType IN ('SCHOOL_INTERNAL', 'INTER_SCHOOL') AND c.schoolStatus = :status")
+    long countSchoolCampaignByStatus(@Param("status") SchoolCampaignStatus status);
+
+    @Query("SELECT COUNT(c) FROM Campaign c WHERE c.campaignType = 'PARTNERSHIP_EVENT' AND c.partnershipStatus = :status")
+    long countPartnershipCampaignByStatus(@Param("status") PartnershipCampaignStatus status);
+
     // Scheduler: SCHEDULED → INVITING khi đến invitationDate
     @Query("SELECT c FROM Campaign c WHERE c.campaignType = 'SCHOOL_INTERNAL' AND c.schoolStatus = 'SCHEDULED' AND c.invitationDate IS NOT NULL AND c.invitationDate <= :now AND c.isActive = true")
     List<Campaign> findSchoolCampaignsReadyForInviting(@Param("now") OffsetDateTime now);
